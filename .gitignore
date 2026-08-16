@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Datasets - large, re-downloadable, never commit
+data/
+
+# Vivado / Vitis build junk
+*.jou
+*.log
+.Xil/
+vivado*.str
+*.cache/
+*.hw/
+*.runs/
+*.sim/
+*.gen/
+*.ip_user_files/
+
+# Simulation output
+sim/work/
+*.vcd
+*.vvp
+obj_dir/
+
+# Trained weights and traces are regenerable; keep the small ones by hand
+train/checkpoints/
