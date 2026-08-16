@@ -36,7 +36,8 @@ and `docs/decisions.md` for the running log of design decisions.
 - [x] **M0** repo skeleton + single-neuron golden model cross-check
 - [x] **M0** N-MNIST loading, input sparsity measured (16.83% non-zero)
 - [x] **M0** network defined, resource budget reconciled against the project brief
-- [ ] **M0** train it, log per-layer firing rates every epoch, plot them
+- [x] **M0** trained on N-MNIST (96.9-97.6%); per-layer rates logged and
+      plotted. Conv layers fire at 6-11%, FC at 30%.
 - [ ] **M1** golden model — 8-bit weights, fixed-point membrane, spike traces
 - [ ] **M2** one LIF neuron in HDL, bit-identical in simulation
 - [ ] **M3** one dense conv layer

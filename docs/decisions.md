@@ -291,3 +291,12 @@ Three observations that shape the hardware milestones:
    not needed just to keep the network sane.
 3. **Rates are stable across seeds and encodings**, so a single training run is
    a fair basis for hardware sizing.
+
+### D0003 verdict: binarise
+
+Chosen 2026-08-15, after measurement. The 0.65 pp accuracy cost is accepted in
+exchange for keeping every event in the event-driven datapath payload-free (an
+address and nothing else) and the input layer identical in kind to every other
+layer. The cost is measured across 4 seeds and reportable as such in the
+methodology. Binarised input is now the project default; `--counts` remains in
+train/03_train.py for reproducing the comparison.
