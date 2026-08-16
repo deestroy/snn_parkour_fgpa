@@ -251,3 +251,43 @@ linear in that scale. Two consequences:
 **Guard:** `train/02_model_check.py` now fails if any layer emits zero spikes,
 so this failure mode is caught in seconds rather than after a training run that
 goes nowhere. Verified: the check fails at gain 1.0 and passes at gain 4.0.
+
+### D0003 measurement (2026-08-15, MI210, 10 epochs, 4 seeds per arm)
+
+```
+                     final test accuracy            mean
+binarised (1-bit)    96.81  96.95  97.25  96.70    96.93%
+counts (4-bit in)    97.85  97.50  97.66  97.30    97.58%
+```
+
+Every counts run beats every binarised run: the gap is real, ~0.65 pp, and not
+seed noise. Per-layer firing rates were essentially identical between arms
+(c1 ~6.5%, c2 ~8%, c3 ~10%, fc ~30%), so the encoding choice does not move the
+thesis's independent variable — it only trades accuracy against input-layer
+hardware complexity. The decision is therefore: is 0.65 pp on N-MNIST worth
+carrying a 4-bit payload per input event through the event-driven datapath?
+
+---
+
+## D0006 — M0 result: trained per-layer firing rates
+
+**Date:** 2026-08-15 · **Status:** measurement, recorded
+
+10 epochs on N-MNIST, MI210, T=4, binarised arm, final epoch:
+
+```
+c1    6.8%   c2    7.6%   c3   10.5%   fc   30.1%
+```
+
+Three observations that shape the hardware milestones:
+
+1. **Conv layers are sparse (6-11%), the FC layer is not (30%).** The FC layer
+   also holds 81% of the weights (D0004). The event-driven design's worst layer
+   is therefore also its biggest layer. This combination decides M6's fate and
+   must drive the M6 design discussion.
+2. **Rates drifted down over training** (fc 34%->30%), not up. The runaway-rate
+   worry from the synthetic smoke test did not materialise on real data at
+   these settings; a rate regulariser is still expected for M7's sweep, but is
+   not needed just to keep the network sane.
+3. **Rates are stable across seeds and encodings**, so a single training run is
+   a fair basis for hardware sizing.
