@@ -499,3 +499,30 @@ per neuron vs ~19). A prefetch pipeline can reclaim most of that; it must
 land, re-verified, before M5 records latency numbers, so the dense baseline
 isn't measured at an artificial handicap. Left simple for now on purpose:
 Stage B bring-up debugging wants the simplest correct FSM.
+
+---
+
+## M4 Stage B RTL complete (2026-08-16)
+
+hdl/dense/axis_conv.v wraps the dense engine in the DMA's stream protocol:
+73 words in, engine timestep, 145 words out, per timestep; tlast on the final
+word of the sample; spike maps streamed after EVERY timestep so hardware
+verification keeps golden-model granularity. LSB-first bit packing, defined
+in one comment block that exporter, wrapper and host must all cite.
+
+Verified against golden word streams under a hostile handshake (random tvalid
+gaps, random tready backpressure, 3 seeds): 9,280 output words bit-identical,
+tlast correct on all 16 samples.
+
+Two lessons paid for during bring-up of the bench itself:
+- Sample AXI handshakes at the negedge, when signals are stable. Post-edge
+  sampling silently dropped ~30% of delivered words and produced a drifting
+  mismatch pattern that looked like a DUT bug and wasn't.
+- A registered address register in front of a registered read port is TWO
+  cycles of latency, not one; the wrapper drives the engine's read address
+  combinationally from its bit counter for exactly this reason.
+
+Remaining M4 work when the board arrives: loopback PASS (Stage A), then
+rebuild the overlay with axis_conv + conv engine + weight hex as sources,
+and host/conv_test.py comparing board output to golden. Simulation only
+until then.
