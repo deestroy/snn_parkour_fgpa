@@ -44,7 +44,8 @@ and `docs/decisions.md` for the running log of design decisions.
 - [x] **M2** one LIF neuron in Verilog, bit-identical to the golden model in
       simulation (4,060 checks, 0 mismatches; `bash sim/run_lif_tb.sh`).
       Simulation only — not yet synthesised.
-- [ ] **M3** one dense conv layer
+- [x] **M3** dense conv engine, bit-identical on c1/c2/c3 (1.13M comparisons,
+      0 mismatches; `bash sim/run_conv_tb.sh c1 c2 c3`). Simulation only.
 - [ ] **M4** PYNQ overlay, AXI DMA
 - [ ] **M5** power measurement rig — first thesis result
 - [ ] **M6** event-driven datapath
