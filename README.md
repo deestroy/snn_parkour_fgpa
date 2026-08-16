@@ -41,7 +41,9 @@ and `docs/decisions.md` for the running log of design decisions.
 - [x] **M1** golden model: all-integer network at 96.75% vs 96.60% float
       (−0.15 pp); membranes fit int16 with 3 bits headroom; HDL reference
       traces emitted by `train/06_golden_check.py`
-- [ ] **M2** one LIF neuron in HDL, bit-identical in simulation
+- [x] **M2** one LIF neuron in Verilog, bit-identical to the golden model in
+      simulation (4,060 checks, 0 mismatches; `bash sim/run_lif_tb.sh`).
+      Simulation only — not yet synthesised.
 - [ ] **M3** one dense conv layer
 - [ ] **M4** PYNQ overlay, AXI DMA
 - [ ] **M5** power measurement rig — first thesis result
