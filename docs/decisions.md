@@ -449,3 +449,40 @@ recommendation once the toolchain was real:
 Cost accepted: more code, written by a beginner. Mitigation: the dense engine
 is structurally simple (nested counters, one adder, two BRAMs, the verified
 LIF update), and every piece lands only after passing the golden traces.
+
+---
+
+## D0012 — M3 memory style: combinational reads, deferred BRAM discipline
+
+**Date:** 2026-08-16 · **Status:** DECIDED, revisit at M4
+
+The dense engine reads its weight ROM, input buffer and membrane RAM
+combinationally and loads weights with $readmemh. Correct in simulation and
+keeps the FSM one state simpler while the datapath is being proven. Block RAM
+inference in synthesis, however, wants registered (1-cycle) reads — so M4
+must add a registered-read pass, re-verified against this same testbench
+before anything is synthesised. Synthesis happens in Vivado on the user's
+Windows VM (no Vivado exists on the dev Mac).
+
+---
+
+## M3 result (2026-08-16)
+
+The dense conv engine (hdl/dense/conv_layer.v) matches the golden model
+bit-for-bit on all three conv layers, 16 samples x 4 timesteps each, every
+output spike and every membrane word compared:
+
+```
+c1 (2->16,  34x34 -> 17x17):  591,872 comparisons, 0 mismatches
+c2 (16->32, 17x17 ->  9x9):   331,776 comparisons, 0 mismatches
+c3 (32->64,  9x9  ->  5x5):   204,800 comparisons, 0 mismatches
+```
+
+One engine, three geometries by parameter — the same source file serves all
+conv layers. It contains no multiplier: spike-gated weight adds for the
+convolution, the shared lif_update for the neuron.
+
+Testbench validated by fault injection: one flipped bit in one weight
+produces 5,148 mismatches; clean weights restore a clean pass.
+
+Status: simulation only. Registered-read pass and synthesis are M4 work.

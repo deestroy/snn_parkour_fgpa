@@ -29,3 +29,4 @@ train/checkpoints/
 
 # Smoke-test outputs (from --limit runs)
 experiments/*_smoke.*
+sim/vectors/
