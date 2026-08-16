@@ -427,3 +427,25 @@ count.
 
 Status per the project brief's honesty rule: verified in SIMULATION only. Never
 synthesised, never on hardware. M4 is where that changes.
+
+---
+
+## D0011 — Dense baseline in hand-written Verilog, not HLS
+
+**Date:** 2026-08-16 · **Status:** DECIDED — supersedes the project brief's original plan
+
+the project brief proposed Vitis HLS for the dense datapath. Two facts changed the
+recommendation once the toolchain was real:
+
+1. **Vitis HLS does not run on macOS.** The entire M2 discipline — edit,
+   simulate, compare to golden, in seconds, locally — would break; every
+   verification cycle would round-trip through the Vivado machine.
+2. **Comparison hygiene.** The thesis's headline plot compares dense vs
+   event-driven energy. If dense is tool-generated C++ and event-driven is
+   hand-written Verilog, a reviewer can attribute the gap to authorship or
+   tool quality. Same author, same language, same toolchain removes that
+   objection.
+
+Cost accepted: more code, written by a beginner. Mitigation: the dense engine
+is structurally simple (nested counters, one adder, two BRAMs, the verified
+LIF update), and every piece lands only after passing the golden traces.

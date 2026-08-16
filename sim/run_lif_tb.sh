@@ -16,7 +16,7 @@ for layer in c1 c2 c3 fc; do
 
     iverilog -g2012 -o "sim/work/tb_${layer}.vvp" \
         -Ptb_lif_neuron.THRESHOLD="$thr" \
-        hdl/common/lif_neuron.v sim/tb_lif_neuron.v
+        hdl/common/lif_update.v hdl/common/lif_neuron.v sim/tb_lif_neuron.v
 
     out=$(vvp "sim/work/tb_${layer}.vvp" +vec="$vec" +nvecs="$nvecs")
     echo "[$layer] $out"
