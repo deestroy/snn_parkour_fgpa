@@ -46,6 +46,28 @@ and `docs/decisions.md` for the running log of design decisions.
 - [ ] **M7** crossover experiment
 - [ ] **M8** robot (year two)
 
+## GPU training (gpu-host)
+
+An AMD Instinct MI210 is reachable at the `gpu-host` SSH host. Setup that
+already exists there — do not reinstall:
+
+- `~/esparkour_venv` — torch 2.10+rocm7.0 with the GPU working, plus snntorch.
+  This venv belongs to the parkour project; **never let pip touch its numpy**
+  (tonic would downgrade it, which is why tonic is not installed there).
+- `~/nmnist_prep_venv` — tonic only, used once to pack the dataset.
+- `~/snn_parkour_fpga` — rsync'd copy of this repo, packed dataset in
+  `data/packed/`.
+
+Sync and train:
+
+```
+rsync -az --exclude data --exclude .git --exclude __pycache__ --exclude 'experiments/*' ./ gpu-host:~/snn_parkour_fpga/
+```
+
+```
+ssh gpu-host 'cd ~/snn_parkour_fpga && ~/esparkour_venv/bin/python train/03_train.py --epochs 10'
+```
+
 ## Checks
 
 Every component ships with something that proves it works. Run them:
