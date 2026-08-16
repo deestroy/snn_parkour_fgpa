@@ -39,7 +39,10 @@ import snntorch as snn
 # on strict V > threshold. Passed explicitly everywhere so the choice is
 # visible in the code rather than inherited silently from a library default.
 RESET_DELAY = True
-BETA = 0.9
+# 0.875 = 1 - 2^-3, so the hardware leak is V - (V >> 3): shift and subtract,
+# no multiplier. Exactly representable in float32, so training sees the same
+# decay the chip applies. Chosen over 0.9 in docs/decisions.md D0007.
+BETA = 0.875
 THRESHOLD = 1.0
 T_DEFAULT = 4
 

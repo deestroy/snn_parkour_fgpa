@@ -26,3 +26,6 @@ obj_dir/
 
 # Trained weights and traces are regenerable; keep the small ones by hand
 train/checkpoints/
+
+# Smoke-test outputs (from --limit runs)
+experiments/*_smoke.*

@@ -300,3 +300,41 @@ address and nothing else) and the input layer identical in kind to every other
 layer. The cost is measured across 4 seeds and reportable as such in the
 methodology. Binarised input is now the project default; `--counts` remains in
 train/03_train.py for reproducing the comparison.
+
+---
+
+## D0007 — Leak becomes shift-based: β = 0.875
+
+**Date:** 2026-08-16 · **Status:** DECIDED
+
+The LIF leak `β·V` with β=0.9 would need a real multiply per neuron per
+timestep — 21,632 multiplies per timestep on the target network, in the most-
+executed operation on the chip. With β = 1 − 2⁻³ = 0.875 the leak is
+`V − (V >> 3)`: shift and subtract, no multiplier. Standard neuromorphic
+practice. Chosen with the proviso that a retrain at 0.875 must hold accuracy;
+measurement to be recorded below when the retrain lands.
+
+Note for the golden model: the integer form `V − (V >> 3)` truncates (shifts
+round toward −∞ for negative V), so it is not identical to float `0.875·V`
+rounded. The integer form is the definition; training in float at 0.875 is an
+approximation of it, and the M1 accuracy budget absorbs the difference.
+
+## D0008 — Weight scales restricted to powers of two
+
+**Date:** 2026-08-16 · **Status:** DECIDED
+
+Quantised weights are `w = int8 × 2^−k`, one k per layer. Rescaling between
+layers becomes a bit-shift instead of a fixed-point multiply, and the golden
+model becomes exact integer arithmetic with no rounding subtleties. Costs up to
+~2× coarser quantisation steps than an arbitrary float scale; the M1 accuracy
+check (~1% budget vs float) is the gate. Fallback if it fails: arbitrary float
+scale per layer, revisit this entry.
+
+### D0007 measurement (2026-08-16)
+
+Retrained at β=0.875, 10 epochs, 3 seeds: 96.60 / 97.27 / 97.22, mean
+**97.03%**, vs the β=0.9 baseline mean of 96.93% over 4 seeds. Same
+distribution — the shift-based leak costs nothing measurable. Decision stands.
+Checkpoints saved as train/checkpoints/m1_beta0875_seed{0,1,2}.pt; seed 0
+(96.60%) is the quantisation input so the accuracy budget is judged against
+the weakest of the three rather than a lucky seed.

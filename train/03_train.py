@@ -86,6 +86,10 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--device", default="auto",
                     help="cpu, cuda, or auto (cuda covers ROCm too)")
+    ap.add_argument("--beta", type=float, default=None,
+                    help="override the membrane decay (default: model.BETA)")
+    ap.add_argument("--save", default="",
+                    help="path to write a checkpoint of the final weights")
     args = ap.parse_args()
 
     if args.device == "auto":
@@ -93,6 +97,9 @@ def main() -> int:
 
     binarise = not args.counts
     tag = "binarised" if binarise else "counts"
+    if args.limit:
+        # A --limit run is a smoke test. Never let it overwrite real results.
+        tag += "_smoke"
     torch.manual_seed(args.seed)
 
     print("encoding : %s   (D0003)" % tag)
@@ -100,7 +107,9 @@ def main() -> int:
     train_loader, test_loader = build_loaders(batch_size=args.batch,
                                               limit=args.limit,
                                               workers=args.workers)
-    net = ConvSNN(in_shape=(2, 34, 34), n_classes=10,
+    from model import BETA
+    beta = args.beta if args.beta is not None else BETA
+    net = ConvSNN(in_shape=(2, 34, 34), n_classes=10, beta=beta,
                   n_steps=T_DEFAULT).to(args.device)
     optimiser = torch.optim.Adam(net.parameters(), lr=args.lr)
     print("device: %s   train batches: %d   test batches: %d\n"
@@ -148,6 +157,20 @@ def main() -> int:
     for k in LAYERS:
         print("  %-3s %6.2f%% of neurons fire per timestep" % (k, 100 * final[k]))
     print("\nfinal test accuracy: %.2f%%" % (100 * history[-1][1]))
+
+    if args.save:
+        # The config rides along with the weights so a checkpoint can never
+        # silently disagree with the code that loads it: the loader asserts
+        # against these values before using the state dict.
+        torch.save({
+            "state_dict": {k: v.cpu() for k, v in net.state_dict().items()},
+            "config": {"in_shape": (2, 34, 34), "n_classes": 10,
+                       "beta": beta, "n_steps": T_DEFAULT,
+                       "binarise": binarise, "seed": args.seed,
+                       "epochs": args.epochs},
+            "test_accuracy": history[-1][1],
+        }, args.save)
+        print("checkpoint -> %s" % args.save)
     print("\nThis is a measurement, not a target. Do not tune it.")
     return 0
 
