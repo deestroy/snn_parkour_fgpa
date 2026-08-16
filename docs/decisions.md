@@ -526,3 +526,27 @@ Remaining M4 work when the board arrives: loopback PASS (Stage A), then
 rebuild the overlay with axis_conv + conv engine + weight hex as sources,
 and host/conv_test.py comparing board output to golden. Simulation only
 until then.
+
+---
+
+## D0013 — FC layer: fold the pool into weight-shared spike addressing
+
+**Date:** 2026-08-16 · **Status:** DECIDED
+
+The obvious FC implementation materialises the 2x2 sum-pool (values 0..4)
+and multiplies by int8 weights — putting the datapath's first real multiplier
+into the layer that holds 81% of the weights. The algebra folds instead:
+W[n,j] * pooled[j] equals adding W[n,j] once per spike in pool window j, so
+the engine walks the raw c3 spike map with 4 positions sharing each weight.
+The pool never exists in hardware and the whole datapath stays
+multiplier-free. Cost: 4x the inner iterations (~262k cycles/timestep,
+same order as C1). Alternative recorded in case cycle budget ever tightens.
+
+Consequence for M6: the event-driven engine can scatter c3 spike ADDRESSES
+directly into FC weight lookups — no pool stage exists there either. One
+c3 spike touches 128 weights (its pool window's column), which sets the
+scatter fan-out for the M6 design discussion.
+
+**Verified:** hdl/dense/fc_layer.v, 16,384 comparisons (all 128 neurons'
+spikes + membranes, 16 samples x 4 timesteps) bit-identical to golden.
+Fault injection (one weight bit) fails 61 checks. Simulation only.
