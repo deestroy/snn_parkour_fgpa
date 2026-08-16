@@ -38,7 +38,9 @@ and `docs/decisions.md` for the running log of design decisions.
 - [x] **M0** network defined, resource budget reconciled against the project brief
 - [x] **M0** trained on N-MNIST (96.9-97.6%); per-layer rates logged and
       plotted. Conv layers fire at 6-11%, FC at 30%.
-- [ ] **M1** golden model — 8-bit weights, fixed-point membrane, spike traces
+- [x] **M1** golden model: all-integer network at 96.75% vs 96.60% float
+      (−0.15 pp); membranes fit int16 with 3 bits headroom; HDL reference
+      traces emitted by `train/06_golden_check.py`
 - [ ] **M2** one LIF neuron in HDL, bit-identical in simulation
 - [ ] **M3** one dense conv layer
 - [ ] **M4** PYNQ overlay, AXI DMA
