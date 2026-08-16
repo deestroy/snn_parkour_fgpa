@@ -338,3 +338,48 @@ distribution — the shift-based leak costs nothing measurable. Decision stands.
 Checkpoints saved as train/checkpoints/m1_beta0875_seed{0,1,2}.pt; seed 0
 (96.60%) is the quantisation input so the accuracy budget is judged against
 the weakest of the three rather than a lucky seed.
+
+---
+
+## D0009 — Correction: N-MNIST is class-ordered; early sparsity figures were digit-0 only
+
+**Date:** 2026-08-16 · **Status:** recorded
+
+The N-MNIST test split (and tonic's ordering generally) is sorted by class:
+the first 1000 samples are 980 zeros and 20 ones. Consequences:
+
+- The input-activity figure measured in M0 over "the first 64 samples"
+  (16.83%) was actually measured over digit 0 alone — the fattest digit.
+  Re-measured over a seeded random 2000-sample subset: **13.80% mean**
+  (per-digit range 7.9% for '1' to 16.9% for '0'). 13.80% supersedes 16.83%
+  everywhere.
+- Any `--limit N` evaluation on the packed arrays sees only the low digits
+  and is biased. Smoke tests may use limits; **reported numbers must come
+  from the full split.** The golden-model check learned this the hard way:
+  its first-1000 accuracy read 98.7% purely because 98% of those samples
+  were zeros.
+- Training is unaffected: the DataLoader shuffles.
+
+---
+
+## M1 result (2026-08-16)
+
+The all-integer golden model over the full N-MNIST test set:
+
+```
+float model (seed 0)     : 96.60%
+golden integer model     : 96.75%      drop: -0.15 pp (gate was ~1 pp)
+
+membrane ranges observed : c1 11 bits, c2 12, c3 13, fc 13  -> int16 holds
+                           with >= 3 bits of headroom everywhere
+```
+
+The quantisation stack — int8 weights at 2^-6, shift-based leak, integer
+thresholds 64/64/64/256, sum pooling — costs nothing measurable. Verification
+supporting the number: golden conv and pool match torch bit-for-bit on random
+integer inputs, and every reported figure is full-split (see D0009).
+
+M1 done-when is met: accuracy within 1%, and per-layer spike/membrane/current
+traces are emitted (golden/traces_m1.npz, regenerated exactly by
+`python3 train/06_golden_check.py`). These traces are the reference for every
+HDL testbench from M2 on.

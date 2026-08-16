@@ -34,7 +34,7 @@ and `docs/decisions.md` for the running log of design decisions.
 ## Progress
 
 - [x] **M0** repo skeleton + single-neuron golden model cross-check
-- [x] **M0** N-MNIST loading, input sparsity measured (16.83% non-zero)
+- [x] **M0** N-MNIST loading, input sparsity measured (13.8% non-zero over a random sample; see D0009)
 - [x] **M0** network defined, resource budget reconciled against the project brief
 - [x] **M0** trained on N-MNIST (96.9-97.6%); per-layer rates logged and
       plotted. Conv layers fire at 6-11%, FC at 30%.
