@@ -72,9 +72,13 @@ module fc_layer #(
     always @(posedge clk)
         if (in_we) in_mem[in_addr] <= in_data;
 
-    localparam S_IDLE = 0, S_CLEAR = 1, S_RD = 2, S_ADD = 3,
+    // Pipelined MAC loop, same shape as conv_layer: each S_MAC cycle issues
+    // the read for position (j,p) while consuming the one before; S_TAIL
+    // consumes the last. `prime` marks the no-consume first cycle.
+    localparam S_IDLE = 0, S_CLEAR = 1, S_MAC = 2, S_TAIL = 3,
                S_VRD = 4, S_UPDATE = 5;
     reg [2:0] state = S_IDLE;
+    reg prime;
 
     integer n, j, p, clr;
     reg signed [WIDTH-1:0] acc;
@@ -109,7 +113,8 @@ module fc_layer #(
                 clr <= 0; busy <= 1'b1; state <= S_CLEAR;
             end else if (start) begin
                 n <= 0; j <= 0; p <= 0;
-                acc <= 0; busy <= 1'b1; state <= S_RD;
+                acc <= 0; prime <= 1'b1;
+                busy <= 1'b1; state <= S_MAC;
             end
         end
 
@@ -120,20 +125,21 @@ module fc_layer #(
             else clr <= clr + 1;
         end
 
-        S_RD: begin
+        S_MAC: begin
             in_bit_r <= in_mem[(c*H_IN + y)*W_IN + x];
             w_r      <= wrom[n*N_POOL + j];
-            state    <= S_ADD;
-        end
-
-        S_ADD: begin
-            if (in_bit_r) acc <= acc + w_r;
-            state <= S_RD;
+            if (!prime && in_bit_r) acc <= acc + w_r;
+            prime <= 1'b0;
             if (p != 3) p <= p + 1;
             else begin p <= 0;
                 if (j != N_POOL-1) j <= j + 1;
-                else begin j <= 0; state <= S_VRD; end
+                else begin j <= 0; state <= S_TAIL; end
             end
+        end
+
+        S_TAIL: begin
+            if (in_bit_r) acc <= acc + w_r;
+            state <= S_VRD;
         end
 
         S_VRD: begin
@@ -145,7 +151,8 @@ module fc_layer #(
             vmem[n]    <= v_next;
             out_mem[n] <= spike_next;
             acc <= 0;
-            if (n != N_OUT-1) begin n <= n + 1; state <= S_RD; end
+            prime <= 1'b1;
+            if (n != N_OUT-1) begin n <= n + 1; state <= S_MAC; end
             else begin state <= S_IDLE; done <= 1'b1; end
         end
 

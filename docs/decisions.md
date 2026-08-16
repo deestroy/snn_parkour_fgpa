@@ -550,3 +550,10 @@ scatter fan-out for the M6 design discussion.
 **Verified:** hdl/dense/fc_layer.v, 16,384 comparisons (all 128 neurons'
 spikes + membranes, 16 samples x 4 timesteps) bit-identical to golden.
 Fault injection (one weight bit) fails 61 checks. Simulation only.
+
+### D0012 debt paid: pipelined reads (2026-08-16)
+
+Both dense engines now issue the next read while consuming the previous one
+(S_MAC), with a prologue flag and a tail state. ~21 cycles/neuron for conv
+(was 38), ~1027 for FC (was 2050). Full regression bit-identical: conv
+1.13M checks, fc 16,384, AXIS wrapper 9,280 words, M2 suite 4,060.

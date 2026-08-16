@@ -81,14 +81,16 @@ module conv_layer #(
         if (in_we) in_mem[in_addr] <= in_data;
 
     // --- FSM --------------------------------------------------------------
-    // Every internal memory access is likewise split across two states:
-    // S_RD latches the input bit and weight, S_ADD consumes them; S_VRD
-    // latches the membrane, S_UPDATE consumes it. Costs ~2x the cycles of
-    // the combinational version (see D0012 for the pipelining option, to be
-    // taken before M5's latency numbers are recorded) but maps onto BRAM.
-    localparam S_IDLE = 0, S_CLEAR = 1, S_RD = 2, S_ADD = 3,
+    // Reads are registered (BRAM-style) AND pipelined: in S_MAC each cycle
+    // issues the read for the current kernel position while accumulating the
+    // one issued the cycle before. One prologue cycle per neuron (first
+    // issue, nothing to consume yet, flagged by `prime`) and one epilogue
+    // (S_TAIL consumes the final read). ~21 cycles/neuron vs 38 for the
+    // unpipelined version; same bit-exact behaviour, same testbench.
+    localparam S_IDLE = 0, S_CLEAR = 1, S_MAC = 2, S_TAIL = 3,
                S_VRD = 4, S_UPDATE = 5;
     reg [2:0] state = S_IDLE;
+    reg prime;  // first S_MAC cycle of a neuron: issue only, no consume
 
     // counters are 32-bit signed `integer`s for clarity; synthesis prunes
     integer oc, oy, ox;         // which output neuron
@@ -132,7 +134,8 @@ module conv_layer #(
             end else if (start) begin
                 oc <= 0; oy <= 0; ox <= 0;
                 ic <= 0; ky <= 0; kx <= 0;
-                acc <= 0; busy <= 1'b1; state <= S_RD;
+                acc <= 0; prime <= 1'b1;
+                busy <= 1'b1; state <= S_MAC;
             end
         end
 
@@ -143,23 +146,24 @@ module conv_layer #(
             else clr <= clr + 1;
         end
 
-        S_RD: begin  // issue the reads; data lands in *_r for S_ADD
+        S_MAC: begin  // issue read for position k, consume position k-1
             in_bit_r <= in_bounds ? in_mem[(ic*H_IN + iy)*W_IN + ix] : 1'b0;
             w_r      <= wrom[((oc*C_IN + ic)*3 + ky)*3 + kx];
-            state    <= S_ADD;
-        end
-
-        S_ADD: begin  // consume last cycle's read, advance the kernel walk
-            if (in_bit_r) acc <= acc + w_r;
-            state <= S_RD;
+            if (!prime && in_bit_r) acc <= acc + w_r;
+            prime <= 1'b0;
             if (kx != 2)      kx <= kx + 1;
             else begin kx <= 0;
                 if (ky != 2)  ky <= ky + 1;
                 else begin ky <= 0;
                     if (ic != C_IN-1) ic <= ic + 1;
-                    else begin ic <= 0; state <= S_VRD; end
+                    else begin ic <= 0; state <= S_TAIL; end
                 end
             end
+        end
+
+        S_TAIL: begin  // consume the final read of this neuron's window
+            if (in_bit_r) acc <= acc + w_r;
+            state <= S_VRD;
         end
 
         S_VRD: begin  // issue the membrane read for this neuron
@@ -171,6 +175,7 @@ module conv_layer #(
             vmem[neuron_addr]    <= v_next;
             out_mem[neuron_addr] <= spike_next;
             acc <= 0;
+            prime <= 1'b1;
             if (ox != W_OUT-1) ox <= ox + 1;
             else begin ox <= 0;
                 if (oy != H_OUT-1) oy <= oy + 1;
@@ -180,7 +185,7 @@ module conv_layer #(
                 end
             end
             if (!(ox == W_OUT-1 && oy == H_OUT-1 && oc == C_OUT-1))
-                state <= S_RD;
+                state <= S_MAC;
         end
 
         endcase
