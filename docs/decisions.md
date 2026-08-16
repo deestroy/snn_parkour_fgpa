@@ -383,3 +383,47 @@ M1 done-when is met: accuracy within 1%, and per-layer spike/membrane/current
 traces are emitted (golden/traces_m1.npz, regenerated exactly by
 `python3 train/06_golden_check.py`). These traces are the reference for every
 HDL testbench from M2 on.
+
+---
+
+## D0010 — HDL language and M2 neuron conventions
+
+**Date:** 2026-08-16 · **Status:** DECIDED
+
+**Verilog** (2001 subset), chosen over VHDL because both simulators already on
+the development machine (iverilog 12, verilator) support it well and support
+VHDL poorly or not at all, and PYNQ-community material is predominantly
+Verilog. Revisit only if the lab standardises otherwise.
+
+Conventions fixed in the M2 single-neuron module, to hold for every later one:
+
+- **16-bit signed datapath** for membrane and current. Justified by trace
+  measurement, not assumption: across all M1 traces, |I| <= 931 and
+  |V| <= 2245, against an int16 ceiling of 32767.
+- **Registered outputs.** Present I[n] with en=1; after the clock edge, v_out
+  and spike hold V[n] and s[n]. One cycle per timestep, outputs change
+  together.
+- **No saturation logic yet.** Observed ranges leave 3+ bits of headroom, and
+  the golden model (int32, no wrap) would flag any overflow as a mismatch in
+  simulation. Whether wider layers need saturating accumulators is an M3
+  decision, on M3's measured ranges.
+
+---
+
+## M2 result (2026-08-16)
+
+hdl/common/lif_neuron.v matches the golden model bit-for-bit in simulation:
+4,060 timestep checks across all four layers' traces (1,020 each for c1/c2/c3
+at threshold 64, 1,000 for FC at threshold 256), zero mismatches, spikes and
+membranes both compared with ===. Vectors are biased toward spiking neurons so
+the reset path is genuinely exercised (~60% of vectors contain spikes).
+
+The testbench itself was validated by fault injection: with LEAK_SHIFT
+deliberately wrong, it reports 537/1020 mismatches; restored, all pass.
+Lesson recorded on the way: iverilog's -P flag silently ignores overrides of
+nested (non-top-level) parameters — the first injection attempt "passed"
+because the bug was never applied. Fault injections must fail before they
+count.
+
+Status per the project brief's honesty rule: verified in SIMULATION only. Never
+synthesised, never on hardware. M4 is where that changes.
