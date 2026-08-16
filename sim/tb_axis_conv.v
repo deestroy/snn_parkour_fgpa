@@ -30,12 +30,12 @@ module tb_axis_conv;
     wire        m_tvalid, m_tlast;
     reg         m_tready = 0;
 
-    axis_conv #(
-        .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
-        .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
-        .T(T), .THRESHOLD(THRESHOLD), .WEIGHT_FILE(WEIGHT_FILE)
+    // Instantiate the SYNTHESIS top (active-low reset and all), not the
+    // inner module -- what gets synthesised is what got tested.
+    axis_conv_top #(
+        .WEIGHT_FILE(WEIGHT_FILE)
     ) dut (
-        .clk(clk), .rst(rst),
+        .aclk(clk), .aresetn(~rst),
         .s_axis_tdata(s_tdata), .s_axis_tvalid(s_tvalid),
         .s_axis_tready(s_tready), .s_axis_tlast(s_tlast),
         .m_axis_tdata(m_tdata), .m_axis_tvalid(m_tvalid),
