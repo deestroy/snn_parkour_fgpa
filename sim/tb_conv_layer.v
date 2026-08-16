@@ -97,9 +97,12 @@ module tb_conv_layer;
                 // compare every neuron's spike and membrane
                 base = (s*T + t)*NEURONS;
                 for (i = 0; i < NEURONS; i = i + 1) begin
+                    // registered read ports (D0012): address at one edge,
+                    // data valid after the next
+                    @(negedge clk);
                     out_addr = i[$clog2(NEURONS)-1:0];
                     v_addr   = i[$clog2(NEURONS)-1:0];
-                    #1;
+                    @(posedge clk); #1;
                     checked = checked + 2;
                     if (out_data !== exp_s[base + i] ||
                         v_data !== $signed(exp_v[base + i])) begin

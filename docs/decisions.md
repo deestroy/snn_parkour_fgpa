@@ -486,3 +486,16 @@ Testbench validated by fault injection: one flipped bit in one weight
 produces 5,148 mismatches; clean weights restore a clean pass.
 
 Status: simulation only. Registered-read pass and synthesis are M4 work.
+
+### D0012 pass applied (2026-08-16)
+
+conv_layer.v converted to registered reads throughout: the kernel walk is now
+read-cycle/add-cycle pairs, the membrane gets its own read state, and the
+external spike/membrane ports carry one cycle of latency. All 1.13M golden
+comparisons still pass on c1/c2/c3, and the M2 suite still passes.
+
+Cost: ~2x cycles per timestep vs the combinational version (c1: ~38 cycles
+per neuron vs ~19). A prefetch pipeline can reclaim most of that; it must
+land, re-verified, before M5 records latency numbers, so the dense baseline
+isn't measured at an artificial handicap. Left simple for now on purpose:
+Stage B bring-up debugging wants the simplest correct FSM.

@@ -21,10 +21,11 @@
 // `done` pulses when the sweep finishes. Spike and membrane read ports exist
 // for the testbench and, later, the next layer.
 //
-// Sim-only caveats, deliberate for now (see docs/decisions.md D0012):
-// memories are read combinationally and loaded with $readmemh -- fine in
-// iverilog, but BRAM inference for synthesis wants registered reads and a
-// COE/mem flow. That pass happens at M4, against this same testbench.
+// All memory reads are REGISTERED (address on one edge, data the next) so
+// synthesis can map wrom/in_mem/vmem onto block RAM -- the D0012 pass.
+// External read ports carry the same one-cycle latency. Weight loading
+// still uses $readmemh, which Vivado honours at synthesis if the hex file
+// is added as a project source.
 //
 // UNVERIFIED until sim/run_conv_tb.sh passes. Never synthesised.
 
@@ -64,15 +65,30 @@ module conv_layer #(
 
     initial $readmemh(WEIGHT_FILE, wrom);
 
-    assign out_data = out_mem[out_addr];
-    assign v_data   = vmem[v_addr];
+    // External read ports: REGISTERED (D0012). Present the address on one
+    // clock edge; the data is valid after the next. This is the access
+    // pattern block RAM physically provides.
+    reg                    out_data_r;
+    reg signed [WIDTH-1:0] v_data_r;
+    always @(posedge clk) begin
+        out_data_r <= out_mem[out_addr];
+        v_data_r   <= vmem[v_addr];
+    end
+    assign out_data = out_data_r;
+    assign v_data   = v_data_r;
 
     always @(posedge clk)
         if (in_we) in_mem[in_addr] <= in_data;
 
     // --- FSM --------------------------------------------------------------
-    localparam S_IDLE = 0, S_CLEAR = 1, S_ACC = 2, S_UPDATE = 3;
-    reg [1:0] state = S_IDLE;
+    // Every internal memory access is likewise split across two states:
+    // S_RD latches the input bit and weight, S_ADD consumes them; S_VRD
+    // latches the membrane, S_UPDATE consumes it. Costs ~2x the cycles of
+    // the combinational version (see D0012 for the pipelining option, to be
+    // taken before M5's latency numbers are recorded) but maps onto BRAM.
+    localparam S_IDLE = 0, S_CLEAR = 1, S_RD = 2, S_ADD = 3,
+               S_VRD = 4, S_UPDATE = 5;
+    reg [2:0] state = S_IDLE;
 
     // counters are 32-bit signed `integer`s for clarity; synthesis prunes
     integer oc, oy, ox;         // which output neuron
@@ -80,12 +96,16 @@ module conv_layer #(
     integer clr;                // clear sweep address
     reg signed [WIDTH-1:0] acc;
 
-    // input coordinate for the CURRENT counter values (combinational)
+    // registered memory outputs (the "one cycle later" data)
+    reg                    in_bit_r;
+    reg signed [7:0]       w_r;
+    reg signed [WIDTH-1:0] v_r;
+
+    // input coordinate for the CURRENT counter values (combinational
+    // address math feeding the registered reads)
     wire signed [31:0] iy = 2*oy + ky - 1;
     wire signed [31:0] ix = 2*ox + kx - 1;
     wire in_bounds = (iy >= 0) && (iy < H_IN) && (ix >= 0) && (ix < W_IN);
-    wire spike_here = in_bounds && in_mem[(ic*H_IN + iy)*W_IN + ix];
-    wire signed [7:0] w_here = wrom[((oc*C_IN + ic)*3 + ky)*3 + kx];
 
     wire [31:0] neuron_addr = (oc*H_OUT + oy)*W_OUT + ox;
 
@@ -95,7 +115,7 @@ module conv_layer #(
     lif_update #(
         .WIDTH(WIDTH), .LEAK_SHIFT(LEAK_SHIFT), .THRESHOLD(THRESHOLD)
     ) update (
-        .v_in(vmem[neuron_addr]), .current_in(acc),
+        .v_in(v_r), .current_in(acc),
         .v_out(v_next), .spike(spike_next)
     );
 
@@ -112,7 +132,7 @@ module conv_layer #(
             end else if (start) begin
                 oc <= 0; oy <= 0; ox <= 0;
                 ic <= 0; ky <= 0; kx <= 0;
-                acc <= 0; busy <= 1'b1; state <= S_ACC;
+                acc <= 0; busy <= 1'b1; state <= S_RD;
             end
         end
 
@@ -123,16 +143,28 @@ module conv_layer #(
             else clr <= clr + 1;
         end
 
-        S_ACC: begin
-            if (spike_here) acc <= acc + w_here;
+        S_RD: begin  // issue the reads; data lands in *_r for S_ADD
+            in_bit_r <= in_bounds ? in_mem[(ic*H_IN + iy)*W_IN + ix] : 1'b0;
+            w_r      <= wrom[((oc*C_IN + ic)*3 + ky)*3 + kx];
+            state    <= S_ADD;
+        end
+
+        S_ADD: begin  // consume last cycle's read, advance the kernel walk
+            if (in_bit_r) acc <= acc + w_r;
+            state <= S_RD;
             if (kx != 2)      kx <= kx + 1;
             else begin kx <= 0;
                 if (ky != 2)  ky <= ky + 1;
                 else begin ky <= 0;
                     if (ic != C_IN-1) ic <= ic + 1;
-                    else begin ic <= 0; state <= S_UPDATE; end
+                    else begin ic <= 0; state <= S_VRD; end
                 end
             end
+        end
+
+        S_VRD: begin  // issue the membrane read for this neuron
+            v_r   <= vmem[neuron_addr];
+            state <= S_UPDATE;
         end
 
         S_UPDATE: begin
@@ -148,7 +180,7 @@ module conv_layer #(
                 end
             end
             if (!(ox == W_OUT-1 && oy == H_OUT-1 && oc == C_OUT-1))
-                state <= S_ACC;
+                state <= S_RD;
         end
 
         endcase
