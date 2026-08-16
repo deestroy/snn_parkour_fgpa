@@ -26,43 +26,17 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(REPO, "data")
 OUT_DIR = os.path.join(REPO, "experiments")
 
-T = 4  # timesteps -- the project default from the project brief
-
-
-def _use_certifi_bundle() -> None:
-    """Point Python at certifi's CA bundle if nothing else is configured.
-
-    macOS python.org framework builds ship without linked CA certificates, so
-    the dataset download fails with CERTIFICATE_VERIFY_FAILED. This still
-    verifies certificates -- certifi is the Mozilla root store -- it just tells
-    OpenSSL where the roots are. The permanent fix is to run
-    '/Applications/Python 3.9/Install Certificates.command' once.
-    """
-    if os.environ.get("SSL_CERT_FILE"):
-        return
-    try:
-        import certifi
-    except ImportError:
-        return
-    os.environ["SSL_CERT_FILE"] = certifi.where()
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from nmnist_raw import T, _split, _use_certifi_bundle  # noqa: E402
 
 
 def build_dataset(train: bool):
+    # Transform details (Denoise + ToFrame) live in nmnist_raw._split so that
+    # the peek, the trainer's fallback path and the pack step can never drift
+    # apart. Denoise drops isolated thermal-noise events; leaving them in
+    # would inflate the sparsity number this script measures.
     import tonic
-    import tonic.transforms as transforms
-
-    sensor_size = tonic.datasets.NMNIST.sensor_size  # (34, 34, 2)
-    transform = transforms.Compose([
-        # Denoise drops isolated events with no neighbour firing within
-        # filter_time microseconds. Event cameras produce a constant trickle of
-        # thermal-noise events; leaving them in inflates the sparsity number we
-        # are about to measure, which would flatter the thesis.
-        transforms.Denoise(filter_time=10000),
-        transforms.ToFrame(sensor_size=sensor_size, n_time_bins=T),
-    ])
-    ds = tonic.datasets.NMNIST(save_to=DATA_DIR, transform=transform,
-                               train=train)
-    return ds, sensor_size
+    return _split(train, cache=False), tonic.datasets.NMNIST.sensor_size
 
 
 def measure_sparsity(ds, n_samples: int):

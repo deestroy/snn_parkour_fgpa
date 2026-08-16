@@ -42,12 +42,14 @@ def run_epoch(net, loader, binarise, optimiser=None):
     training = optimiser is not None
     net.train() if training else net.eval()
     criterion = nn.CrossEntropyLoss()
+    device = next(net.parameters()).device
 
     tot_loss = tot_correct = tot_n = 0
     rate_sums = {k: 0.0 for k in LAYERS}
     n_batches = 0
 
     for x, y in loader:
+        x, y = x.to(device), y.to(device)
         x = encode(x, binarise)
         with torch.set_grad_enabled(training):
             logits, rates = net(x)
@@ -82,7 +84,12 @@ def main() -> int:
                          " (the other arm of docs/decisions.md D0003)")
     ap.add_argument("--workers", type=int, default=0)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--device", default="auto",
+                    help="cpu, cuda, or auto (cuda covers ROCm too)")
     args = ap.parse_args()
+
+    if args.device == "auto":
+        args.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     binarise = not args.counts
     tag = "binarised" if binarise else "counts"
@@ -93,10 +100,11 @@ def main() -> int:
     train_loader, test_loader = build_loaders(batch_size=args.batch,
                                               limit=args.limit,
                                               workers=args.workers)
-    net = ConvSNN(in_shape=(2, 34, 34), n_classes=10, n_steps=T_DEFAULT)
+    net = ConvSNN(in_shape=(2, 34, 34), n_classes=10,
+                  n_steps=T_DEFAULT).to(args.device)
     optimiser = torch.optim.Adam(net.parameters(), lr=args.lr)
-    print("train batches: %d   test batches: %d\n"
-          % (len(train_loader), len(test_loader)))
+    print("device: %s   train batches: %d   test batches: %d\n"
+          % (args.device, len(train_loader), len(test_loader)))
 
     os.makedirs(OUT_DIR, exist_ok=True)
     csv_path = os.path.join(OUT_DIR, "m0_firing_rates_%s.csv" % tag)
