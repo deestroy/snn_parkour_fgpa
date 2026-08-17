@@ -1,10 +1,10 @@
 # M5 power meter — what to order (decide today, parts have lead time)
 
-The measurement: current and voltage on the PYNQ-Z2's **input supply**,
+The measurement: current and voltage on the ZedBoard's **input supply**,
 sampled continuously while the board sits idle vs. runs inference. Energy per
 inference = (mean running power − mean idle power) × time, averaged over
-thousands of back-to-back inferences. The board draws roughly 2–4 W at 5 V,
-so we are metering **0–2 A on a 5 V rail** and looking for deltas of tens to
+thousands of back-to-back inferences. The ZedBoard draws roughly 3–6 W at 12 V,
+so we are metering **0–0.5 A on a 12 V rail** (a lower current, so a 0.05 Ω shunt also works and gives finer resolution) and looking for deltas of tens to
 hundreds of mW.
 
 ## Option A (recommended): INA226 breakout + replacement shunt
@@ -40,8 +40,8 @@ transient resolution.
 
 ## How it gets read (no extra hardware)
 
-The PYNQ-Z2 reads its own meter: the INA226's I²C pins go to the board's
-PMODA connector (3.3 V logic on both sides, direct wiring), and the logging
+The ZedBoard reads its own meter: the INA226's I²C pins go to the board's
+JA1 PMOD connector (3.3 V logic on both sides, direct wiring), and the logging
 script runs on the board's ARM alongside the inference driver. Self-metering
 adds a small constant load — irrelevant for delta measurements, and the
 methodology chapter will say so explicitly. (Alternative if you prefer
@@ -51,7 +51,7 @@ code will speak plain smbus either way.)
 ## Wiring sketch (for when it arrives — do not wire anything yet)
 
 ```
- USB PSU ----+5V---[ shunt 0.02R ]---+5V----> PYNQ micro-USB power
+ 12V brick ---+12V--[ shunt 0.02R ]---+12V---> ZedBoard barrel jack (D0014)
              |                    |
            VIN+                VIN- (INA226 senses across the shunt)
  GND --------+--------------------+--------> common ground

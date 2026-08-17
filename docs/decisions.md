@@ -557,3 +557,26 @@ Both dense engines now issue the next read while consuming the previous one
 (S_MAC), with a prologue flag and a tail state. ~21 cycles/neuron for conv
 (was 38), ~1027 for FC (was 2050). Full regression bit-identical: conv
 1.13M checks, fc 16,384, AXIS wrapper 9,280 words, M2 suite 4,060.
+
+---
+
+## D0014 — The board is a ZedBoard, not a PYNQ-Z2
+
+**Date:** 2026-08-16 · **Status:** recorded — the project brief's board table is superseded
+
+The physical board that arrived is an Avnet/Digilent **ZedBoard**. Same chip
+as the planned PYNQ-Z2 (Zynq XC7Z020-CLG484 vs -CLG400: same fabric — 53,200
+LUTs, 4.9 Mb BRAM, 220 DSPs — different package/pinout), so every HDL file,
+golden trace, testbench and resource-budget figure in this repo stands
+unchanged. What changes is board-level plumbing:
+
+- Vivado board file: ZedBoard ships with Vivado; PS preset differs, so the
+  block design is rebuilt (same clicks) rather than reused.
+- SD image: PYNQ v3.0.1 ZedBoard build (official).
+- Boot: JP7-JP11 = 0 0 1 1 0 for SD boot. Power: 12 V barrel, not USB.
+- M5 metering moves to the 12 V input rail; same INA226 method. INA226 on
+  PMOD JA1.
+
+Thesis framing: unchanged. Portability claim (the project brief's "secondary board")
+becomes PYNQ-Z2 or Nexys 4 if one is later available; the ZedBoard is now
+primary and the methodology names it.

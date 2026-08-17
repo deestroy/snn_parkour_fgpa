@@ -1,4 +1,8 @@
-# M4 Stage A — first overlay, step by step (Windows VM + PYNQ-Z2)
+# M4 Stage A — first overlay, step by step (Windows VM + ZedBoard)
+
+> **Board note (D0014):** written for the PYNQ-Z2, revised for the ZedBoard
+> that actually arrived. Same Zynq-7020 chip; only board-level plumbing
+> differs, and every such difference is marked **[ZedBoard]** below.
 
 Goal of this stage: build a **loopback** overlay — Python sends a buffer to
 the fabric over DMA, a FIFO hands it straight back, Python checks it returned
@@ -19,7 +23,10 @@ on until it holds. Jargon is defined at first use.
       (Zynq-7020 is covered by the free licence tier — no licence action
       needed. If Vivado ever asks about licences for this chip, something
       else is wrong.)
-- [ ] PYNQ-Z2 board, microSD card (8 GB or more), micro-USB cable.
+- [ ] ZedBoard, microSD card (8 GB or more), micro-USB cable (for the UART
+      port, optional but useful), and — **[ZedBoard]** — the **12 V barrel
+      power supply**. The ZedBoard cannot run from USB power. No brick, no
+      board day.
 - [ ] Ethernet cable from the board to your router (easiest), or directly to
       a computer (workable, needs a static-IP step noted in §6).
 - [ ] A way to move files between this repo and the VM (shared folder, git,
@@ -28,40 +35,31 @@ on until it holds. Jargon is defined at first use.
 
 ---
 
-## 1. One-time: PYNQ-Z2 board definition into Vivado
+## 1. Board definition **[ZedBoard]** — nothing to install
 
-Vivado doesn't know this board out of the box. A "board file" teaches it the
-part number, pin names and the processing-system preset.
-
-1. Download the PYNQ-Z2 board file zip from the TUL website
-   (search "PYNQ-Z2 board file" — the file is `pynq-z2.zip`, a few KB).
-2. Unzip. You get a folder `pynq-z2` containing `board.xml`.
-3. Copy that folder into Vivado's board directory. Depending on version it is
-   one of:
-   - `C:\Xilinx\Vivado\<version>\data\boards\board_files\`
-   - `C:\Xilinx\Vivado\<version>\data\xhub\boards\XilinxBoardStore\boards\Xilinx\`
-   If `board_files` exists under `data\boards\`, use that one.
-4. Restart Vivado.
+The ZedBoard's board file ships inside Vivado. Skip the download-and-copy
+dance entirely.
 
 **Checkpoint:** `File > Project > New`, click through to the "Default Part"
-page, select the **Boards** tab, search "pynq". `PYNQ-Z2` appears.
-
-*(If the board file refuses to appear: fall back to the Parts tab and pick
-`xc7z020clg400-1`. Everything below still works — the board file is a
-convenience, not a requirement, because the SD image configures the chip's
-DDR at boot regardless.)*
+page, select the **Boards** tab, search "zed". `ZedBoard Zynq Evaluation and
+Development Kit` appears. (Fallback if it somehow doesn't: Parts tab,
+`xc7z020clg484-1` — note **clg484**, the ZedBoard's package, not the
+PYNQ-Z2's clg400.)
 
 ---
 
 ## 2. Create the project
 
-1. `File > Project > New` → name `m4_loopback`, location anywhere in the VM,
-   **RTL Project**, "Do not specify sources at this time".
-2. Part/board page: select the PYNQ-Z2 board (or the part, per §1 fallback).
+1. `File > Project > New` → name `m4_loopback_zed`, location anywhere in the
+   VM, **RTL Project**, "Do not specify sources at this time".
+   **[ZedBoard]** Make a NEW project rather than reusing the PYNQ-Z2 one:
+   the processing-system preset (DDR timing, clocks, peripherals) is
+   board-specific and baked in when block automation runs.
+2. Part/board page: **Boards** tab → **ZedBoard**.
 3. Finish.
 
 **Checkpoint:** empty project open, part shown bottom-right is
-`xc7z020clg400-1`.
+`xc7z020clg484-1`.
 
 ---
 
@@ -80,6 +78,8 @@ A "block design" is Vivado's graphical canvas for wiring pre-made IP blocks
      queue that returns whatever it is fed.
 3. A green banner appears: **Run Block Automation**. Click it, accept
    defaults, OK. (This applies the board preset to the PS — clocks, DDR.)
+   **[ZedBoard]** This step is exactly why a fresh project was needed: the
+   preset it applies is the ZedBoard's.
 4. Configure the DMA: double-click `axi_dma_0`:
    - **Untick "Enable Scatter Gather Engine"** (we use simple mode).
    - Width of buffer length register: set to **26**.
@@ -115,8 +115,8 @@ Collect exactly two files (paths relative to the project folder):
 
 | What | Where |
 |---|---|
-| `design_1_wrapper.bit` | `m4_loopback.runs/impl_1/` |
-| `design_1.hwh` | `m4_loopback.gen/sources_1/bd/design_1/hw_handoff/` |
+| `design_1_wrapper.bit` | `m4_loopback_zed.runs/impl_1/` |
+| `design_1.hwh` | `m4_loopback_zed.gen/sources_1/bd/design_1/hw_handoff/` |
 
 Copy both out and **rename to the same basename**: `loopback.bit` and
 `loopback.hwh`. PYNQ finds the .hwh by the .bit's name — a mismatched name is
@@ -126,28 +126,38 @@ the single most common first-overlay failure.
 
 ---
 
-## 5. One-time: flash the SD card
+## 5. One-time: flash the SD card **[ZedBoard]**
 
-1. On any machine: download the **PYNQ-Z2 v3.0.1 image** from pynq.io
-   (Boards → PYNQ-Z2). ~2 GB zip.
+1. On any machine: download the **PYNQ v3.0.1 image for ZedBoard** from
+   pynq.io (Boards → ZedBoard). ~2 GB zip. **Not** the PYNQ-Z2 image — same
+   chip, different board support; the wrong one will not boot.
 2. Flash the unzipped `.img` to the microSD with **Balena Etcher** (or
    Rufus). This erases the card.
-3. Board switches (silkscreen labels on the board):
-   - Boot jumper (near SD slot) → **SD**
-   - Power jumper → **USB** (powering from the micro-USB cable is fine here)
-4. Insert SD, connect Ethernet, connect micro-USB to any powered USB port,
-   flip the power switch.
+3. Boot-mode jumpers — five of them, **JP7 to JP11**, in a row next to the
+   OLED. Each is a two-position shunt: pull it toward the ground side for 0,
+   toward the 3V3 side for 1. For SD boot:
 
-**Checkpoint:** the red PWR LED comes on immediately; within ~60 s the
-**green DONE LED** lights and two blue LEDs flash — that is PYNQ saying the
-boot completed.
+   ```
+   JP7  JP8  JP9  JP10 JP11
+    0    0    1    1    0
+   ```
+   (JP9 and JP10 high, the rest low. Silkscreen next to them says MIO2..MIO6.)
+4. Also **JP6 on, JP2 on** if they aren't already (SD card power/enable —
+   normally shipped in the right position; check they're populated).
+5. Insert SD, connect Ethernet, plug in the **12 V barrel supply**, flip the
+   power switch SW8.
+
+**Checkpoint:** the green power LED (LD13) comes on immediately; within
+~60 s the **blue DONE LED (LD12)** lights — that is the FPGA configured and
+Linux booting. Give it another minute for Jupyter.
 
 ---
 
 ## 6. Reach Jupyter
 
 - Router case: browse to `http://pynq:9090` (or find the board's IP in your
-  router's device list and use `http://<ip>:9090`).
+  router's device list and use `http://<ip>:9090`). The hostname is `pynq`
+  on the ZedBoard image too.
 - Direct-cable case: set your computer's Ethernet adapter to static IP
   `192.168.2.1`, netmask `255.255.255.0`; the board is at `192.168.2.99`;
   browse to `http://192.168.2.99:9090`.
@@ -182,6 +192,7 @@ DDR → CPU intact.
 | Notebook hangs at `sendchannel.wait()` | DMA can't reach DDR | §3 step 5 (HP0) skipped, or connection automation not re-run |
 | Hangs at `recvchannel.wait()` | stream never terminated | FIFO not in the path / TLAST not passed — check §3 step 6 wiring direction |
 | Board boots but no Jupyter | network, not board | §6 other case; try `ping pynq` / router list; give it a full 2 min |
+| No DONE LED at all **[ZedBoard]** | jumpers or image | re-check JP7–JP11 = 0 0 1 1 0; confirm the image is the ZedBoard build; check the barrel supply is 12 V and seated |
 
 If a failure isn't in this table: photograph the block design + the error and
 bring it back to me; that context is usually enough to pinpoint it.
