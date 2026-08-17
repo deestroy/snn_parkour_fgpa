@@ -34,8 +34,10 @@ transient resolution.
 
 ## Also in the cart (either option)
 
-- A **sacrificial micro-USB cable** — we cut its 5 V wire and put the shunt
-  inline (high side). The board's data USB stays untouched.
+- A **2.1 mm barrel-jack extension or pigtail pair** (male + female,
+  centre-positive) — the shunt goes inline in its 12 V wire, so the board's
+  own brick and jack stay unmodified. On the ZedBoard the sense point is the
+  12 V input, not a USB line.
 - Dupont jumper wires female-female, if none around the lab.
 
 ## How it gets read (no extra hardware)
@@ -55,6 +57,6 @@ code will speak plain smbus either way.)
              |                    |
            VIN+                VIN- (INA226 senses across the shunt)
  GND --------+--------------------+--------> common ground
- INA226 SDA/SCL/3V3/GND ------------------> PMODA pins (mapping comes with
+ INA226 SDA/SCL/3V3/GND ------------------> JA1 PMOD pins (mapping comes with
                                              the logging code)
 ```
