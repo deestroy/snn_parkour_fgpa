@@ -768,3 +768,36 @@ line): drivers are looked up by base address, not numeric device ID, and
 the constant carries the driver's X-prefix — `XPAR_XAXIDMA_0_BASEADDR`.
 Kept behind `#ifdef SDT` so the file also builds on classic platforms.
 Size: text 36.6 KB, bss 824 KB (the two 400 KB DMA buffers). Not yet run.
+
+### Board-day log (2026-08-17): programming from the Mac — status
+
+**Works, verified on the ZedBoard from the Mac via OpenOCD 0.12:**
+- JTAG chain enumerates (7z020 PL TAP + Cortex-A9 DAP); `reset halt` halts
+  both cores reliably (a plain `halt` times out on parked cores).
+- `pld load` accepts the ZedBoard bitstream without error.
+- `ps7_init.tcl` runs unmodified under xsct-compat shims (mrd must return
+  a string ending in 8 hex digits + newline; sourced at global scope;
+  `configparams` stubbed). All three PLLs lock (PLL_STATUS 0x3F), DCI
+  calibrates, DDRC reports normal mode with init complete (mode_sts 0x81).
+- Silicon version auto-detects as 1.0 and that IS correct for this chip:
+  the 2.0/3.0 tables both bus-fault on DDRC 0xF8006078, a register absent
+  on this silicon.
+- Root cause of "DDR reads back zero" found: BootROM leaves the L2 address
+  filter at 0x40000001, routing all of DDR (<0x40000000) away from the DDR
+  port. Disabling it (CPU-side write to 0xF8F02C00 = 0) fixes the routing.
+
+**Not yet working:** with routing fixed, the first DDR access stalls the
+core (bus hangs, no abort). Controller status is healthy but the DRAM does
+not answer. Suspects, in order: DDRIOB output drivers not enabled by the
+1.0 tables for this board's DDR3 (Vitis loads FSBL, which re-runs init
+natively and would mask this); DDR clock gating; a `ps7_post_config` step
+that xsct performs implicitly. Not a shim or sequencing error at this
+point — a hardware-init detail specific to running the init from a debugger
+instead of the FSBL.
+
+**Practical fallback that avoids the whole DDR question:** link the loopback
+program to run from **OCM (0x00000000, 256 KB)** instead of DDR, and shrink
+the DMA buffers to fit — DDR then only matters as the DMA's target, and the
+DMA reaches DDR through its own HP port, not the CPU's L2 route. Or: build
+the FSBL in Vitis and JTAG-load *that* first; it initialises DDR the
+production way, then hand off to the app. Both are next-session work.
