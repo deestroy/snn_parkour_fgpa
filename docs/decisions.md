@@ -759,3 +759,12 @@ USB-UART. The CentOS 7 box has CMC-licensed Vivado 2023-2024 and Vitis
 2024-2025 too; useful for scripted/batch synthesis later, not on the critical
 path. Synthesis of this design takes 2-3 min in the VM, so no speed argument
 for moving it.
+
+### First bare-metal build (2026-08-17)
+
+loopback.elf built clean in Vitis 2024.1 after two one-line fixes, both
+from the Unified IDE's System Device Tree flow (`-DSDT` in the compile
+line): drivers are looked up by base address, not numeric device ID, and
+the constant carries the driver's X-prefix — `XPAR_XAXIDMA_0_BASEADDR`.
+Kept behind `#ifdef SDT` so the file also builds on classic platforms.
+Size: text 36.6 KB, bss 824 KB (the two 400 KB DMA buffers). Not yet run.
