@@ -71,9 +71,56 @@ then the program running to PASS. Reproducible from a clean reset.
 | `host/mac/program.sh` | unchanged in substance |
 | `docs/decisions.md` | D0015 board-day log parts 1–5, DDR note; every retraction |
 | `docs/m4_vivado_walkthrough.md` | UART-1 verification step in §3 (still worth having) |
+| **`golden/eventdriven.py`** | **new — M6 step 1: the event-driven engine in Python (see below)** |
+| `sim/export_ed_vectors.py` | new: transposed weights + spike address lists for the future Verilog TB |
+| **`host/protocol.md`, `host/snn_link.py`, `host/board/conv_server.c`, `host/uart_client.py`, `host/mock_server.py`** | **new — the whole Stage B host side (see below)** |
+| `host/mac/run_fsbl.sh` | new: one-command FSBL test for the DDR question |
+| `docs/m4_stage_b_vivado.md` | rewritten for the bare-metal flow |
+| `docs/decisions.md` | + D0019, DDR DLL finding |
 
-Commits since you slept: `Board-day part 4` … `M4 stage A: LOOPBACK PASS`
-… `DDR: characterised …`. `git log` shows them all.
+`git log` shows ~15 commits since you slept.
+
+## Second half of the night (after LOOPBACK PASS)
+
+### M6 step 1 — the event-driven engine in Python: **bit-identical to golden**
+
+`golden/eventdriven.py` is D0016–D0018 written as code: per-layer address
+lists, transposed weights, computed targets, channel-interleaved banks,
+the shared LIF rule in the sweep. Replaying the golden traces through it:
+**c1/c2/c3, K=1 and K=4, 1.13M checks, 0 mismatches.** The bank mapping is
+proven bijective and conflict-free for K = 1, 2, 4, 8. The "same arithmetic
+in a different order ⇒ same traces" claim is now a measurement.
+
+First hard M6 sizing numbers, at trained rates, per timestep:
+
+| layer | dense mem ops | event-driven RMWs | ratio |
+|---|---|---|---|
+| C1 | 83k | 14.1k | 5.9× fewer |
+| C2 | 373k | 29.3k | 12.7× |
+| C3 | 461k | 38.3k | 12.0× |
+
+**Architectural decision made — D0019, flagged for you:** writing the
+engine exposed that the leak and pending-reset are functions of V[n-1]
+alone, so scatter cannot accumulate into V. **Each neuron needs two words:
+membrane V and an input accumulator I.** Cost: membrane BRAM doubles
+(42.2 → 84.4 KB on the target network; on-chip total 161 → 203 KB, 33% of
+BRAM). It's the honest price of the event-driven design and must appear in
+the resource comparison. Nothing else in D0016–D0018 changed. If you'd
+rather revisit it, nothing downstream depends on it yet.
+
+### Stage B host side — done, verified against a golden-model mock
+
+`host/protocol.md` defines a framed UART protocol (magic, cmd, length,
+payload, CRC-32) so a dropped byte can never masquerade as an engine bug.
+`snn_link.py` is the single codec both ends use; `uart_client.py` streams
+the 16 golden samples and compares every word; `conv_server.c` is the
+bare-metal side (untested until the Stage B bitstream exists);
+`mock_server.py` speaks the protocol with the golden model as the engine.
+`python3 host/mock_server.py --selftest` → **MOCK PASS, 9,280 words
+bit-identical.** Fault injection: corrupted byte rejected with the right
+error code, short frame rejected, link recovers. The mock caught two real
+bugs before any silicon (stale announce frames desyncing the client; the
+mock dying on CRC error instead of replying like the C does).
 
 ## DDR — not resolved, and it matters (this is the architectural item)
 
@@ -135,18 +182,21 @@ This is a real architectural constraint, so stating it plainly:
 
 - No Vivado or Vitis changes (couldn't, and wouldn't unasked).
 - No push to GitHub — that's still yours.
-- Did not start M6 step 1 or the Stage B C server: the DDR question
-  determines buffer strategy for the C server, so it's better written
-  after the FSBL check. Nothing about M6's design changed.
+- No Verilog for M6 — the Python engine and vector exporter are the
+  scaffolding it will be checked against; the RTL waits for a session
+  with you, per the one-component-at-a-time rule.
 
 ## Suggested first hour today
 
-1. Read this. Skim decisions.md D0015 parts 4–5 if you want the register
-   trail.
-2. Vitis: build the FSBL, copy the `.elf`. I run it; we learn DDR's fate.
-3. Then Stage B: swap the FIFO for the C1 engine in Vivado
-   (`docs/m4_stage_b_vivado.md`), while I write the C server + Mac client
-   sized for whichever memory we have.
+1. Read this. Skim decisions.md D0015 parts 4–5 and D0019 if you want the
+   register trail and the one architectural call.
+2. Vitis: build the FSBL (steps above), copy the `.elf`,
+   `bash host/mac/run_fsbl.sh host/mac/build/fsbl.elf`. We learn DDR's fate.
+3. Stage B: swap the FIFO for the C1 engine in Vivado
+   (`docs/m4_stage_b_vivado.md`, rewritten), build `conv_server` in Vitis,
+   copy `.bit` + `.xsa` + `conv_server.elf`. Then
+   `bash host/mac/program.sh …conv_server.elf` and
+   `python3 host/uart_client.py`. That run is M4's done-when.
 
 Not a bad night: from "does any of this work" to a passing loopback with a
 root cause, and a precise, testable question left over rather than a fog.
