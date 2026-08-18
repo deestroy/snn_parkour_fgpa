@@ -58,7 +58,7 @@ and `docs/decisions.md` for the running log of design decisions.
       0 mismatches; `bash sim/run_conv_tb.sh c1 c2 c3`). Simulation only.
 - [x] **M4** C1 engine on the ZedBoard: **BOARD PASS, 16 samples, 9,280 words bit-identical to the golden model** (2026-08-18). SD boot, bare metal, framed UART to the Mac (`python3 host/uart_client.py`). DDR works (block design needed the ZedBoard preset — D0015).
 - [ ] **M5** power measurement rig — first thesis result
-- [ ] **M6** event-driven datapath
+- [x] **M6** event-driven conv engine (`hdl/eventdriven/`), **bit-identical to the dense engine** on c1/c2/c3 in the same harness (1.13M checks; `bash sim/run_ed_tb.sh c1 ed_conv_layer`). K=1; K=4 banking is a parameter flip still to be verified. Simulation only — not yet on the board.
 - [ ] **M7** crossover experiment
 - [ ] **M8** robot (year two)
 
@@ -94,7 +94,8 @@ python3 train/06_golden_check.py                                   # M1 (full sp
 bash sim/run_lif_tb.sh                                             # M2 neuron
 bash sim/run_conv_tb.sh c1 c2 c3 && bash sim/run_fc_tb.sh          # M3 dense engines
 bash sim/run_axis_tb.sh c1                                         # M4 AXIS wrapper
-bash sim/run_ed_tb.sh c1                                           # M6 harness (dense engine as DUT for now)
+bash sim/run_ed_tb.sh c1 ed_conv_layer                             # M6 event-driven engine vs golden
+bash sim/run_ed_scatter_tb.sh c1                                   # M6 scatter unit vs Python I-dump
 python3 -c "from golden.eventdriven import verify_event_driven as v; print(v('c1', k=4))"   # M6 python engine
 python3 host/mock_server.py --selftest                             # Stage B host side vs golden mock
 python3 measure/protocol.py --mock                                 # M5 protocol vs mock meter
