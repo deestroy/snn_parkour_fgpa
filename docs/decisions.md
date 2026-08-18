@@ -1026,3 +1026,25 @@ init may leave wrong), or rev-1.0 silicon workarounds present in the C
 ps7_init the FSBL compiles in but absent from the .tcl. This is as far as
 the Mac can take it. Morning: FSBL build in Vitis (steps in
 docs/overnight_2026-08-18.md), JTAG-run it, read its UART verdict.
+
+---
+
+## D0020 — M6 engine interface fixed; testbench built and proven before the RTL
+
+**Date:** 2026-08-18 (overnight) · **Status:** DECIDED
+
+The event-driven conv engine's port contract (hdl/eventdriven/ed_iface_shim.v
+header): `clear` / `spk_we`+`spk_addr` (push input spike addresses, any
+number, any order) / `start` (scatter all pushed, then sweep) / `done` /
+registered `out_*` and `v_*` read ports in golden order. The only difference
+from the dense engine's interface is the input: an ADDRESS LIST (D0016)
+instead of a bit buffer.
+
+The testbench for that contract (sim/tb_ed_conv.v, sim/run_ed_tb.sh) exists
+NOW and is proven with the dense engine as DUT behind a thin shim that turns
+address pushes into buffer writes: c1/c2/c3, 1.13M comparisons, 0
+mismatches, spike counts matching the Python engine exactly; a single
+dropped address fails 124 checks. When ed_conv_layer.v is written it
+replaces the shim (`bash sim/run_ed_tb.sh c1 ed_conv_layer`) and the
+harness does not change. This is the M2/M3 discipline applied to M6: the
+check exists before the thing it checks.
