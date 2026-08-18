@@ -65,7 +65,9 @@ Mac (`host/mac/build/`, via Google Drive as before):
 ## 5. Vitis: the conv server
 
 **Prerequisite (2026-08-18):** the block design must carry the **ZedBoard
-preset** (ZYNQ7 PS → Presets → ZedBoard; DDR part MT41J128M16). Without it
+preset** AND still have **S AXI HP0 enabled with the DMA masters mapped to
+DDR in the Address Editor** — applying the preset silently clears HP0, and
+the symptom is MM2S DMADecErr on the first transfer (seen 2026-08-18) (ZYNQ7 PS → Presets → ZedBoard; DDR part MT41J128M16). Without it
 DDR silently loses data — that was two days of the log. Since the platform
 was recreated from that corrected .xsa, DDR works and apps use the
 **default** linker script (DDR at 0x100000). No OCM edit.

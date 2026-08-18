@@ -1217,3 +1217,12 @@ simply boot from SD, which is what a deployed board would do anyway). Stage
 B proceeds with the CORRECT bitstream — the FIFO/engine bitstream must be
 rebuilt on top of the fixed block design, since the old ones carry the wrong
 PS config.
+
+**(14:00) Stage B on silicon, first attempt:** cold SD boot -> FSBL ->
+`SUCCESSFUL_HANDOFF` -> conv_server running from DDR, PING round trip OK
+over the framed UART protocol. First RUN_CONV stalled: MM2S DMADecErr,
+channel halted. Cause in the .xsa: PCW_USE_S_AXI_HP0=0 and the DMA masters
+have no address map — applying the ZedBoard preset reset the PS config and
+cleared the HP0 tick. Fix: re-enable HP0, connection automation, assign
+DDR to both DMA masters in the Address Editor, rebuild. Documented in both
+walkthroughs.

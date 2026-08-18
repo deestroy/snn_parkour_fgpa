@@ -87,6 +87,9 @@ A "block design" is Vivado's graphical canvas for wiring pre-made IP blocks
    **DDR Configuration → Memory Part = MT41J128M16 HA-15E** (the Vivado
    default MT41J128M8 is WRONG for this board and makes DDR silently lose
    data while every status register says healthy).
+   **Applying the preset RESETS other PS settings** — in particular it
+   unticks the HP0 port set in step 5 below. Order matters: preset first,
+   then HP0, then verify both before generating.
    **Then verify the UART** — the preset does not reliably enable it, and
    without it the C program hangs on its first printf with nothing on the
    console (learned the hard way). Double-click the ZYNQ block →
