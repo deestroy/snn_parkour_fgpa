@@ -6,11 +6,13 @@
  * return the result frame; if PING, answer with capacity. All I/O paced and
  * checksummed; a bad frame gets an error frame, never silence.
  *
- * Runs from OCM (D0015 workaround): buffers are static and small. If DDR
- * ever comes up, only the linker script and the caps here need to change.
+ * Runs from DDR with the DEFAULT Vitis linker script (no OCM edit): DDR
+ * works once the block design carries the ZedBoard preset (D0015). Linking
+ * at DDR 0x100000 also keeps the FSBL's handoff happy (exec address 0 is
+ * its "no app" sentinel).
  *
- * Built like loopback.c: paste over the app's source, keep lscript.ld
- * pointing at ps7_ram_0. Same #ifdef SDT DMA lookup, same paced UART.
+ * Built like loopback.c: paste over the app's source. Same #ifdef SDT DMA
+ * lookup, same paced UART.
  *
  * UNTESTED on hardware until the Stage B bitstream exists. The Mac client
  * has been exercised against a Python mock of this server (see
@@ -26,7 +28,7 @@
 
 /* ---------------------------------------------------------------- config */
 #define BUILD_ID       0x00000001u
-#define CAP_WORDS      1024u                    /* per direction, OCM-sized */
+#define CAP_WORDS      65536u                   /* per direction; DDR-resident, room for any layer */
 #define TIMEOUT_LOOP   (50000000u)
 
 #ifdef SDT
