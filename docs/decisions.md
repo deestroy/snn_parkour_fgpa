@@ -801,3 +801,17 @@ the DMA buffers to fit — DDR then only matters as the DMA's target, and the
 DMA reaches DDR through its own HP port, not the CPU's L2 route. Or: build
 the FSBL in Vitis and JTAG-load *that* first; it initialises DDR the
 production way, then hand off to the app. Both are next-session work.
+
+### D0015 workaround (2026-08-17): run the loopback from OCM — TEMPORARY
+
+To get past the stalled DDR access, the loopback program is relinked into
+the Zynq's 256 KB on-chip memory (OCM at 0x0), and its DMA buffers shrunk
+from 100,000 words (400 KB each way) to **16,384 words (64 KB each way)** so
+the whole program fits. `host/board/loopback.c` N_WORDS reflects this.
+
+**This is a bring-up workaround, not the design.** Once the DDR path is
+understood (FSBL-style init, or whichever DDRIOB/clock detail the debugger
+path misses), REVERT: N_WORDS back to 100,000 and the linker script back to
+DDR. The Stage-B conv server needs DDR anyway — a real sample stream does
+not fit in OCM alongside the code — so this cannot be left in place. Both
+sizes are recorded here so the revert is a known step, not a rediscovery.
