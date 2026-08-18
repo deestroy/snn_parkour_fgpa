@@ -28,10 +28,12 @@ and `docs/decisions.md` for the running log of design decisions.
   JTAG with OpenOCD (`host/mac/program.sh`) and observed over USB UART. Build
   outputs travel Windows -> Mac via Google Drive (RDP clipboard corrupts
   binaries; RDP folder redirection is blocked by the school).
-- Board is a **ZedBoard (rev-C, likely rev-1.0 XC7Z020 silicon)**, not the
-  PYNQ-Z2 the brief planned for; no PYNQ image exists for it, hence bare
-  metal. DDR is not usable so far; everything runs from 192 KB OCM. See
-  `docs/decisions.md` D0014/D0015 and `docs/overnight_2026-08-18.md`.
+- Board is a **ZedBoard (rev C)**, not the PYNQ-Z2 the brief planned for; no
+  PYNQ image exists for it, hence bare metal. **Boot from SD** (BootROM ->
+  FSBL -> app in DDR) is the normal run mode; JTAG from the Mac is for
+  debugging. The block design MUST carry the ZedBoard preset (correct DDR
+  part) and have HP0 enabled — see `docs/decisions.md` D0014/D0015 and
+  `docs/m4_vivado_walkthrough.md`.
 - N-MNIST test split cached in `data/` (396 MB, gitignored). The train split is
   a separate ~1 GB download: `python3 train/01_nmnist_peek.py --train`
 - This python.org build has no linked CA certificates, so downloads fail with
@@ -98,8 +100,9 @@ python3 host/mock_server.py --selftest                             # Stage B hos
 python3 measure/protocol.py --mock                                 # M5 protocol vs mock meter
 ```
 
-Board-side (needs the ZedBoard on USB): `bash host/mac/program.sh <bit> <elf>`,
-`bash host/mac/stage_b.sh`, `bash host/mac/run_fsbl.sh <fsbl.elf>`.
+Board-side (needs the ZedBoard on USB): after an SD boot,
+`python3 host/uart_client.py` is the M4 hardware check (BOARD PASS). JTAG
+alternatives: `bash host/mac/program.sh <bit> <elf>`, `bash host/mac/stage_b.sh`.
 
 ## The network
 
