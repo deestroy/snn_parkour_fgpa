@@ -171,3 +171,11 @@ if __name__ == "__main__":
         r = _mock_demo()
         from measure.report import print_result
         print_result(r, vivado_estimate_uj=None)
+        # the mock injected a 0.85 W load: the protocol must recover it
+        # to within a few SEMs, and must not flag drift on a steady supply
+        err = abs(r.delta_w - 0.85)
+        ok = err < 5 * math.hypot(r.run.sem_w, 0.5 * math.hypot(
+            r.idle_before.sem_w, r.idle_after.sem_w)) and not r.drift_flag
+        print("\nMOCK %s: recovered delta %.3f W vs injected 0.850 W (err %.4f), drift flag %s"
+              % ("PASS" if ok else "FAIL", r.delta_w, err, r.drift_flag))
+        raise SystemExit(0 if ok else 1)
