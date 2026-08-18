@@ -4,7 +4,36 @@ Every judgement call, with the reasoning and the evidence. This file becomes
 the thesis methodology chapter, so write entries as if a examiner will read
 them. Newest at the bottom. Status is one of: OPEN, DECIDED, REVISITED.
 
+
+## Index
+
+| # | decision | date | status |
+|---|---|---|---|
+| D0001 | Start the golden model at one neuron, not at the network | 2026-08-15 | DECIDED |
+| D0002 | Which LIF neuron are we actually building? | 2026-08-15 | DECIDED |
+| D0003 | Input encoding: event counts or binary spikes? | 2026-08-15 | DECIDED |
+| D0004 | The missing pool: reconciling the target network's parameter count | 2026-08-15 | DECIDED |
+| D0005 | Weight initialisation: the network starts silent | 2026-08-15 | DECIDED |
+| D0006 | M0 result: trained per-layer firing rates | 2026-08-15 | measurement |
+| D0007 | Leak becomes shift-based: β = 0.875 | 2026-08-16 | DECIDED |
+| D0008 | Weight scales restricted to powers of two | 2026-08-16 | DECIDED |
+| D0009 | Correction: N-MNIST is class-ordered; early sparsity figures were digit-0 only | 2026-08-16 | recorded |
+| D0010 | HDL language and M2 neuron conventions | 2026-08-16 | DECIDED |
+| D0011 | Dense baseline in hand-written Verilog, not HLS | 2026-08-16 | DECIDED |
+| D0012 | M3 memory style: combinational reads, deferred BRAM discipline | 2026-08-16 | DECIDED |
+| D0013 | FC layer: fold the pool into weight-shared spike addressing | 2026-08-16 | DECIDED |
+| D0014 | The board is a ZedBoard, not a PYNQ-Z2 | 2026-08-16 | recorded |
+| D0015 | No official PYNQ image exists for the ZedBoard | 2026-08-16 | DECIDED |
+| D0016 | M6 architecture: spike hand-off between layers | 2026-08-16 | DECIDED |
+| D0017 | M6 architecture: membrane banking | 2026-08-16 | DECIDED |
+| D0018 | M6 architecture: scatter mechanics | 2026-08-16 | DECIDED |
+| D0019 | Event-driven neuron state is TWO words: membrane V and accumulator I | 2026-08-18 | DECIDED |
+| D0020 | M6 engine interface fixed; testbench built and proven before the RTL | 2026-08-18 | DECIDED |
+
+Board-day logs (D0015 parts 1–5, DDR notes) follow D0015. Milestone results (M1–M3, M6 step 1) are inline after the decisions that produced them.
+
 ---
+
 
 ## D0001 — Start the golden model at one neuron, not at the network
 
@@ -115,7 +144,7 @@ use it or the M7 comparison is meaningless.
 
 ## D0003 — Input encoding: event counts or binary spikes?
 
-**Date:** 2026-08-15 · **Status:** OPEN — needs a decision before M0 training
+**Date:** 2026-08-15 · **Status:** DECIDED — binarise (verdict below, after measurement)
 
 `tonic`'s `ToFrame` does not produce spikes. It produces **event counts**: an
 `int16` tensor where each value is how many events landed in that pixel during
@@ -585,7 +614,7 @@ primary and the methodology names it.
 
 ## D0015 — No official PYNQ image exists for the ZedBoard
 
-**Date:** 2026-08-16 · **Status:** OPEN — resolve by outcome of the loopback test
+**Date:** 2026-08-16 · **Status:** DECIDED — bare metal via Vitis + OpenOCD from the Mac (resolution and board-day logs below)
 
 pynq.io ships images for PYNQ-Z1/Z2, ZCU104 and newer boards only. Options:
 
