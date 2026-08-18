@@ -208,6 +208,14 @@ This is a real architectural constraint, so stating it plainly:
   int8 weights, redundant FSM initialisers removed); full regression still
   bit-identical everywhere. README layout/environment/checks refreshed.
 
+## One command to trust the whole repo
+
+```bash
+bash check_all.sh
+```
+Runs all eleven suites (M0 through M6, host mock, M5 mock, RTL lint) in
+about three minutes, no board needed. Last run: **11 passed, 0 failed.**
+
 ## Suggested first hour today
 
 1. Read this. Skim decisions.md D0015 parts 4–5 and D0019 if you want the
