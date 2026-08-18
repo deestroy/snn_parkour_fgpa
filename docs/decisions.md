@@ -1226,3 +1226,31 @@ have no address map — applying the ZedBoard preset reset the PS config and
 cleared the HP0 tick. Fix: re-enable HP0, connection automation, assign
 DDR to both DMA masters in the Address Editor, rebuild. Documented in both
 walkthroughs.
+
+---
+
+## M4 RESULT (2026-08-18 15:30) — BOARD PASS
+
+`BOARD PASS: 16 samples, 9280 words, bit-identical to the golden model
+(4.96 s, 310 ms/sample incl. UART)`
+
+The C1 dense conv engine, synthesised from hdl/dense/{lif_update,
+conv_layer_c1, axis_conv, axis_conv_top}.v with the int8 weights inlined,
+running on the ZedBoard's XC7Z020, booted from SD (BootROM -> debug FSBL ->
+DDR -> bitstream -> conv_server in DDR), fed golden N-MNIST samples over the
+framed UART protocol by host/uart_client.py, returned every output spike word
+identical to golden/network.py. M4's done-when ("call the accelerator and
+get correct results back from real hardware") is met.
+
+Final design facts: ZedBoard preset applied (DDR MT41J128M16), S_AXI_HP0
+enabled with both DMA masters mapped 0x0-0x1FFFFFFF, single FCLK_CLK0
+domain, no clocking wizard, no FIFO. Everything runs from DDR with default
+linker scripts. Timing per sample is UART-bound (292+580 words at 115200
+baud ~= 76 ms of wire time; the rest is Python + protocol overhead) — the
+engine itself is far faster, and M5 measures that properly.
+
+Path here, for the record: PYNQ unavailable -> bare metal -> OpenOCD from
+the Mac -> PROG_B (loopback pass) -> the DDR "fault" that was a wrong DDR
+part in the block design -> SD boot with debug FSBL -> HP0 cleared by the
+preset -> baked weights (Vivado can't find $readmemh files) -> PASS. Every
+wrong turn is logged above with its retraction.
