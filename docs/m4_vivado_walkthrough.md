@@ -26,15 +26,15 @@ on until it holds. Jargon is defined at first use.
       port, optional but useful), and — **[ZedBoard]** — the **12 V barrel
       power supply**. The ZedBoard cannot run from USB power. No brick, no
       board day.
-- [ ] **Two micro-USB cables** to the machine running Vitis: one to the
-      **PROG** port (J17, USB-JTAG — programs the FPGA and loads the C
-      program) and one to the **UART** port (J14 — the serial console the
-      program prints to). No Ethernet, no SD card, no network setup.
-- [ ] If Vitis runs in the VM, the VM must be able to see those USB devices
-      (VirtualBox/VMware: USB passthrough — attach "Digilent" or "FTDI"
-      devices to the VM once they enumerate).
-- [ ] A way to move files between this repo and the VM (shared folder, git,
-      or a USB stick).
+- [ ] **Two micro-USB cables** from the board to **your Mac**: one to the
+      **PROG** port (J17, USB-JTAG) and one to the **UART** port (J14). The
+      Windows machine is reached over Remote Desktop, so it can never see
+      USB devices — the split is: **Windows builds (Vivado + Vitis), the Mac
+      programs and listens.** OpenOCD on the Mac drives the JTAG (verified:
+      it sees both TAPs and reads Zynq registers on this board).
+- [ ] A way to move three files per iteration from Windows to the Mac
+      (`.bit`, `.elf`, and `ps7_init.tcl`): shared folder, git, cloud
+      drive — anything.
 
 ---
 
@@ -138,11 +138,12 @@ not needed** — keep them for reference only.) What Vitis wants instead:
    **JTAG boot**: the board waits for Vitis to load it over USB. (This is
    different from the SD-boot setting a PYNQ board would use.)
 2. Plug the **12 V brick** into the barrel jack. Connect **both** micro-USB
-   cables (PROG J17 and UART J14) to the Vitis machine. Power switch SW8 on.
+   cables (PROG J17 and UART J14) to the **Mac**. Power switch SW8 on.
 
 **Checkpoint:** green power LED (LD13) on. The blue DONE LED (LD12) stays
-OFF — correct: nothing is programmed yet. In Windows Device Manager two
-new serial/USB devices appear (a "Digilent USB Device" and a COM port).
+OFF — correct: nothing is programmed yet. On the Mac, `ls /dev/cu.usb*`
+shows two devices: `cu.usbserial-…` (Digilent JTAG) and `cu.usbmodem…`
+(the UART). No drivers needed on macOS.
 
 ---
 
@@ -170,24 +171,39 @@ Vivado after a fresh Generate Bitstream. Anything else, paste the error to
 me: this file was written without a compiler and the first build is its
 test.
 
+5. Collect three files from Windows and copy them to the Mac (a folder like
+   `host/mac/build/` in this repo is fine — it's gitignored):
+
+   | file | where on Windows |
+   |---|---|
+   | `design_1_wrapper.bit` | `<vivado project>.runs/impl_1/` |
+   | `loopback.elf` | `<vitis workspace>/loopback/build/` (or `Debug/`) |
+   | `ps7_init.tcl` | **inside the .xsa** — it's a zip: extract it, or on the Mac `unzip -j design_1_wrapper.xsa ps7_init.tcl -d host/mac/` |
+
 ---
 
-## 7. Run it
+## 7. Run it (from the Mac)
 
-1. Open a serial terminal on the UART COM port at **115200 baud, 8N1**
-   (Vitis has one built in: the *Serial Monitor* / *Vitis Serial Terminal*
-   view — pick the COM port that appeared in §5, set 115200. PuTTY or Tera
-   Term work equally well.)
-2. Right-click the `loopback` application → **Run As > Launch Hardware**.
-   Vitis programs the FPGA with the bitstream (blue DONE LED lights),
-   initialises the ARM, downloads the ELF, and starts it.
-3. Watch the serial terminal.
+1. Terminal 1 — the serial console, opened FIRST so nothing is missed:
+   ```bash
+   screen /dev/cu.usbmodem0201258920271 115200
+   ```
+   (Ctrl-A then K to quit later. The device name is what enumerated on this
+   Mac; if it differs, `ls /dev/cu.usbmodem*`.)
+2. Terminal 2 — program and run:
+   ```bash
+   bash host/mac/program.sh host/mac/build/design_1_wrapper.bit host/mac/build/loopback.elf host/mac/ps7_init.tcl
+   ```
+   OpenOCD halts the ARM, loads the bitstream (blue DONE LED lights), runs
+   ps7_init, loads the ELF, sets the PC, resumes.
+3. Watch terminal 1.
 
-**Checkpoint — and Stage A's done-when:** the terminal prints
+**Checkpoint — and Stage A's done-when:** the console prints
 `LOOPBACK PASS: 100000 words round-tripped bit-identical`. That line means:
 bitstream built in Vivado, platform and app built in Vitis, board
-programmed over JTAG, and 400 KB made the round trip CPU → DDR → DMA →
-fabric → DMA → DDR → CPU intact, with the cache handling right.
+programmed over JTAG from the Mac, and 400 KB made the round trip
+CPU → DDR → DMA → fabric → DMA → DDR → CPU intact, with the cache handling
+right.
 
 ---
 
@@ -200,8 +216,10 @@ fabric → DMA → DDR → CPU intact, with the cache handling right.
 | `TIMEOUT waiting for receive (S2MM)` | stream never came back | FIFO wiring direction (§3 step 6), TLAST |
 | `LOOPBACK FAIL: N words differ`, N small and scattered | cache | the two `Xil_DCache*` calls are present? buffers 64-byte aligned? |
 | `LOOPBACK FAIL`, most words differ | data width mismatch | FIFO TDATA width vs DMA (32-bit) — §3 |
-| Vitis can't find the board | USB passthrough | attach the Digilent JTAG device to the VM; check Device Manager |
-| DONE LED never lights on Run | jumpers | JP7–JP11 must be all 0 (JTAG boot) |
+| `program.sh`: "no device found" / libusb error | JTAG cable / another process holding it | replug PROG cable; make sure no other openocd is running (`pkill openocd`) |
+| DONE LED never lights on `pld load` | bitstream file wrong or for another part | it must be `.bit` (not `.bin`), built for xc7z020clg484 (ZedBoard project, not the PYNQ-Z2 one) |
+| `program.sh` runs but the console is silent | ps7_init didn't run / wrong file, so DDR or UART clocks are dead | ps7_init.tcl must come from THIS design's .xsa; re-extract |
+| console prints garbage | baud | 115200 8N1 in `screen` |
 
 If a failure isn't in this table: paste the terminal output and the Vitis
 error, plus a screenshot of the block design, and we'll pinpoint it.
