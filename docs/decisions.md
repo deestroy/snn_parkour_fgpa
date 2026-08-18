@@ -838,3 +838,27 @@ the PS dialog before generating. Added to Stage A §3.
 Also learned: symbol-table lookup of a halted PC (host-side Python over the
 ELF, no toolchain needed) is a fast, decisive way to see where bare-metal
 code is stuck. Kept as a technique.
+
+### Board-day log, part 3 (2026-08-18 00:xx): UART path proven; it's the BSP's stdout choice
+
+Correction to part 2: the "PS has no UART enabled" diagnosis was WRONG. It
+rested on register reads made through the halted CPU while the running
+program's MMU was on — every such read returned 0 and was garbage. Reading
+through the AHB-AP (a `mem_ap` target on the DAP, which bypasses the CPU)
+shows UART1 fully configured by the BSP: CR=0x114 (TX/RX on), 115,207 baud,
+MIO 48/49 routed, clocks on. The Vivado UART1 rebuild was harmless but was
+not the fix (the design likely already had UART1).
+
+Decisive test: 200 bytes written into UART1's TX FIFO by hand over the
+AHB-AP arrive on the Mac intact. Zynq → MIO → Cypress bridge → USB → Mac
+all work. The program spins in `outbyte` because the standalone BSP's
+stdout is bound to **ps7_uart_0** (8 refs to 0xE0000000 in the ELF, none
+to UART1) — polling an unclocked UART0 status register that never reads
+"ready". Fix: platform BSP settings, stdin/stdout → ps7_uart_1. Rebuild.
+
+Rules that would have saved two hours, now standing:
+1. Never trust CPU-side memory reads of a halted target that has run a
+   program — its MMU is on. Read peripherals via the AHB-AP mem_ap.
+2. When a program hangs on I/O, drive the peripheral by hand from the
+   debugger first. If that works, the bug is in the software's addressing,
+   not the hardware — no Vivado round trip needed.
