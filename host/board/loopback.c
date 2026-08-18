@@ -27,7 +27,7 @@
 #include "xil_cache.h"
 #include "xstatus.h"
 
-#define N_WORDS      (16384u)              /* 64 KB each way. TEMPORARY: shrunk
+#define N_WORDS      (12288u)              /* 48 KB each way. TEMPORARY: shrunk
                                               from 100000 to fit OCM while DDR
                                               bring-up is unresolved. Revert
                                               per docs/decisions.md D0015.  */

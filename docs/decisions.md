@@ -806,7 +806,7 @@ production way, then hand off to the app. Both are next-session work.
 
 To get past the stalled DDR access, the loopback program is relinked into
 the Zynq's 256 KB on-chip memory (OCM at 0x0), and its DMA buffers shrunk
-from 100,000 words (400 KB each way) to **16,384 words (64 KB each way)** so
+from 100,000 words (400 KB each way) to **12,288 words (48 KB each way)** so
 the whole program fits. `host/board/loopback.c` N_WORDS reflects this.
 
 **This is a bring-up workaround, not the design.** Once the DDR path is
