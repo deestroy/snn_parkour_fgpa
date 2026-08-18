@@ -1,12 +1,14 @@
-# M4 Stage A — first overlay, step by step (Windows VM + ZedBoard)
+# M4 Stage A — first overlay, step by step (Windows VM + ZedBoard, bare metal)
 
-> **Board note (D0014):** written for the PYNQ-Z2, revised for the ZedBoard
-> that actually arrived. Same Zynq-7020 chip; only board-level plumbing
-> differs, and every such difference is marked **[ZedBoard]** below.
+> **Board note (D0014/D0015):** written for the PYNQ-Z2, revised for the
+> ZedBoard that actually arrived. Same Zynq-7020 chip. Because no PYNQ image
+> exists for the ZedBoard, the board runs a **bare-metal C program built in
+> Vitis** instead of Linux + Jupyter (D0015). §1–§4 (Vivado) are unchanged
+> from the PYNQ plan; §5 onward is the Vitis flow.
 
-Goal of this stage: build a **loopback** overlay — Python sends a buffer to
-the fabric over DMA, a FIFO hands it straight back, Python checks it returned
-intact. **No custom RTL is involved.** This proves the toolchain, the board,
+Goal of this stage: build a **loopback** design — a C program on the ARM
+sends a buffer to the fabric over DMA, a FIFO hands it straight back, the
+program checks it returned intact and reports over the USB serial port. **No custom RTL is involved.** This proves the toolchain, the board,
 the SD image, the network and the DMA machinery, so that when our real engine
 goes in (Stage B) any new failure belongs to the engine, not the plumbing.
 
@@ -18,20 +20,21 @@ on until it holds. Jargon is defined at first use.
 
 ## 0. What you need before starting
 
-- [ ] Windows VM with Vivado installed. Check the version: open Vivado, then
-      `Help > About`. Anything 2020.2 or newer is fine for this flow.
-      (Zynq-7020 is covered by the free licence tier — no licence action
-      needed. If Vivado ever asks about licences for this chip, something
-      else is wrong.)
+- [ ] Windows VM with **Vivado 2024.1 and Vitis 2024.1** (both confirmed
+      installed). Zynq-7020 is covered by the free licence tier.
 - [ ] ZedBoard, microSD card (8 GB or more), micro-USB cable (for the UART
       port, optional but useful), and — **[ZedBoard]** — the **12 V barrel
       power supply**. The ZedBoard cannot run from USB power. No brick, no
       board day.
-- [ ] Ethernet cable from the board to your router (easiest), or directly to
-      a computer (workable, needs a static-IP step noted in §6).
+- [ ] **Two micro-USB cables** to the machine running Vitis: one to the
+      **PROG** port (J17, USB-JTAG — programs the FPGA and loads the C
+      program) and one to the **UART** port (J14 — the serial console the
+      program prints to). No Ethernet, no SD card, no network setup.
+- [ ] If Vitis runs in the VM, the VM must be able to see those USB devices
+      (VirtualBox/VMware: USB passthrough — attach "Digilent" or "FTDI"
+      devices to the VM once they enumerate).
 - [ ] A way to move files between this repo and the VM (shared folder, git,
-      or even a USB stick). And from your Mac/VM to the board — that happens
-      through the browser, no tools needed.
+      or a USB stick).
 
 ---
 
@@ -118,97 +121,99 @@ Collect exactly two files (paths relative to the project folder):
 | `design_1_wrapper.bit` | `m4_loopback_zed.runs/impl_1/` |
 | `design_1.hwh` | `m4_loopback_zed.gen/sources_1/bd/design_1/hw_handoff/` |
 
-Copy both out and **rename to the same basename**: `loopback.bit` and
-`loopback.hwh`. PYNQ finds the .hwh by the .bit's name — a mismatched name is
-the single most common first-overlay failure.
+(Those two files were what PYNQ wanted. **On the bare-metal path they are
+not needed** — keep them for reference only.) What Vitis wants instead:
 
-**Checkpoint:** two files, same basename, different extensions.
+4. `File > Export > Export Hardware...` → **Include bitstream** → Next →
+   note the output path → Finish. This writes `design_1_wrapper.xsa`: the
+   whole hardware description plus the bitstream, in one file.
 
----
-
-## 5. One-time: flash the SD card **[ZedBoard]**
-
-1. On any machine: download the ZedBoard image. **There is no official PYNQ
-   image for the ZedBoard** — pynq.io only lists Z1/Z2/ZCU104 and newer, and
-   none of those images will boot on it. Use the community prebuilt
-   **PYNQ 2.7 ZedBoard image**:
-   `https://buls.be/public/img/PYNQ/ZED-2.7.0.img`
-   (from github.com/sambuls/Pynq2.7OnZedboard). Community-built, minimal
-   docs; the loopback test in §7 is its acceptance test. It pairs with
-   Vivado 2020.2 — a 2022.x-built bitstream usually loads anyway; if
-   `Overlay()` refuses the .hwh, install Vivado 2020.2 in the VM and
-   rebuild (D0015).
-2. Flash the unzipped `.img` to the microSD with **Balena Etcher** (or
-   Rufus). This erases the card.
-3. Boot-mode jumpers — five of them, **JP7 to JP11**, in a row next to the
-   OLED. Each is a two-position shunt: pull it toward the ground side for 0,
-   toward the 3V3 side for 1. For SD boot:
-
-   ```
-   JP7  JP8  JP9  JP10 JP11
-    0    0    1    1    0
-   ```
-   (JP9 and JP10 high, the rest low. Silkscreen next to them says MIO2..MIO6.)
-4. Also **JP6 on, JP2 on** if they aren't already (SD card power/enable —
-   normally shipped in the right position; check they're populated).
-5. Insert SD, connect Ethernet, plug in the **12 V barrel supply**, flip the
-   power switch SW8.
-
-**Checkpoint:** the green power LED (LD13) comes on immediately; within
-~60 s the **blue DONE LED (LD12)** lights — that is the FPGA configured and
-Linux booting. Give it another minute for Jupyter.
+**Checkpoint:** `design_1_wrapper.xsa` exists (a few MB).
 
 ---
 
-## 6. Reach Jupyter
+## 5. Board setup **[ZedBoard, bare metal]**
 
-- Router case: browse to `http://pynq:9090` (or find the board's IP in your
-  router's device list and use `http://<ip>:9090`). The hostname is `pynq`
-  on the ZedBoard image too.
-- Direct-cable case: set your computer's Ethernet adapter to static IP
-  `192.168.2.1`, netmask `255.255.255.0`; the board is at `192.168.2.99`;
-  browse to `http://192.168.2.99:9090`.
-- Password: `xilinx`.
+1. Boot-mode jumpers **JP7–JP11 = 0 0 0 0 0** — all toward GND. That is
+   **JTAG boot**: the board waits for Vitis to load it over USB. (This is
+   different from the SD-boot setting a PYNQ board would use.)
+2. Plug the **12 V brick** into the barrel jack. Connect **both** micro-USB
+   cables (PROG J17 and UART J14) to the Vitis machine. Power switch SW8 on.
 
-**Checkpoint:** Jupyter file listing in the browser.
-
----
-
-## 7. Run the loopback test
-
-1. In Jupyter, upload `loopback.bit`, `loopback.hwh`, and
-   `host/loopback_test.py` from this repo (Upload button, top right).
-2. New notebook → single cell:
-
-   ```python
-   %run loopback_test.py
-   ```
-
-**Checkpoint — and Stage A's done-when:** it prints `LOOPBACK PASS` with a
-throughput number. That line means: bitstream built in the VM, loaded from
-Jupyter, and 100k words made the round trip CPU → DDR → DMA → fabric → DMA →
-DDR → CPU intact.
+**Checkpoint:** green power LED (LD13) on. The blue DONE LED (LD12) stays
+OFF — correct: nothing is programmed yet. In Windows Device Manager two
+new serial/USB devices appear (a "Digilent USB Device" and a COM port).
 
 ---
 
-## 8. When something goes wrong (the four classic failures)
+## 6. Vitis: platform + application
+
+Vitis is the software side of the Xilinx suite: it takes the .xsa, builds
+the drivers for exactly the hardware in it (the "platform"), and compiles C
+against them.
+
+1. Launch **Vitis 2024.1** (Vitis Unified IDE). Choose a workspace folder
+   (any empty folder).
+2. `File > New Component > Platform` → name `zed_platform` → **Hardware
+   Design: browse to `design_1_wrapper.xsa`** → OS **standalone**, processor
+   **ps7_cortexa9_0** → Finish. Then **Build** the platform (hammer icon;
+   ~1–2 min). Standalone = bare metal = no OS.
+3. `File > New Component > Application` → name `loopback` → select the
+   platform you just built → template **Hello World** → Finish.
+4. In the Explorer, open `loopback/src/helloworld.c`. **Delete its
+   contents and paste in `host/board/loopback.c` from this repo** (or drop
+   the file in and delete helloworld.c). Build the application.
+
+**Checkpoint:** application builds with 0 errors. If it complains about
+`XPAR_AXIDMA_0_DEVICE_ID`, the DMA isn't in the .xsa — re-export from
+Vivado after a fresh Generate Bitstream. Anything else, paste the error to
+me: this file was written without a compiler and the first build is its
+test.
+
+---
+
+## 7. Run it
+
+1. Open a serial terminal on the UART COM port at **115200 baud, 8N1**
+   (Vitis has one built in: the *Serial Monitor* / *Vitis Serial Terminal*
+   view — pick the COM port that appeared in §5, set 115200. PuTTY or Tera
+   Term work equally well.)
+2. Right-click the `loopback` application → **Run As > Launch Hardware**.
+   Vitis programs the FPGA with the bitstream (blue DONE LED lights),
+   initialises the ARM, downloads the ELF, and starts it.
+3. Watch the serial terminal.
+
+**Checkpoint — and Stage A's done-when:** the terminal prints
+`LOOPBACK PASS: 100000 words round-tripped bit-identical`. That line means:
+bitstream built in Vivado, platform and app built in Vitis, board
+programmed over JTAG, and 400 KB made the round trip CPU → DDR → DMA →
+fabric → DMA → DDR → CPU intact, with the cache handling right.
+
+---
+
+## 8. When something goes wrong (the classic failures, bare-metal edition)
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `Overlay` load complains about .hwh | basename mismatch | §4 rename step |
-| Notebook hangs at `sendchannel.wait()` | DMA can't reach DDR | §3 step 5 (HP0) skipped, or connection automation not re-run |
-| Hangs at `recvchannel.wait()` | stream never terminated | FIFO not in the path / TLAST not passed — check §3 step 6 wiring direction |
-| Board boots but no Jupyter | network, not board | §6 other case; try `ping pynq` / router list; give it a full 2 min |
-| No DONE LED at all **[ZedBoard]** | jumpers or image | re-check JP7–JP11 = 0 0 1 1 0; confirm the image is the ZedBoard build; check the barrel supply is 12 V and seated |
+| Nothing on the serial terminal at all | wrong COM port or baud, or terminal opened after the program already printed | 115200; pick the other COM port; re-Run |
+| `TIMEOUT waiting for send (MM2S)` | DMA can't reach DDR | §3 step 5 (HP0) skipped, or connection automation not re-run — fix in Vivado, re-export .xsa, rebuild platform |
+| `TIMEOUT waiting for receive (S2MM)` | stream never came back | FIFO wiring direction (§3 step 6), TLAST |
+| `LOOPBACK FAIL: N words differ`, N small and scattered | cache | the two `Xil_DCache*` calls are present? buffers 64-byte aligned? |
+| `LOOPBACK FAIL`, most words differ | data width mismatch | FIFO TDATA width vs DMA (32-bit) — §3 |
+| Vitis can't find the board | USB passthrough | attach the Digilent JTAG device to the VM; check Device Manager |
+| DONE LED never lights on Run | jumpers | JP7–JP11 must be all 0 (JTAG boot) |
 
-If a failure isn't in this table: photograph the block design + the error and
-bring it back to me; that context is usually enough to pinpoint it.
+If a failure isn't in this table: paste the terminal output and the Vitis
+error, plus a screenshot of the block design, and we'll pinpoint it.
 
 ---
 
 ## What happens in Stage B (next, after PASS)
 
-The FIFO comes out; an AXI-Stream wrapper around our verified C1 engine goes
-in. That wrapper and its simulation testbench are my job and land in the repo
-before you open Vivado again — the Vivado steps will be a shorter repeat of
-§3–§4 with one extra "Add Sources" step for our Verilog files.
+The FIFO comes out; the verified AXI-Stream wrapper around our C1 engine
+goes in (already in the repo: `hdl/dense/axis_conv_top.v` and friends). The
+Vivado steps are a short repeat of §3–§4 with one "Add Sources" step; then a
+new C program (`host/board/conv_server.c`) streams golden samples through the
+engine and a Python client on the Mac (`host/uart_client.py`) feeds it and
+compares against the golden model over the serial port. See
+`docs/m4_stage_b_vivado.md`.
