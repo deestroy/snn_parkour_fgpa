@@ -64,19 +64,36 @@ module axis_conv #(
     // port connection; a plainly-typed zero wire is the same thing.
     wire [$clog2(NEURONS)-1:0]   v_addr_zero = 0;
 
-    conv_layer #(
-        .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
-        .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
-        .THRESHOLD(THRESHOLD), .WEIGHT_FILE(WEIGHT_FILE),
-        .BAKED_WEIGHTS(BAKED_WEIGHTS)
-    ) engine (
-        .clk(clk), .rst(rst),
-        .clear(eng_clear), .start(eng_start),
-        .busy(eng_busy), .done(eng_done),
-        .in_we(in_we), .in_addr(in_addr), .in_data(in_bit),
-        .out_addr(out_addr), .out_data(out_bit),
-        .v_addr(v_addr_zero), .v_data(v_unused)
-    );
+    // BAKED_WEIGHTS=1 (synthesis): conv_layer_c1, the generated variant with
+    // the conv1 table inlined -- no include, no $readmemh, nothing for Vivado
+    // to lose. BAKED_WEIGHTS=0 (simulation of any layer): conv_layer + hex.
+    generate if (BAKED_WEIGHTS) begin : g_baked
+        conv_layer_c1 #(
+            .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
+            .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
+            .THRESHOLD(THRESHOLD)
+        ) engine (
+            .clk(clk), .rst(rst),
+            .clear(eng_clear), .start(eng_start),
+            .busy(eng_busy), .done(eng_done),
+            .in_we(in_we), .in_addr(in_addr), .in_data(in_bit),
+            .out_addr(out_addr), .out_data(out_bit),
+            .v_addr(v_addr_zero), .v_data(v_unused)
+        );
+    end else begin : g_file
+        conv_layer #(
+            .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
+            .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
+            .THRESHOLD(THRESHOLD), .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(0)
+        ) engine (
+            .clk(clk), .rst(rst),
+            .clear(eng_clear), .start(eng_start),
+            .busy(eng_busy), .done(eng_done),
+            .in_we(in_we), .in_addr(in_addr), .in_data(in_bit),
+            .out_addr(out_addr), .out_data(out_bit),
+            .v_addr(v_addr_zero), .v_data(v_unused)
+        );
+    end endgenerate
 
     // --- wrapper FSM ------------------------------------------------------
     localparam S_CLR = 0, S_CLRW = 1, S_RX = 2, S_UNPACK = 3,

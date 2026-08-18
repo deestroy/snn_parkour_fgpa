@@ -20,7 +20,7 @@ wo=$(( (neurons + 31) / 32 ))
 
 mkdir -p sim/work
 iverilog -g2012 -I hdl/dense -o sim/work/tb_axis.vvp \
-    hdl/common/lif_update.v hdl/dense/conv_layer.v hdl/dense/axis_conv.v hdl/dense/axis_conv_top.v \
+    hdl/common/lif_update.v hdl/dense/conv_layer.v hdl/dense/conv_layer_c1.v hdl/dense/axis_conv.v hdl/dense/axis_conv_top.v \
     sim/tb_axis_conv.v
 
 vvp sim/work/tb_axis.vvp \
