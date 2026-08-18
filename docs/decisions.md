@@ -1143,3 +1143,13 @@ init path shared by every failing run. Discriminator unchanged: BOOT.BIN on
 SD, cold power-up. If DDR passes there, the fix is to boot DDR-dependent
 programs via SD (or via a JTAG flow that reruns the FSBL from BootROM state),
 not via OpenOCD's reset-halt-init sequence.
+
+**(11:20) SD cold boot works up to the FSBL.** With jumpers 00110 verified by
+photo and BOOT.BIN on a FAT32/MBR card: BOOT_MODE=5 (SD), REBOOT_STATUS
+0x60000000 (BootROM handoff OK, error code 0), CPU parked in the FSBL's
+OutputStatus. So BootROM->FSBL succeeded from a genuine cold boot; the FSBL
+is stuck printing to UART0 (its domain's stdout), so it never reaches the
+bitstream/app partitions -> no DONE LED, silent UART1. Fix: zynq_fsbl
+domain bsp.yaml stdout->ps7_uart_1, rebuild platform, rebuild BOOT.BIN.
+Encouraging for DDR: the FSBL passed its DDR init before parking on print.
+Also learned: JP7-JP11 shunts move sideways (GND/SIG/3V3 columns), JP7=MIO2.
