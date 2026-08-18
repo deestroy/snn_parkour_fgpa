@@ -1310,3 +1310,46 @@ scatter = ~76 cycles/spike at K=1 (~30k at trained rates for C1). Total
 ~48k vs dense ~97k for C1 per timestep. K=4 (next) attacks the scatter
 term only; the sweep term is the event-driven design's floor and the M7
 crossover lives where scatter shrinks below it.
+
+---
+
+## M6 RESULT, K=4 (2026-08-18) — banking verified; the crossover is visible in cycles
+
+ed_scatter.v is now parameterised by K (bank = oc mod K, offset per D0017);
+the K RMWs of one inner-loop step target K distinct banks and issue in one
+cycle. ed_conv_layer.v did NOT change: the i_addr port translates golden
+flat indices to (bank, offset), so the sweep and every testbench are
+K-agnostic. Verified in the SAME harness, SAME golden traces:
+
+    K=4 scatter vs Python I-dump: c1/c2/c3 bit-identical (564k words)
+    K=4 full layer vs golden:     c1/c2/c3 bit-identical (1.13M checks)
+    K=1 regression after refactor: unchanged; fault injection at K=4: 5,001
+
+Measured cycles per input spike, scatter unit:
+    C1  76 -> 22  (3.45x)    C2  148 -> 40  (3.70x)    C3  296 -> 77  (3.84x)
+approaching the ideal 4x as fan-out grows.
+
+Per-timestep cycle model at the golden traces' activity (busy digit-0
+samples), sweep = 4 cyc/neuron, dense = 21 cyc/neuron:
+
+           dense    ED K=1   ED K=4   |  dense/K1  dense/K4
+    C1     97,104   48,276   27,116   |    2.0x      3.6x
+    C2     54,432   70,532   26,628   |    0.8x      2.0x
+    C3     33,600   83,993   26,584   |    0.4x      1.3x
+
+**Finding, stated plainly:** at K=1 the event-driven engine LOSES to dense on
+C2 and C3 — larger fan-out per spike (72, 144 targets) makes sequential
+scatter cost more than visiting every neuron. Banking flips both. This is
+the crossover the thesis is about, already visible in RTL cycle counts
+before any power is measured, and it moves with K. M7 will measure it in
+energy; this table is the cycle-level prediction it will be checked
+against. Caveats to carry into M7: (a) these traces are on the busy side
+of true mean activity; (b) cycles are not energy — the banked design has
+4x the RMW datapath and 2x the neuron state (D0019), and only the meter
+says what that costs.
+
+Also: the sweep (4 cyc/neuron) is now the dominant term at K=4 for C1
+(18.5k of 27.1k). The next lever after banking is the sweep — e.g. skipping
+neurons whose I is zero AND V has decayed to zero, which the address-list
+architecture makes possible. Not pursued now; recorded as the obvious M7+
+optimisation, to be weighed against its bookkeeping cost.

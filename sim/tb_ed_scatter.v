@@ -13,6 +13,7 @@ module tb_ed_scatter;
     parameter C_IN  = 2,  H_IN  = 34, W_IN  = 34;
     parameter C_OUT = 16, H_OUT = 17, W_OUT = 17;
     parameter WT_FILE = "sim/vectors/ed_c1_wt.hex";
+    parameter K_BANKS = 1;
     localparam T = 4;
     localparam IN_BITS = C_IN * H_IN * W_IN;
     localparam NEURONS = C_OUT * H_OUT * W_OUT;
@@ -30,7 +31,7 @@ module tb_ed_scatter;
     ed_scatter #(
         .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
         .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
-        .K(1), .WT_FILE(WT_FILE)
+        .K(K_BANKS), .WT_FILE(WT_FILE)
     ) dut (
         .clk(clk), .rst(rst), .clear(clear),
         .spk_we(spk_we), .spk_addr(spk_addr), .busy(busy),
@@ -100,8 +101,8 @@ module tb_ed_scatter;
         end
 
         if (fails == 0)
-            $display("TB_PASS %0d accumulator words bit-identical over %0d samples x %0d timesteps, %0d spikes, %0d scatter cycles (%0d/spike)",
-                     checked, nsamples, T, total_spk, cyc_scatter, cyc_scatter / (total_spk > 0 ? total_spk : 1));
+            $display("TB_PASS K=%0d %0d accumulator words bit-identical over %0d samples x %0d timesteps, %0d spikes, %0d scatter cycles (%0d/spike)",
+                     K_BANKS, checked, nsamples, T, total_spk, cyc_scatter, cyc_scatter / (total_spk > 0 ? total_spk : 1));
         else
             $display("TB_FAIL %0d mismatched", fails);
         $finish;

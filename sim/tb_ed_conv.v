@@ -18,6 +18,7 @@ module tb_ed_conv;
     parameter signed [15:0] THRESHOLD = 64;
     parameter WEIGHT_FILE = "sim/vectors/conv_c1_w.hex";
     parameter WT_FILE = "sim/vectors/ed_c1_wt.hex";
+    parameter K_BANKS = 1;
     localparam T = 4;
     localparam IN_BITS = C_IN * H_IN * W_IN;
     localparam NEURONS = C_OUT * H_OUT * W_OUT;
@@ -39,7 +40,7 @@ module tb_ed_conv;
         .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
         .THRESHOLD(THRESHOLD), .WEIGHT_FILE(WEIGHT_FILE)
     `ifdef ED_HAS_WT
-        , .WT_FILE(WT_FILE)
+        , .WT_FILE(WT_FILE), .K(K_BANKS)
     `endif
     ) dut (
         .clk(clk), .rst(rst), .clear(clear),
@@ -123,8 +124,8 @@ module tb_ed_conv;
         end
 
         if (fails == 0)
-            $display("TB_PASS %0d comparisons bit-identical over %0d samples x %0d timesteps, %0d input spikes",
-                     checked, nsamples, T, total_spk);
+            $display("TB_PASS K=%0d %0d comparisons bit-identical over %0d samples x %0d timesteps, %0d input spikes",
+                     K_BANKS, checked, nsamples, T, total_spk);
         else
             $display("TB_FAIL %0d mismatched", fails);
         $finish;

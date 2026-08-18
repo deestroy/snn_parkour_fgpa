@@ -3,6 +3,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 layer="${1:-c1}"
+K="${K:-1}"          # banks: K=1 (default) or K=4
 case "$layer" in
     c1) ci=2;  hi=34; wi=34; co=16; ho=17; wo=17 ;;
     c2) ci=16; hi=17; wi=17; co=32; ho=9;  wo=9  ;;
@@ -14,7 +15,7 @@ mkdir -p sim/work
 iverilog -g2012 -o "sim/work/tb_eds_${layer}.vvp" \
     -Ptb_ed_scatter.C_IN=$ci -Ptb_ed_scatter.H_IN=$hi -Ptb_ed_scatter.W_IN=$wi \
     -Ptb_ed_scatter.C_OUT=$co -Ptb_ed_scatter.H_OUT=$ho -Ptb_ed_scatter.W_OUT=$wo \
-    -Ptb_ed_scatter.WT_FILE="\"sim/vectors/ed_${layer}_wt.hex\"" \
+    -Ptb_ed_scatter.K_BANKS=$K -Ptb_ed_scatter.WT_FILE="\"sim/vectors/ed_${layer}_wt.hex\"" \
     hdl/eventdriven/ed_scatter.v sim/tb_ed_scatter.v
 vvp "sim/work/tb_eds_${layer}.vvp" +spk="sim/vectors/ed_${layer}_spk.txt" \
     +i="sim/vectors/ed_${layer}_i.hex" +nsamples=16 | grep -E "TB_|MISMATCH" | head -8
