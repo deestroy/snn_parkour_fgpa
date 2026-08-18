@@ -197,6 +197,17 @@ This is a real architectural constraint, so stating it plainly:
   scaffolding it will be checked against; the RTL waits for a session
   with you, per the one-component-at-a-time rule.
 
+## Also written, late in the night
+
+- `docs/status_2026-08-18.md` — a one-page status for your supervisor,
+  honest about the ZedBoard consequence (their call) and clear that the
+  power meter is now the critical path.
+- `docs/decisions.md` now has an index table at the top; two stale OPEN
+  statuses (D0003, D0015) corrected to DECIDED.
+- RTL is verilator-lint-clean under `-Wall` (explicit sign-extension of the
+  int8 weights, redundant FSM initialisers removed); full regression still
+  bit-identical everywhere. README layout/environment/checks refreshed.
+
 ## Suggested first hour today
 
 1. Read this. Skim decisions.md D0015 parts 4–5 and D0019 if you want the
