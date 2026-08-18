@@ -722,3 +722,29 @@ Build order (each step golden-verified before the next): transposed-weight
 export + address<->bank mapping in Python; C1 scatter engine at K=1; LIF
 sweep + address-list writer; C1 event-driven == dense on all traces; then
 C2/C3 by parameter, FC at K=1, and finally K=4 as a parameter flip.
+
+### D0015 resolved (2026-08-16): bare-metal via Vitis, Mac as host, UART
+
+Supervisor's call: continue with the ZedBoard (no PYNQ-Z2 access for a
+while). PYNQ-from-source was the last way to keep the Jupyter workflow; it
+needs PetaLinux, which needs a supported Linux host. The available school
+box is CentOS 7 (unsupported by PetaLinux 2022.x), no sudo, no Docker — so
+that path is closed, not merely disfavoured.
+
+**Decided:** the ZedBoard runs a bare-metal C program built in Vitis
+(installed alongside Vivado in the Windows VM): DMA setup, stream a sample
+in, stream results out, over UART to the Mac. The Mac keeps every Python
+piece — golden comparison, plotting, sweeps — as a UART client. Nothing in
+hdl/, golden/ or sim/ changes; the AXIS wrapper and block design are
+identical. host/ is rewritten: a C server on the board plus a Python client
+on the Mac.
+
+Consequence for M5, actually favourable: with no Linux on the ARM, "idle"
+is genuinely idle — a cleaner power delta than a PYNQ board running Jupyter
+would have produced. Consequence for M7: UART (~1 MB/s) is fine for M4-M5
+sample counts; Ethernet (lwIP) is the documented upgrade if sweep throughput
+demands it.
+
+Aside: the Linux box's PATH includes /CMC/scripts, which suggests CMC
+Microsystems tooling — Vivado may exist there. Checked separately; would move
+synthesis to a 32-core machine but doesn't change the board-side plan.
