@@ -19,6 +19,9 @@ module tb_axis_conv;
     parameter C_OUT = 16, H_OUT = 17, W_OUT = 17;
     parameter signed [15:0] THRESHOLD = 64;
     parameter WEIGHT_FILE = "sim/vectors/conv_c1_w.hex";
+    parameter WT_FILE = "sim/vectors/ed_c1_wt.hex";
+    parameter ENGINE = 0;
+    parameter ED_K = 1;
     localparam T = 4;
     localparam MAXW = 65536;
 
@@ -35,7 +38,8 @@ module tb_axis_conv;
     // BAKED_WEIGHTS=1: exercise the exact path synthesis uses (compiled-in
     // table), so a hex-vs-baked mismatch would show up here, not on silicon.
     axis_conv_top #(
-        .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(1)
+        .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(1),
+        .ENGINE(ENGINE), .ED_K(ED_K), .WT_FILE(WT_FILE)
     ) dut (
         .aclk(clk), .aresetn(~rst),
         .s_axis_tdata(s_tdata), .s_axis_tvalid(s_tvalid),
@@ -122,8 +126,8 @@ module tb_axis_conv;
                 rx_i = rx_i + 1;
                 if (rx_i == n_out) begin
                     if (fails == 0 && lasts == nsamples)
-                        $display("TB_PASS %0d words bit-identical, tlast x%0d correct, hostile handshake",
-                                 n_out, lasts);
+                        $display("TB_PASS engine=%s K=%0d: %0d words bit-identical, tlast x%0d correct, hostile handshake",
+                                 ENGINE ? "event-driven" : "dense", ED_K, n_out, lasts);
                     else
                         $display("TB_FAIL %0d mismatches, %0d tlasts (expect %0d)",
                                  fails, lasts, nsamples);

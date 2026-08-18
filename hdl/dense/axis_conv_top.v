@@ -22,7 +22,13 @@
 
 module axis_conv_top #(
     parameter WEIGHT_FILE = "conv_c1_w.hex",
-    parameter BAKED_WEIGHTS = 1
+    parameter BAKED_WEIGHTS = 1,
+    // ENGINE 0 = dense (M4 BOARD PASS design), 1 = event-driven (M6). ED_K =
+    // banks. Both share this top and the AXIS wrapper: identical framing is
+    // what makes the M7 dense-vs-event-driven comparison apples to apples.
+    parameter ENGINE = 0,
+    parameter ED_K = 4,
+    parameter WT_FILE = "ed_c1_wt.hex"
 ) (
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 aclk CLK",
        X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF s_axis:m_axis, ASSOCIATED_RESET aresetn" *)
@@ -46,7 +52,8 @@ module axis_conv_top #(
         .C_IN(2), .H_IN(34), .W_IN(34),
         .C_OUT(16), .H_OUT(17), .W_OUT(17),
         .T(4), .THRESHOLD(64),
-        .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(BAKED_WEIGHTS)
+        .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(BAKED_WEIGHTS),
+        .ENGINE(ENGINE), .ED_K(ED_K), .WT_FILE(WT_FILE)
     ) core (
         .clk(aclk), .rst(~aresetn),
         .s_axis_tdata(s_axis_tdata), .s_axis_tvalid(s_axis_tvalid),

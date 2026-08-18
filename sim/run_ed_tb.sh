@@ -15,7 +15,7 @@ python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null   # dense weight
 python3 sim/export_ed_vectors.py --layer "$layer" > /dev/null     # address lists + expected + W_T
 mkdir -p sim/work
 srcs="hdl/common/lif_update.v hdl/dense/conv_layer.v hdl/eventdriven/ed_iface_shim.v hdl/eventdriven/ed_scatter.v"
-[ -f hdl/eventdriven/ed_conv_layer.v ] && srcs="$srcs hdl/eventdriven/ed_conv_layer.v"
+[ -f hdl/eventdriven/ed_conv_layer.v ] && srcs="$srcs hdl/eventdriven/ed_scatter_c1.v hdl/eventdriven/ed_conv_layer.v"
 extra=""; [ "$dut" = ed_conv_layer ] && extra="-DED_HAS_WT"
 iverilog -g2012 -I hdl/dense -DED_DUT="$dut" $extra -o "sim/work/tb_ed_${layer}.vvp" \
     -Ptb_ed_conv.C_IN=$ci -Ptb_ed_conv.H_IN=$hi -Ptb_ed_conv.W_IN=$wi \

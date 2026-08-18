@@ -1353,3 +1353,27 @@ Also: the sweep (4 cyc/neuron) is now the dominant term at K=4 for C1
 neurons whose I is zero AND V has decayed to zero, which the address-list
 architecture makes possible. Not pursued now; recorded as the obvious M7+
 optimisation, to be weighed against its bookkeeping cost.
+
+---
+
+## D0021 — One AXIS wrapper for both engines (ENGINE parameter)
+
+**Date:** 2026-08-18 · **Status:** DECIDED
+
+axis_conv.v / axis_conv_top.v gain `ENGINE` (0 dense, 1 event-driven) and
+`ED_K`. Same framing, same words in and out; the only behavioural
+difference inside is one line in the unpack state — dense writes every bit,
+event-driven pushes an address only for a 1. Both engines are verified
+through the SAME hostile-handshake testbench (9,280 words bit-identical:
+dense, ED K=1, ED K=4). This is deliberate: identical framing and identical
+host software are what make M7's dense-vs-event-driven energy comparison
+apples-to-apples — the only variable on the board is the engine.
+
+Synthesis variants generated (no $readmemh): conv_layer_c1.v (dense),
+ed_scatter_c1.v (W_T inlined). Board default: ENGINE=1, ED_K=4.
+
+Known-and-accepted for this first board run: ed_scatter decodes the spike
+address with `/` and `%` by constants and translates i_addr with `/ %`;
+Vivado will build small constant dividers. Fine for correctness and 100 MHz
+on a 12-bit operand; a final design keeps the address as separate fields.
+Recorded alongside the sweep-skip as post-M7 optimisations.

@@ -30,6 +30,13 @@ module axis_conv #(
     parameter signed [15:0] THRESHOLD = 64,
     parameter WEIGHT_FILE = "sim/vectors/conv_c1_w.hex",
     parameter BAKED_WEIGHTS = 0,
+    // ENGINE: 0 = dense conv_layer (M3/M4);  1 = event-driven ed_conv_layer
+    // (M6). Same framing, same words in and out -- the two designs are
+    // interchangeable behind this wrapper, which is what makes M7's
+    // comparison honest. ED_K = banks for the event-driven engine.
+    parameter ENGINE = 0,
+    parameter ED_K = 1,
+    parameter WT_FILE = "sim/vectors/ed_c1_wt.hex",
     parameter IN_BITS    = C_IN * H_IN * W_IN,
     parameter NEURONS    = C_OUT * H_OUT * W_OUT,
     parameter WORDS_IN   = (IN_BITS + 31) / 32,
@@ -64,10 +71,27 @@ module axis_conv #(
     // port connection; a plainly-typed zero wire is the same thing.
     wire [$clog2(NEURONS)-1:0]   v_addr_zero = 0;
 
+    // event-driven engine takes spike ADDRESS pushes, not bit writes
+    reg                          spk_we;
+
+    generate if (ENGINE == 1) begin : g_ed
+        ed_conv_layer #(
+            .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
+            .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
+            .K(ED_K), .THRESHOLD(THRESHOLD), .WT_FILE(WT_FILE),
+            .BAKED_WEIGHTS(BAKED_WEIGHTS)
+        ) engine (
+            .clk(clk), .rst(rst),
+            .clear(eng_clear), .spk_we(spk_we), .spk_addr(in_addr),
+            .start(eng_start), .busy(eng_busy), .done(eng_done),
+            .out_addr(out_addr), .out_data(out_bit),
+            .v_addr(v_addr_zero), .v_data(v_unused)
+        );
+    end else
     // BAKED_WEIGHTS=1 (synthesis): conv_layer_c1, the generated variant with
     // the conv1 table inlined -- no include, no $readmemh, nothing for Vivado
     // to lose. BAKED_WEIGHTS=0 (simulation of any layer): conv_layer + hex.
-    generate if (BAKED_WEIGHTS) begin : g_baked
+    if (BAKED_WEIGHTS) begin : g_baked
         conv_layer_c1 #(
             .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
             .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
@@ -120,6 +144,7 @@ module axis_conv #(
         eng_clear <= 1'b0;
         eng_start <= 1'b0;
         in_we     <= 1'b0;
+        spk_we    <= 1'b0;
 
         if (rst) begin
             state <= S_CLR;
@@ -144,7 +169,8 @@ module axis_conv #(
 
         S_UNPACK: begin                    // 1 bit -> spike buffer per cycle
             if (rx_bits < IN_BITS) begin
-                in_we   <= 1'b1;
+                in_we   <= 1'b1;                    // dense: write every bit
+                spk_we  <= shift[0];                // event-driven: push only the 1s
                 in_addr <= rx_bits[$clog2(IN_BITS)-1:0];
                 in_bit  <= shift[0];
                 rx_bits <= rx_bits + 1;
