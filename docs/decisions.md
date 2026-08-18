@@ -1122,3 +1122,14 @@ completed the transaction. Chips warm, PHY DLLs locked, silicon rev 1.0,
 CPU-native access stalls: a data-path fault on this board. Final.
 Recommend telling the supervisor: everything on the board works except
 DDR3; a replacement ZedBoard would be a 20-minute swap, otherwise OCM.
+
+**Re-opened (10:45).** Supervisor confirms DDR worked for him — and his
+"≤32 GB SD" remark means he booted Linux from SD, i.e. DDR carried a whole
+OS. Every failing run here, including the FSBL, went through JTAG boot mode
+plus a debugger SRST with init driven from a halted CPU. Zynq DDRIOB/DCI is
+documented to want a power-on init; a warm SRST can leave it in a state
+ps7_init does not fully recover while still reporting "done". Native-code
+hang is therefore consistent with EITHER a board fault OR a JTAG-warm-reset
+artefact. Decisive test: BOOT.BIN (FSBL + bit + ddr_test.elf) on SD, cold
+power-up in SD boot mode, no debugger anywhere. "Final" retracted until
+that runs.
