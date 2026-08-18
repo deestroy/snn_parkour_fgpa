@@ -58,7 +58,7 @@ and `docs/decisions.md` for the running log of design decisions.
       0 mismatches; `bash sim/run_conv_tb.sh c1 c2 c3`). Simulation only.
 - [x] **M4** C1 engine on the ZedBoard: **BOARD PASS, 16 samples, 9,280 words bit-identical to the golden model** (2026-08-18). SD boot, bare metal, framed UART to the Mac (`python3 host/uart_client.py`). DDR works (block design needed the ZedBoard preset — D0015).
 - [ ] **M5** power measurement rig — first thesis result
-- [x] **M6** event-driven conv engine (`hdl/eventdriven/`), **bit-identical to the dense engine** on c1/c2/c3 in the same harness (1.13M checks; `bash sim/run_ed_tb.sh c1 ed_conv_layer`). K=1; K=4 banking is a parameter flip still to be verified. Simulation only — not yet on the board.
+- [x] **M6** event-driven conv engine (`hdl/eventdriven/`), **bit-identical to the dense engine** on c1/c2/c3 in the same harness (1.13M checks) at **both K=1 and K=4** (`K=4 bash sim/run_ed_tb.sh c1 ed_conv_layer`). Banking measured: scatter 3.45-3.84x faster. Cycle model already shows the crossover: K=1 loses to dense on C2/C3, K=4 wins everywhere. Simulation only — not yet on the board.
 - [ ] **M7** crossover experiment
 - [ ] **M8** robot (year two)
 
