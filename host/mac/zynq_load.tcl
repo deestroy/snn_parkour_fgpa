@@ -57,6 +57,14 @@ proc zynq_program {ps7 bit elf entry} {
     ps7_init
     ps7_post_config
 
+    # BootROM leaves the L2 address filter at 0x40000001, which routes all
+    # of DDR (< 0x40000000) away from the DDR port. Vitis/xsct clears this
+    # implicitly; we do it explicitly. Harmless for an OCM-resident program,
+    # essential once the program lives in DDR. CPU-side write: the private
+    # peripheral region is not reachable via the AHB-AP.
+    mww 0xF8F02C04 0xFFF00000
+    mww 0xF8F02C00 0x00000000
+
     echo "== load ELF: $elf  (entry $entry) =="
     load_image $elf
     resume $entry
