@@ -1097,3 +1097,10 @@ in loopback.c is cancelled rather than deferred; the methodology states the
 board's DRAM was unavailable and that all state was on-chip — a stricter
 version of the brief's own constraint. Nothing in M4–M7 is blocked. If a
 PYNQ-Z2 or working ZedBoard appears, everything transfers unchanged.
+
+Addendum (09:55): the user checked physically — the two DDR3 chips are warm
+under load, so the DRAM is powered and clocked (consistent with PLL and PHY
+DLL lock). Failure is therefore in the data path (DQ/DQS lanes or PHY
+write-leveling on rev-1.0 silicon), not power or clock. Physically present,
+powered, clocked, cannot move data: a board fault, not a software step.
+This is the sentence the methodology uses.
