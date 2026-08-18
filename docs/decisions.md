@@ -1153,3 +1153,13 @@ bitstream/app partitions -> no DONE LED, silent UART1. Fix: zynq_fsbl
 domain bsp.yaml stdout->ps7_uart_1, rebuild platform, rebuild BOOT.BIN.
 Encouraging for DDR: the FSBL passed its DDR init before parking on print.
 Also learned: JP7-JP11 shunts move sideways (GND/SIG/3V3 columns), JP7=MIO2.
+
+**(11:50) Retraction:** the FSBL is a RELEASE build (no debug strings, prints
+nothing by design) with STDOUT_BASEADDRESS already 0xE0001000. Its silence
+was never evidence; "stuck on UART0" was another theory built on nothing.
+Real clues after cold SD boot: BOOT_MODE=SD, REBOOT_STATUS=FSBL_IN_MASK with
+no error code, PCFG_DONE=0 (bitstream never loaded), DDRC mode_sts=0x1
+(controller NOT init-done — the FSBL's own ps7_init left DDR less
+initialised than the debugger path did). Next: FSBL rebuilt with
+FSBL_DEBUG_INFO so it narrates its progress on UART1; splice into BOOT.bin
+locally (Create Boot Image keeps reusing the stale fsbl.elf).
