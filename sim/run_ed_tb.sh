@@ -11,14 +11,16 @@ case "$layer" in
     *) echo "unknown layer"; exit 2 ;;
 esac
 python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null   # dense weight hex (shim)
-python3 sim/export_ed_vectors.py --layer "$layer" > /dev/null     # address lists + expected
+python3 sim/export_ed_vectors.py --layer "$layer" > /dev/null     # address lists + expected + W_T
 mkdir -p sim/work
-srcs="hdl/common/lif_update.v hdl/dense/conv_layer.v hdl/eventdriven/ed_iface_shim.v"
+srcs="hdl/common/lif_update.v hdl/dense/conv_layer.v hdl/eventdriven/ed_iface_shim.v hdl/eventdriven/ed_scatter.v"
 [ -f hdl/eventdriven/ed_conv_layer.v ] && srcs="$srcs hdl/eventdriven/ed_conv_layer.v"
-iverilog -g2012 -I hdl/dense -DED_DUT="$dut" -o "sim/work/tb_ed_${layer}.vvp" \
+extra=""; [ "$dut" = ed_conv_layer ] && extra="-DED_HAS_WT"
+iverilog -g2012 -I hdl/dense -DED_DUT="$dut" $extra -o "sim/work/tb_ed_${layer}.vvp" \
     -Ptb_ed_conv.C_IN=$ci -Ptb_ed_conv.H_IN=$hi -Ptb_ed_conv.W_IN=$wi \
     -Ptb_ed_conv.C_OUT=$co -Ptb_ed_conv.H_OUT=$ho -Ptb_ed_conv.W_OUT=$wo \
     -Ptb_ed_conv.WEIGHT_FILE="\"sim/vectors/conv_${layer}_w.hex\"" \
+    -Ptb_ed_conv.WT_FILE="\"sim/vectors/ed_${layer}_wt.hex\"" \
     $srcs sim/tb_ed_conv.v
 vvp "sim/work/tb_ed_${layer}.vvp" +spk="sim/vectors/ed_${layer}_spk.txt" \
     +s="sim/vectors/ed_${layer}_s.bin" +v="sim/vectors/ed_${layer}_v.hex" +nsamples=16 \

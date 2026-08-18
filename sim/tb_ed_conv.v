@@ -17,6 +17,7 @@ module tb_ed_conv;
     parameter C_OUT = 16, H_OUT = 17, W_OUT = 17;
     parameter signed [15:0] THRESHOLD = 64;
     parameter WEIGHT_FILE = "sim/vectors/conv_c1_w.hex";
+    parameter WT_FILE = "sim/vectors/ed_c1_wt.hex";
     localparam T = 4;
     localparam IN_BITS = C_IN * H_IN * W_IN;
     localparam NEURONS = C_OUT * H_OUT * W_OUT;
@@ -37,6 +38,9 @@ module tb_ed_conv;
         .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
         .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
         .THRESHOLD(THRESHOLD), .WEIGHT_FILE(WEIGHT_FILE)
+    `ifdef ED_HAS_WT
+        , .WT_FILE(WT_FILE)
+    `endif
     ) dut (
         .clk(clk), .rst(rst), .clear(clear),
         .spk_we(spk_we), .spk_addr(spk_addr), .start(start),

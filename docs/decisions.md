@@ -1275,3 +1275,38 @@ loop, which is exactly the K seam: at K=4 the same loop issues 4 RMWs/cycle
 into 4 banks. Per timestep at trained rates that is ~24k cycles for C1 vs the
 dense engine's ~97k (4624 neurons x 21) — the first RTL-level number for the
 event-driven advantage, before any banking.
+
+---
+
+## M6 RESULT, K=1 (2026-08-18) — event-driven engine bit-identical to dense
+
+hdl/eventdriven/ed_conv_layer.v (address list + ed_scatter + sweep + V
+memory, behind the D0020 interface) replaces the dense-engine shim in the
+SAME harness with the SAME golden traces:
+
+    c1: 591,872 comparisons bit-identical, 25,078 spikes
+    c2: 331,776 comparisons bit-identical, 26,017 spikes
+    c3: 204,800 comparisons bit-identical, 16,777 spikes
+    fault injection (one W_T bit): 5,353 mismatches; shim still passes
+
+M6's done-when — "identical results to the dense design" — is met in
+simulation at K=1. Two engines, two loop orders, one set of bits.
+
+Two bugs the harness caught, both invisible to inspection and both of the
+"works on sample 0, drifts later" kind:
+1. A 64-deep input FIFO silently dropped 81% of a timestep's spikes under
+   the harness's burst push. Replaced by the D0016 address list, sized for
+   the worst case (every input firing once), so overflow is impossible.
+   This is not a workaround; it is the design D0016 specified.
+2. That list's ring pointers used $clog2 bits over a non-power-of-two
+   depth (2312) and indexed past the array once wr_p crossed 2312 -- first
+   at sample 1, timestep 2. Depth is now rounded up to a power of two.
+Also fixed pre-emptively: the sweep's I-zeroing needed its own cycle so
+i_addr is held while the scatter unit performs the write (an off-by-one
+that happened not to be the failing symptom).
+
+Cost model, from the RTL: sweep = 4 cycles/neuron fixed (18.5k for C1);
+scatter = ~76 cycles/spike at K=1 (~30k at trained rates for C1). Total
+~48k vs dense ~97k for C1 per timestep. K=4 (next) attacks the scatter
+term only; the sweep term is the event-driven design's floor and the M7
+crossover lives where scatter shrinks below it.
