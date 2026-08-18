@@ -1077,3 +1077,23 @@ dropped address fails 124 checks. When ed_conv_layer.v is written it
 replaces the shim (`bash sim/run_ed_tb.sh c1 ed_conv_layer`) and the
 harness does not change. This is the M2/M3 discipline applied to M6: the
 check exists before the thing it checks.
+
+### DDR — resolved as unusable on this board (2026-08-18 09:40)
+
+The last discriminator was run: Vitis's own FSBL (compiled C ps7_init with
+Xilinx's silicon-rev workarounds), JTAG-loaded from the Mac. It ran to
+completion of its init and reached its status-print routine (halted PC in
+`OutputStatus`; its output was invisible only because the FSBL domain's
+stdout is UART0 — irrelevant to the DDR question). Immediately afterwards,
+DDR still does not retain data: writes read back as 0 via the AHB-AP and
+0xFFFFFFFF via the CPU. Combined with a locked, trained PHY and the
+rev-1.0 register signature, this is hardware — DRAM that does not answer
+on a 2012-era ZedBoard — not a missing software step.
+
+**Decision: the design runs from the 192 KB OCM for the rest of the
+project.** Consequences (unchanged from the overnight report, now firm):
+Stage B fits; sweeps stream one sample at a time; the buffer-size revert
+in loopback.c is cancelled rather than deferred; the methodology states the
+board's DRAM was unavailable and that all state was on-chip — a stricter
+version of the brief's own constraint. Nothing in M4–M7 is blocked. If a
+PYNQ-Z2 or working ZedBoard appears, everything transfers unchanged.

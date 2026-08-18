@@ -27,10 +27,10 @@
 #include "xil_cache.h"
 #include "xstatus.h"
 
-#define N_WORDS      (12288u)              /* 48 KB each way. TEMPORARY: shrunk
-                                              from 100000 to fit OCM while DDR
-                                              bring-up is unresolved. Revert
-                                              per docs/decisions.md D0015.  */
+#define N_WORDS      (12288u)              /* 48 KB each way: sized for OCM.
+                                              DDR on this board is unusable
+                                              (hardware; decisions.md D0015),
+                                              so this is permanent.       */
 #define TIMEOUT_LOOP (50000000u)           /* spin bound before we give up */
 
 /* Vitis 2024.x Unified IDE builds with -DSDT (System Device Tree). In that
