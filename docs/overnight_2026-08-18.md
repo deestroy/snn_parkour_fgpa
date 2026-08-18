@@ -102,11 +102,19 @@ This is a real architectural constraint, so stating it plainly:
   *stricter* than planned. Not a weakness — arguably cleaner.
 
 **Two things only you can do to settle it (both in Vitis):**
-1. **Build the FSBL** (`File > New Component > Application` → template
-   *Zynq FSBL*), copy its `.elf` to `host/mac/build/`, and I'll JTAG-run
-   it. It prints DDR init status over UART and, if DDR is bad, says so.
-   If it brings DDR up, the difference is something the FSBL does that
-   `ps7_init.tcl` doesn't, and it becomes our loader. ~10 minutes.
+1. **Build the FSBL** — `File > New Component > Application` → on
+   `zed_platform` → template **Zynq FSBL** → Finish → Build (its own
+   linker script already targets OCM; don't touch it). Copy
+   `zynq_fsbl.elf` to `host/mac/build/fsbl.elf`. Then on the Mac:
+   ```bash
+   bash host/mac/run_fsbl.sh host/mac/build/fsbl.elf
+   ```
+   It skips our ps7_init (the FSBL runs its own C version, which carries
+   silicon-rev workarounds the .tcl lacks), runs the FSBL, and prints its
+   UART output. The FSBL says "DDR init …" and, if it fails, why. If it
+   brings DDR up, the FSBL becomes our loader stage. ~10 minutes.
+   *(Later finding, 03:30: the DDR PHY's DLLs are locked and trained —
+   see decisions.md — so this test is genuinely the last discriminator.)*
 2. If the FSBL fails too: DDR is hardware-dead on this board; we proceed
    on OCM with a clear conscience.
 
