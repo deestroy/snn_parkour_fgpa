@@ -862,3 +862,43 @@ Rules that would have saved two hours, now standing:
 2. When a program hangs on I/O, drive the peripheral by hand from the
    debugger first. If that works, the bug is in the software's addressing,
    not the hardware — no Vivado round trip needed.
+
+### Board-day log, part 4 (2026-08-18 ~01:00): console clean; DMA blocked on the CPU's PL routing
+
+Progress: with the L2 address filter left at BootROM state, the paced
+console prints perfectly — full banner, then the program's own DMA
+diagnostics: `DMA at 0x40400000 SG=0 mm2s=1 s2mm=1`. Two earlier
+"findings" are hereby retracted: the every-second-character loss was NOT
+the BSP's outbyte (my own TXEMPTY-paced writer lost bytes identically) —
+it was my "disable the L2 filter" change from part 1, which sent CPU
+peripheral accesses down the DDR port. Reverting it fixed the console
+instantly.
+
+The remaining blocker, precisely characterised:
+- Through the AHB-AP (bypassing the CPU), the AXI DMA at 0x40400000 is
+  healthy: clocked (FPGA0_CLK on), out of reset (FPGA_RST_CTRL=0), level
+  shifters on, DMASR=0x10002 (idle) on both channels.
+- Through the CPU, the program reads MM2S_DMASR=0, S2MM_DMASR=1 — different
+  values — and XAxiDma_CfgInitialize then hangs in its reset-complete poll.
+- So the CPU's path to the PL (GP0, 0x40000000+) is misrouted, while its
+  path to PS peripherals (0xE000_0000) is fine at BootROM filter state.
+  The PL310 L2 address filter (0xF8F02C00/04) decides which of the two L2
+  master ports an address takes; BootROM sets start=0x40000000 which is
+  wrong for PL access, and "disabled" is wrong for peripherals. The FSBL
+  sets the correct pair on a normal boot; JTAG loading skips the FSBL, and
+  ps7_init.tcl does not touch these registers.
+
+Next session, in order:
+1. Look up the exact PL310 filter values Xilinx's FSBL writes for Zynq-7000
+   (in the FSBL source or `boot.S`), instead of guessing: likely
+   filter END = 0xFFF00000-ish and START = 0x00100001-ish so that DDR goes
+   to M1 and everything else (OCM, peripherals, PL) to M0. Verify with a
+   CPU-side UART flood AND a CPU-side DMA register read matching the AHB-AP
+   view — both must pass.
+2. Alternative that removes the whole class of problem: build the FSBL in
+   Vitis (it's a template), JTAG-load and run it first, then load the app.
+   The FSBL does ps7_init, DDR, and L2 setup the production way, which
+   would also un-block DDR and let N_WORDS revert to 100,000.
+
+Status: not yet LOOPBACK PASS. Every layer down to the DMA's own registers
+is verified working; the last gap is one L2 register pair.

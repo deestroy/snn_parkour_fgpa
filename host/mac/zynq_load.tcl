@@ -62,8 +62,8 @@ proc zynq_program {ps7 bit elf entry} {
     # implicitly; we do it explicitly. Harmless for an OCM-resident program,
     # essential once the program lives in DDR. CPU-side write: the private
     # peripheral region is not reachable via the AHB-AP.
-    mww 0xF8F02C04 0xFFF00000
-    mww 0xF8F02C00 0x00000000
+    # (L2 filter left at BootROM state: disabling it routes CPU peripheral
+    #  accesses to the DDR port and stalls the core -- learned the hard way.)
 
     echo "== load ELF: $elf  (entry $entry) =="
     load_image $elf
