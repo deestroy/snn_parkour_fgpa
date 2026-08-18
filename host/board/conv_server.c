@@ -28,7 +28,7 @@
 
 /* ---------------------------------------------------------------- config */
 #define BUILD_ID       0x00000001u
-#define CAP_WORDS      65536u                   /* per direction; DDR-resident, room for any layer */
+#define CAP_WORDS      65535u                   /* per direction; DDR-resident. 65535 = max the 16-bit n_words field can carry */
 #define TIMEOUT_LOOP   (50000000u)
 
 #ifdef SDT

@@ -64,32 +64,34 @@ Mac (`host/mac/build/`, via Google Drive as before):
 
 ## 5. Vitis: the conv server
 
-The platform's *hardware* changed (engine instead of FIFO) but its
-*processor-side* view did not — same DMA at the same address, same UART. So
-the existing `zed_platform` can stay; only rebuild it if Vitis complains.
+**Prerequisite (2026-08-18):** the block design must carry the **ZedBoard
+preset** (ZYNQ7 PS → Presets → ZedBoard; DDR part MT41J128M16). Without it
+DDR silently loses data — that was two days of the log. Since the platform
+was recreated from that corrected .xsa, DDR works and apps use the
+**default** linker script (DDR at 0x100000). No OCM edit.
 
 1. New application `conv_server` on `zed_platform` (empty app, as before).
 2. Add `host/board/conv_server.c` under its `src/`.
-3. `lscript.ld`: same OCM edit as loopback (all `> ps7_ddr_0` placements →
-   `> ps7_ram_0`; keep the MEMORY block). Buffers are 2 x 4 KB, so it fits
-   easily.
+3. Leave `lscript.ld` as generated (DDR). Buffers are 2 x 256 KB.
 4. Build. Copy `conv_server.elf` to `host/mac/build/`.
+5. **Preferred run mode — boot from SD, no debugger:** `conv_server` →
+   **Create Boot Image** (FSBL from the recreated platform, the new
+   `.bit`, `conv_server.elf`) → `BOOT.BIN` → copy over; the Mac writes the
+   card. Jumpers 00110, power on, and the board comes up serving. The
+   FSBL's debug output on the console confirms each stage.
 
 ## 6. On the Mac
 
-Extract the new ps7_init (unchanged in practice, but keep them paired):
-```bash
-unzip -o -j host/mac/build/design_1_wrapper.xsa ps7_init.tcl -d host/mac/
-```
-Program and run the server:
-```bash
-bash host/mac/program.sh host/mac/build/design_1_wrapper.bit host/mac/build/conv_server.elf host/mac/ps7_init.tcl
-```
-Then, in another terminal, the client (it PINGs first, then streams 16
-golden samples and compares every returned word):
+If booted from SD (preferred): nothing to program — just run the client
+once the board is up (it PINGs first, then streams 16 golden samples and
+compares every returned word):
 ```bash
 python3 host/uart_client.py
 ```
+If instead loading over JTAG: `bash host/mac/stage_b.sh` (extracts
+ps7_init from the .xsa, programs bitstream + ELF, runs the client). Note
+the JTAG path's ps7_init.tcl must come from the CORRECTED .xsa or DDR
+will not work.
 
 **M4's done-when:** `BOARD PASS: 16 samples, 9280 words, bit-identical to
 the golden model` — the same 9,280-word comparison the simulation testbench

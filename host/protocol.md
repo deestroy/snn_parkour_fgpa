@@ -34,9 +34,9 @@ sending anything.
 
 ## Sizing (OCM constraint, D0015)
 
-Server buffers are static: rx and tx each 1024 words (4 KB). C1's 292/580
-fit with room; C2 (36/... ) and C3 fit trivially. If a later layer needs
-more, raise the cap and re-link -- the PING reply tells the client the cap.
+Server buffers are static: rx and tx each 65535 words (256 KB, in DDR). C1's 292/580
+fit with vast room; every layer of the network fits. If something ever needs
+more, the 16-bit n_words field is the real ceiling -- the PING reply tells the client the cap.
 
 ## Why framed + CRC
 
