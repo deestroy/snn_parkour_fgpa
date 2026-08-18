@@ -748,3 +748,14 @@ demands it.
 Aside: the Linux box's PATH includes /CMC/scripts, which suggests CMC
 Microsystems tooling — Vivado may exist there. Checked separately; would move
 synthesis to a 32-core machine but doesn't change the board-side plan.
+
+### D0015 toolchain note (2026-08-16)
+
+Vivado 2024.1 + Vitis 2024.1 both already installed in the user's Windows VM
+(matched versions, no .xsa pairing concerns). Whole flow lives on one machine:
+Vivado block design → Export Hardware (.xsa incl. bitstream) → Vitis
+platform + bare-metal C app → program board over USB-JTAG → output over
+USB-UART. The CentOS 7 box has CMC-licensed Vivado 2023-2024 and Vitis
+2024-2025 too; useful for scripted/batch synthesis later, not on the critical
+path. Synthesis of this design takes 2-3 min in the VM, so no speed argument
+for moving it.
