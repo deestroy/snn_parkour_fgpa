@@ -1163,3 +1163,28 @@ no error code, PCFG_DONE=0 (bitstream never loaded), DDRC mode_sts=0x1
 initialised than the debugger path did). Next: FSBL rebuilt with
 FSBL_DEBUG_INFO so it narrates its progress on UART1; splice into BOOT.bin
 locally (Create Boot Image keeps reusing the stale fsbl.elf).
+
+**ROOT CAUSE FOUND (12:15): the block design's DDR is configured for the
+wrong memory part.** The .xsa says PCW_UIPARAM_DDR_PARTNO = "MT41J128M8
+JP-125" (Vivado's generic default, x8 organisation) with default board/DQS
+delays; the ZedBoard has MT41J128M16 HA-15E (x16) with its own trace
+delays. "Run Block Automation" did NOT apply the ZedBoard preset to the PS.
+Every DDR init — mine, the FSBL's, from JTAG or SD — has therefore been
+training and addressing a memory geometry that is not on the board.
+Observed signature matches: PHY locks (clock right), status says trained,
+but data written to DDR is not there — and in the FSBL-initialised state
+the contents visibly DECAY toward all-ones over seconds (un-refreshed /
+mis-addressed DRAM). The debug FSBL stalled on its first print for the
+sibling reason: the platform's compiled ps7_init.c predates the UART1
+change (UART1 CR/MR read 0 after its init).
+
+Not silicon (rev-1.0 registers were a red herring for DDR), not the board
+(the supervisor's Linux image was built with the correct preset), not JTAG.
+One dropdown: ZYNQ7 PS -> Presets -> ZedBoard -> Apply. Then re-export,
+recreate the platform from the new .xsa (so ps7_init.c and the FSBL are
+regenerated), rebuild BOOT.BIN, cold-boot ddr_test.
+
+Retracting, in order: "DDR faulty (hardware)", "rev-1.0 silicon
+limitation", "JTAG-warm-reset artefact". All three were wrong. The lesson
+that survives: when a peripheral trains-but-fails, check what the DESIGN
+told it to expect before reading its status registers a dozen ways.

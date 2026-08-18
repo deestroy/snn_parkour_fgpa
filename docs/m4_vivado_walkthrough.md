@@ -80,9 +80,13 @@ A "block design" is Vivado's graphical canvas for wiring pre-made IP blocks
    - **AXIS Data FIFO** — our stand-in accelerator: a first-in-first-out
      queue that returns whatever it is fed.
 3. A green banner appears: **Run Block Automation**. Click it, accept
-   defaults, OK. (This applies the board preset to the PS — clocks, DDR.)
-   **[ZedBoard]** This step is exactly why a fresh project was needed: the
-   preset it applies is the ZedBoard's.
+   defaults, OK.
+   **[ZedBoard] Then VERIFY the preset actually applied — it did not, once,
+   and cost two days:** double-click the ZYNQ block → top **Presets**
+   dropdown → select **ZedBoard** → **Apply Configuration**. Confirm
+   **DDR Configuration → Memory Part = MT41J128M16 HA-15E** (the Vivado
+   default MT41J128M8 is WRONG for this board and makes DDR silently lose
+   data while every status register says healthy).
    **Then verify the UART** — the preset does not reliably enable it, and
    without it the C program hangs on its first printf with nothing on the
    console (learned the hard way). Double-click the ZYNQ block →
