@@ -59,6 +59,9 @@ module axis_conv #(
     wire [$clog2(NEURONS)-1:0]   out_addr;
     wire                         out_bit;
     wire signed [15:0]           v_unused;
+    // Vivado's block-design RTL importer dislikes {$clog2(N){1'b0}} in a
+    // port connection; a plainly-typed zero wire is the same thing.
+    wire [$clog2(NEURONS)-1:0]   v_addr_zero = 0;
 
     conv_layer #(
         .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
@@ -70,7 +73,7 @@ module axis_conv #(
         .busy(eng_busy), .done(eng_done),
         .in_we(in_we), .in_addr(in_addr), .in_data(in_bit),
         .out_addr(out_addr), .out_data(out_bit),
-        .v_addr({$clog2(NEURONS){1'b0}}), .v_data(v_unused)
+        .v_addr(v_addr_zero), .v_data(v_unused)
     );
 
     // --- wrapper FSM ------------------------------------------------------
