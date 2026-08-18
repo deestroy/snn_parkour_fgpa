@@ -35,7 +35,7 @@
  * XPAR_AXIDMA_0_DEVICE_ID no longer exists. Older classic-Vitis platforms
  * still define DEVICE_ID, so support both. */
 #ifdef SDT
-#  define DMA_DEV_ID  XPAR_AXIDMA_0_BASEADDR
+#  define DMA_DEV_ID  XPAR_XAXIDMA_0_BASEADDR   /* note the X: SDT naming */
 #else
 #  define DMA_DEV_ID  XPAR_AXIDMA_0_DEVICE_ID
 #endif
