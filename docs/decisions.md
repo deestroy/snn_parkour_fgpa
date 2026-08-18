@@ -941,3 +941,40 @@ Also learned tonight, for the record:
 - The BSP's xil_printf was NOT dropping bytes; the paced writer in
   loopback.c is now unnecessary but harmless (kept: it's simple and it
   gives the program its own diagnostics path with no library dependence).
+
+### DDR status after LOOPBACK PASS (2026-08-18 ~02:00) — unresolved, well-characterised
+
+With the PROG_B/config problem fixed and the L2 filter at its correct reset
+state, DDR was retested cleanly. It still does not retain data: CPU-side
+writes wedge the core, AHB-AP writes eventually bus-fault, reads return 0.
+Yet every controller-side status is healthy — PLLs locked (0x3F), DDRC
+normal mode + init done (mode_sts 0x1F1), DCI calibrated, PHY debug regs
+populated. This is the signature of a DDR PHY that cannot actually talk to
+the DRAM chips.
+
+Silicon revision evidence: DDRC register 0xF8006078 bus-faults on a plain
+read on fresh silicon (before any init) — it exists on rev 2.0/3.0 (whose
+init tables write it) and not here. Together with MCTRL/IDCODE reading rev
+0, this is a **rev-1.0 (2012 engineering-sample-era) XC7Z020** on a Rev-C
+ZedBoard. Rev-1.0 silicon has known DDR limitations and the ps7_init 1.0
+tables are the correct ones for it; they still do not bring the DRAM up
+under debugger-driven init.
+
+Not resolvable from the Mac tonight. Two remaining discriminators, both
+needing the user's Vitis session:
+1. Build the FSBL (Vitis template), JTAG-load and run it, watch its UART
+   output: it prints DDR init status and, if DDR is bad, says so. If the
+   FSBL brings DDR up, the difference is something the FSBL does that
+   ps7_init.tcl doesn't, and it becomes our loader.
+2. If the FSBL also fails: this board's DDR is unusable (hardware), and
+   the design must live in the 192 KB OCM.
+
+**Consequences for the project if DDR stays unavailable:**
+- Stage A/B run from OCM. The C1 conv test needs ~4.6 KB per sample plus
+  code — fits, with N_WORDS-style buffer discipline; the FC layer's traffic
+  is smaller still. So M4 Stage B is NOT blocked.
+- M5/M7 sweeps that stream many samples fit if the host streams them one at
+  a time (which UART throughput demands anyway).
+- The 100,000-word loopback revert stays deferred: N_WORDS remains 12,288
+  and loopback.c documents why. Revert instructions unchanged from the
+  D0015 workaround note.
