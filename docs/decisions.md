@@ -1254,3 +1254,24 @@ the Mac -> PROG_B (loopback pass) -> the DDR "fault" that was a wrong DDR
 part in the block design -> SD boot with debug FSBL -> HP0 cleared by the
 preset -> baked weights (Vivado can't find $readmemh files) -> PASS. Every
 wrong turn is logged above with its retraction.
+
+---
+
+## M6 step 2 result (2026-08-18) — scatter unit RTL, K=1
+
+hdl/eventdriven/ed_scatter.v is the first event-driven RTL: one spike address
+in, `I[n] += W_T[ic,ky,kx,oc]` over the <=2x2 output block x all C_OUT, from
+the transposed weight table, no multiplier. Verified against a NEW, tighter
+checkpoint than the golden traces: the Python engine's accumulator I dumped
+right after scatter(), before sweep() (sim/vectors/ed_<L>_i.hex).
+
+    c1: 295,936 I words bit-identical, 25,078 spikes,  76 cycles/spike
+    c2: 165,888 I words bit-identical, 26,017 spikes, 148 cycles/spike
+    c3: 102,400 I words bit-identical, 16,777 spikes, 296 cycles/spike
+    fault injection (one weight bit): 3,108 mismatches
+
+Cycle cost is ~4.6 per (position, channel) RMW at K=1 — the sequential inner
+loop, which is exactly the K seam: at K=4 the same loop issues 4 RMWs/cycle
+into 4 banks. Per timestep at trained rates that is ~24k cycles for C1 vs the
+dense engine's ~97k (4624 neurons x 21) — the first RTL-level number for the
+event-driven advantage, before any banking.

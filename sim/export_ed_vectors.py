@@ -14,6 +14,12 @@ Writes sim/vectors/:
                       lines of flat input addresses -- the D0016 address list.
     ed_<L>_s.bin      expected output spikes, flat golden order, per timestep
     ed_<L>_v.hex      expected membranes, int16 hex, same order
+    ed_<L>_i.hex      expected ACCUMULATOR I after scatter, before sweep, per
+                      timestep, flat golden order, int16 hex -- the scatter
+                      unit's own checkpoint (tighter than the golden traces,
+                      which only see V and spikes after the sweep). Produced by
+                      running golden/eventdriven.py's engine, so scatter RTL
+                      is checked against the Python scatter directly.
 """
 
 import argparse
@@ -24,7 +30,7 @@ import numpy as np
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
-from golden.eventdriven import GEOM, transpose_weights  # noqa: E402
+from golden.eventdriven import GEOM, transpose_weights, EventDrivenConv, flat_neuron  # noqa: E402
 
 OUT = os.path.join(REPO, "sim", "vectors")
 
@@ -71,7 +77,27 @@ def main() -> int:
             assert -32768 <= v <= 32767
             fh.write("%04x\n" % (int(v) & 0xFFFF))
 
-    print("%s: %d samples x %d ts, %d input spikes total (%.1f/ts), W_T %s"
+    # I after scatter, before sweep: replay through the Python engine
+    eng = EventDrivenConv(args.layer, w, k=1)
+    with open(p("i.hex"), "w") as fh:
+        for s_ in range(b):
+            eng.clear()
+            for ts in range(t):
+                eng.scatter(np.flatnonzero(spikes_in[s_, ts].ravel()))
+                # flatten bank-local I back to golden order
+                flat_i = np.zeros(c_out * h_out * w_out, np.int64)
+                for oc in range(c_out):
+                    for oy in range(h_out):
+                        for ox in range(w_out):
+                            from golden.eventdriven import bank_of, offset_of
+                            flat_i[flat_neuron(oc, oy, ox, h_out, w_out)] = \
+                                eng.i[bank_of(oc, 1), offset_of(oc, oy, ox, 1, h_out, w_out)]
+                for v in flat_i:
+                    assert -32768 <= v <= 32767
+                    fh.write("%04x\n" % (int(v) & 0xFFFF))
+                eng.sweep()   # advances V, zeroes I, exactly as the RTL sweep will
+
+    print("%s: %d samples x %d ts, %d input spikes total (%.1f/ts), W_T %s, I dump written"
           % (args.layer, b, t, n_spk, n_spk / (b * t), wt.shape))
     return 0
 
