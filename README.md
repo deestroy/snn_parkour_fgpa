@@ -46,7 +46,7 @@ and `docs/decisions.md` for the running log of design decisions.
       Simulation only — not yet synthesised.
 - [x] **M3** dense conv engine, bit-identical on c1/c2/c3 (1.13M comparisons,
       0 mismatches; `bash sim/run_conv_tb.sh c1 c2 c3`). Simulation only.
-- [ ] **M4** PYNQ overlay, AXI DMA
+- [~] **M4** Stage A LOOPBACK PASS on the ZedBoard, bare metal via JTAG from the Mac (2026-08-18). Stage B (C1 engine on silicon) next. DDR unavailable so far — design runs from OCM; see docs/overnight_2026-08-18.md
 - [ ] **M5** power measurement rig — first thesis result
 - [ ] **M6** event-driven datapath
 - [ ] **M7** crossover experiment
