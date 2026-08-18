@@ -32,7 +32,7 @@ Empty payload; response 0x82 with payload = 2 words: [build id, N_WORDS cap].
 Used by the client to confirm the link and the server's buffer size before
 sending anything.
 
-## Sizing (OCM constraint, D0015)
+## Sizing
 
 Server buffers are static: rx and tx each 65535 words (256 KB, in DDR). C1's 292/580
 fit with vast room; every layer of the network fits. If something ever needs
