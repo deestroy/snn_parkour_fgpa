@@ -815,3 +815,26 @@ path misses), REVERT: N_WORDS back to 100,000 and the linker script back to
 DDR. The Stage-B conv server needs DDR anyway — a real sample stream does
 not fit in OCM alongside the code — so this cannot be left in place. Both
 sizes are recorded here so the revert is a known step, not a rediscovery.
+
+### Board-day log, part 2 (2026-08-17): the loopback runs; the UART was never enabled
+
+OCM-relinked loopback loads and runs. Halting the CPU mid-run and mapping
+the PC against the ELF's symbol table: cpu0 sits at `outbyte+0x8`, the
+xil_printf character-output routine, spinning on the UART TX-ready flag.
+Root cause: the ELF references UART0 (0xE0000000) only, and ps7_init.tcl
+contains no UART clock or MIO writes at all — **the ZYNQ PS in the block
+design has no UART enabled.** Vitis's BSP fell back to UART0, which has no
+clock and no pins; the banner's first character never leaves.
+
+Fix is in Vivado: ZYNQ7 PS → Peripheral I/O Pins → tick **UART 1** on MIO
+48/49 (the ZedBoard's USB-UART), regenerate bitstream, re-export .xsa,
+rebuild the Vitis platform + app. Not a software bug and not a Mac-side
+tooling bug: everything from JTAG through ELF execution is now proven.
+
+Lesson for the walkthrough: "Run Block Automation" applies the board
+preset for DDR/clocks but does not necessarily enable UART; verify it in
+the PS dialog before generating. Added to Stage A §3.
+
+Also learned: symbol-table lookup of a halted PC (host-side Python over the
+ELF, no toolchain needed) is a fast, decisive way to see where bare-metal
+code is stuck. Kept as a technique.

@@ -83,6 +83,11 @@ A "block design" is Vivado's graphical canvas for wiring pre-made IP blocks
    defaults, OK. (This applies the board preset to the PS — clocks, DDR.)
    **[ZedBoard]** This step is exactly why a fresh project was needed: the
    preset it applies is the ZedBoard's.
+   **Then verify the UART** — the preset does not reliably enable it, and
+   without it the C program hangs on its first printf with nothing on the
+   console (learned the hard way). Double-click the ZYNQ block →
+   **Peripheral I/O Pins** → tick **UART 1**, on **MIO 48..49**; make sure
+   UART 0 is unticked. OK.
 4. Configure the DMA: double-click `axi_dma_0`:
    - **Untick "Enable Scatter Gather Engine"** (we use simple mode).
    - Width of buffer length register: set to **26**.
