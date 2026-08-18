@@ -1104,3 +1104,11 @@ DLL lock). Failure is therefore in the data path (DQ/DQS lanes or PHY
 write-leveling on rev-1.0 silicon), not power or clock. Physically present,
 powered, clocked, cannot move data: a board fault, not a software step.
 This is the sentence the methodology uses.
+
+**Correction (10:10): the "unusable" verdict above is PROVISIONAL.** Every
+DDR test so far — mine and the FSBL run — read and wrote DDR through the JTAG
+debug path, which produced four false diagnoses last night. The professor
+who supplied the board reports it working. A program-driven self-test
+(host/board/ddr_test.c: runs from OCM, patterns across five DDR regions plus
+walking-ones, reports over UART) is the actual discriminator. Until it runs,
+"DDR faulty" is a hypothesis, not a finding.
