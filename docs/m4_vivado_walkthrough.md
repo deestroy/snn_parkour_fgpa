@@ -128,9 +128,16 @@ the single most common first-overlay failure.
 
 ## 5. One-time: flash the SD card **[ZedBoard]**
 
-1. On any machine: download the **PYNQ v3.0.1 image for ZedBoard** from
-   pynq.io (Boards → ZedBoard). ~2 GB zip. **Not** the PYNQ-Z2 image — same
-   chip, different board support; the wrong one will not boot.
+1. On any machine: download the ZedBoard image. **There is no official PYNQ
+   image for the ZedBoard** — pynq.io only lists Z1/Z2/ZCU104 and newer, and
+   none of those images will boot on it. Use the community prebuilt
+   **PYNQ 2.7 ZedBoard image**:
+   `https://buls.be/public/img/PYNQ/ZED-2.7.0.img`
+   (from github.com/sambuls/Pynq2.7OnZedboard). Community-built, minimal
+   docs; the loopback test in §7 is its acceptance test. It pairs with
+   Vivado 2020.2 — a 2022.x-built bitstream usually loads anyway; if
+   `Overlay()` refuses the .hwh, install Vivado 2020.2 in the VM and
+   rebuild (D0015).
 2. Flash the unzipped `.img` to the microSD with **Balena Etcher** (or
    Rufus). This erases the card.
 3. Boot-mode jumpers — five of them, **JP7 to JP11**, in a row next to the

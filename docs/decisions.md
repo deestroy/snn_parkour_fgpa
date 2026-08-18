@@ -580,3 +580,24 @@ unchanged. What changes is board-level plumbing:
 Thesis framing: unchanged. Portability claim (the project brief's "secondary board")
 becomes PYNQ-Z2 or Nexys 4 if one is later available; the ZedBoard is now
 primary and the methodology names it.
+
+---
+
+## D0015 — No official PYNQ image exists for the ZedBoard
+
+**Date:** 2026-08-16 · **Status:** OPEN — resolve by outcome of the loopback test
+
+pynq.io ships images for PYNQ-Z1/Z2, ZCU104 and newer boards only. Options:
+
+A. Community prebuilt PYNQ 2.7 image (sambuls/Pynq2.7OnZedboard). Ready to
+   flash; API we use is unchanged; pairs with Vivado 2020.2. Try first.
+B. Build PYNQ 3.0.1 from source (Vivado+PetaLinux+Vitis 2022.1 on Linux,
+   BSP port, hours). Correct but a week of infrastructure for a beginner.
+C. Drop PYNQ; bare-metal/PetaLinux + C DMA driver. Loses the Jupyter flow.
+
+Chosen: A now. If A boots and loopback passes → done. If the 2022.x .hwh is
+refused → rebuild the bitstream in Vivado 2020.2 (parallel install). If A
+fails to boot at all → B or C, and a serious conversation about acquiring a
+PYNQ-Z2 (~$150), which would turn the ZedBoard into the secondary/portability
+board the brief already wanted. This is the cost of the board swap: same
+chip, thinner support path.
