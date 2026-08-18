@@ -615,3 +615,70 @@ zero friction, ZedBoard becomes the secondary/portability board the brief
 already planned). Recommendation stands: PYNQ-Z2. Awaiting the user's
 decision after checking lab availability. Board-independent work (M6 design)
 proceeds meanwhile.
+
+---
+
+## D0016 — M6 architecture: spike hand-off between layers
+
+**Date:** 2026-08-16 · **Status:** DECIDED
+
+Options weighed with the user: (a) one global spike FIFO, (b) per-layer
+address lists, double-buffered, (c) direct broadcast with no queue.
+
+**Chosen: (b), per-layer address lists.** Each layer keeps two small BRAMs
+of spike addresses — one written by this timestep's LIF sweep, one read by
+the next layer's scatter engine — swapped each timestep. Sized for the worst
+case (every neuron firing: C1 4,624 x 13 bits x 2 ≈ 15 KB), so **overflow is
+impossible by construction**.
+
+Reasoning: the drawbacks of (b) are fixed and countable (BRAM, sequential
+layers within a timestep, an unavoidable N-per-timestep LIF sweep). The
+drawbacks of (a) and (c) are data-dependent — FIFO overflow forces a
+stall-or-drop policy that either makes timing data-dependent or breaks
+bit-exactness; broadcast couples every layer's timing to its neighbour's.
+For a thesis whose deliverable is a clean measured crossover, design
+parameters must not become experimental confounds. Address lists, not
+bitmaps: a bitmap makes the consumer scan all N bits, which is dense-style
+work creeping back in.
+
+Consequence: every layer's scatter engine is testable in isolation against
+golden traces via its input address list. The per-timestep LIF sweep is the
+event-driven design's fixed cost and must be reported as such.
+
+---
+
+## D0017 — M6 architecture: membrane banking
+
+**Date:** 2026-08-16 · **Status:** DECIDED
+
+Options weighed with the user: (a) single-port, 1 RMW/cycle, no banks;
+(b) K banks with stall-on-conflict; (c) K banks interleaved by output
+channel; (d) dual-port 2 RMW/cycle in one bank with compare-and-forward.
+
+Sizing that framed the choice (trained rates, per timestep): the busiest
+layer, C3, needs ~28k membrane RMWs vs 461k dense reads — event-driven is
+already ~16x ahead in work at K=1, before any parallelism.
+
+**Chosen: (c), channel-interleaved banks — sequenced as K=1 first, then K=4.**
+`bank = output_channel mod K`: a spike's targets are one-per-channel at the
+same position, so they spread across banks perfectly. Conflict-free for conv
+layers by layout, no arbiter, no stall statistics to characterise. Option
+(b) was rejected because conv targets cluster systematically (neighbouring
+positions across every channel), so conflicts would be the norm rather than
+the exception and the stall rate would become a quantity the thesis has to
+defend.
+
+The engine is parameterised by K from the first line. Bring-up and golden
+verification happen at K=1 (the single-port design of option (a) as a
+special case), then K=4 is a parameter change re-verified against the same
+testbench. Consequences accepted with eyes open:
+- K=1 vs K=4 becomes a *measured* delta on the crossover plot, not a baked-in
+  assumption. If banking doesn't move the crossover, that is a finding.
+- FC gains nothing from channel interleave (all 128 targets of a C3 spike are
+  one "channel"); FC runs at K=1 by construction. If FC ever needs
+  throughput, bank by neuron index — a separate decision.
+- Weights must be banked alongside membranes so K weights arrive per cycle at
+  K>1; the transposed weight layout (by input, targets contiguous) is
+  designed with the bank split in mind from the start.
+- The golden model / testbench must un-interleave bank-local addresses; the
+  address <-> (bank, offset) mapping is one function, cited by both.
