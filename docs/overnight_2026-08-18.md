@@ -219,7 +219,7 @@ synthetic 0.85 W load recovered as 0.849 W ± 0.4%; a drifting supply trips
 the flag. Waiting only on the INA226 order and a Stage B engine to drive.
 `python3 measure/protocol.py --mock` shows the whole thing.
 
-## Final state (~03:30 local — earlier timestamps in the log ran fast)
+## Final state (~01:30 local — the "0x:xx" timestamps in decisions.md ran ~2h fast; sequence is right, hours are not)
 
 Full regression, every suite in the repo, all green: M2 neuron (4,060),
 M3 dense c1/c2/c3 (1.13M), FC (16,384), AXIS wrapper (9,280 words), M6

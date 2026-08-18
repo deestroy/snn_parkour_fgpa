@@ -77,7 +77,7 @@ module fc_layer #(
     // consumes the last. `prime` marks the no-consume first cycle.
     localparam S_IDLE = 0, S_CLEAR = 1, S_MAC = 2, S_TAIL = 3,
                S_VRD = 4, S_UPDATE = 5;
-    reg [2:0] state = S_IDLE;
+    reg [2:0] state;
     reg prime;
 
     integer n, j, p, clr;
@@ -128,7 +128,7 @@ module fc_layer #(
         S_MAC: begin
             in_bit_r <= in_mem[(c*H_IN + y)*W_IN + x];
             w_r      <= wrom[n*N_POOL + j];
-            if (!prime && in_bit_r) acc <= acc + w_r;
+            if (!prime && in_bit_r) acc <= acc + {{(WIDTH-8){w_r[7]}}, w_r};  // explicit sign-extend
             prime <= 1'b0;
             if (p != 3) p <= p + 1;
             else begin p <= 0;
@@ -138,7 +138,7 @@ module fc_layer #(
         end
 
         S_TAIL: begin
-            if (in_bit_r) acc <= acc + w_r;
+            if (in_bit_r) acc <= acc + {{(WIDTH-8){w_r[7]}}, w_r};  // explicit sign-extend
             state <= S_VRD;
         end
 

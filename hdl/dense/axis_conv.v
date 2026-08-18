@@ -76,7 +76,7 @@ module axis_conv #(
     // --- wrapper FSM ------------------------------------------------------
     localparam S_CLR = 0, S_CLRW = 1, S_RX = 2, S_UNPACK = 3,
                S_GO = 4, S_RUNW = 5, S_TXRD = 6, S_TXCAP = 7, S_TXSEND = 8;
-    reg [3:0] state = S_CLR;
+    reg [3:0] state;
 
     reg [31:0] shift;                       // rx unpack register
     reg [31:0] word_acc;                    // tx pack register

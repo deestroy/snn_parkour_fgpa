@@ -89,7 +89,7 @@ module conv_layer #(
     // unpipelined version; same bit-exact behaviour, same testbench.
     localparam S_IDLE = 0, S_CLEAR = 1, S_MAC = 2, S_TAIL = 3,
                S_VRD = 4, S_UPDATE = 5;
-    reg [2:0] state = S_IDLE;
+    reg [2:0] state;
     reg prime;  // first S_MAC cycle of a neuron: issue only, no consume
 
     // counters are 32-bit signed `integer`s for clarity; synthesis prunes
@@ -149,7 +149,7 @@ module conv_layer #(
         S_MAC: begin  // issue read for position k, consume position k-1
             in_bit_r <= in_bounds ? in_mem[(ic*H_IN + iy)*W_IN + ix] : 1'b0;
             w_r      <= wrom[((oc*C_IN + ic)*3 + ky)*3 + kx];
-            if (!prime && in_bit_r) acc <= acc + w_r;
+            if (!prime && in_bit_r) acc <= acc + {{(WIDTH-8){w_r[7]}}, w_r};  // explicit sign-extend
             prime <= 1'b0;
             if (kx != 2)      kx <= kx + 1;
             else begin kx <= 0;
@@ -162,7 +162,7 @@ module conv_layer #(
         end
 
         S_TAIL: begin  // consume the final read of this neuron's window
-            if (in_bit_r) acc <= acc + w_r;
+            if (in_bit_r) acc <= acc + {{(WIDTH-8){w_r[7]}}, w_r};  // explicit sign-extend
             state <= S_VRD;
         end
 
