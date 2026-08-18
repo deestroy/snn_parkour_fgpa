@@ -1009,3 +1009,20 @@ rates: C1 14.1k RMWs vs 83k dense reads (5.9x), C2 29.3k vs 373k (12.7x),
 C3 38.3k vs 461k (12.0x). Sweep cost is N per timestep as predicted.
 sim/export_ed_vectors.py imports the same mapping functions, so the
 Verilog testbench cannot drift from the Python.
+
+### DDR, further characterised (2026-08-18 ~03:30)
+
+Read the decisive PHY register (UG585 dll_lock_sts, DDRC+0x1E0): **both
+master DLLs locked**, slave DLLs at ~115 taps, all four per-slice results
+populated with real values, phy_ctrl_sts 0xEE73. The PHY has trained and
+locked to the DRAM clock, so "PHY cannot see the DRAM" is eliminated. Yet
+data does not retain and AXI writes stall. The read-leveling debug block
+(0xF80061F0) bus-faults: another register absent on this silicon rev,
+consistent with rev 1.0.
+
+Remaining explanations both need the FSBL to discriminate: the AXI-side
+port path into the DDRC (port enables / arbitration a debugger-driven Tcl
+init may leave wrong), or rev-1.0 silicon workarounds present in the C
+ps7_init the FSBL compiles in but absent from the .tcl. This is as far as
+the Mac can take it. Morning: FSBL build in Vitis (steps in
+docs/overnight_2026-08-18.md), JTAG-run it, read its UART verdict.
