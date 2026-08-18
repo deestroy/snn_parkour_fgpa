@@ -1133,3 +1133,13 @@ hang is therefore consistent with EITHER a board fault OR a JTAG-warm-reset
 artefact. Decisive test: BOOT.BIN (FSBL + bit + ddr_test.elf) on SD, cold
 power-up in SD boot mode, no debugger anywhere. "Final" retracted until
 that runs.
+
+**(10:55)** Attempted to reproduce a cold boot from the debugger: SLCR
+PSS_RST_CTRL soft reset does not take while a JTAG debug session holds the
+core (REBOOT_STATUS stays 0x2 = SRST, DCI status unchanged). The debugger
+cannot fake a power-on init of the DDRIOB. Working hypothesis, now favoured
+over "board fault": the DDR failure is an artefact of the JTAG-warm-reset
+init path shared by every failing run. Discriminator unchanged: BOOT.BIN on
+SD, cold power-up. If DDR passes there, the fix is to boot DDR-dependent
+programs via SD (or via a JTAG flow that reruns the FSBL from BootROM state),
+not via OpenOCD's reset-halt-init sequence.
