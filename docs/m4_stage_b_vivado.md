@@ -1,9 +1,13 @@
-# M4 Stage B — swap the FIFO for the real engine
+# M4 Stage B — swap the FIFO for the real engine (bare metal, ZedBoard)
 
-Do this only after Stage A's `LOOPBACK PASS`. It edits the working loopback
-project, so every unfamiliar piece (toolchain, board, DMA) is already proven;
-anything that breaks from here is the engine integration, which narrows
-debugging enormously.
+> Revised 2026-08-18 for the bare-metal/JTAG flow that passed Stage A. The
+> Vivado part is unchanged; the software part is `conv_server.c` on the
+> board and `uart_client.py` on the Mac instead of PYNQ.
+
+Stage A passed (`LOOPBACK PASS`, 2026-08-18). This edits the working
+loopback project, so every unfamiliar piece (toolchain, board, DMA, JTAG
+loader, UART) is already proven; anything that breaks from here is the
+engine integration, which narrows debugging enormously.
 
 ## 1. Files into the VM
 
@@ -47,40 +51,66 @@ modules nested under it, no missing-module warnings.
 
 **Checkpoint:** validation clean. The design is DMA → our engine → DMA.
 
-## 4. Bitstream and files
+## 4. Bitstream and hardware export
 
-Generate Bitstream (same as Stage A; this one takes a little longer).
-Collect and rename **`conv.bit`** + **`conv.hwh`**:
+Generate Bitstream (same as Stage A). Then `File > Export > Export Hardware`
+with **Include bitstream** → a new `design_1_wrapper.xsa`. Collect for the
+Mac (`host/mac/build/`, via Google Drive as before):
 
-| What | Where |
+| file | where |
 |---|---|
 | `design_1_wrapper.bit` | `<project>.runs/impl_1/` |
-| `design_1.hwh` | `<project>.gen/sources_1/bd/design_1/hw_handoff/` |
+| `design_1_wrapper.xsa` | wherever Export Hardware wrote it |
 
-## 5. On the board
+## 5. Vitis: the conv server
 
-Upload to Jupyter: `conv.bit`, `conv.hwh`, `host/conv_test.py`,
-`host/conv_test_data.npz` (generate the npz on the Mac with
-`python3 host/make_conv_test_data.py` if it isn't in the repo copy).
+The platform's *hardware* changed (engine instead of FIFO) but its
+*processor-side* view did not — same DMA at the same address, same UART. So
+the existing `zed_platform` can stay; only rebuild it if Vitis complains.
 
-```python
-%run conv_test.py
+1. New application `conv_server` on `zed_platform` (empty app, as before).
+2. Add `host/board/conv_server.c` under its `src/`.
+3. `lscript.ld`: same OCM edit as loopback (all `> ps7_ddr_0` placements →
+   `> ps7_ram_0`; keep the MEMORY block). Buffers are 2 x 4 KB, so it fits
+   easily.
+4. Build. Copy `conv_server.elf` to `host/mac/build/`.
+
+## 6. On the Mac
+
+Extract the new ps7_init (unchanged in practice, but keep them paired):
+```bash
+unzip -o -j host/mac/build/design_1_wrapper.xsa ps7_init.tcl -d host/mac/
+```
+Program and run the server:
+```bash
+bash host/mac/program.sh host/mac/build/design_1_wrapper.bit host/mac/build/conv_server.elf host/mac/ps7_init.tcl
+```
+Then, in another terminal, the client (it PINGs first, then streams 16
+golden samples and compares every returned word):
+```bash
+python3 host/uart_client.py
 ```
 
-**M4's done-when:** `HARDWARE PASS ... bit-identical to the golden model on
-real silicon.` — the same 9,280-word comparison the simulation testbench
-makes, now against the physical chip.
+**M4's done-when:** `BOARD PASS: 16 samples, 9280 words, bit-identical to
+the golden model` — the same 9,280-word comparison the simulation testbench
+makes and the mock server passes, now against the physical chip.
 
-## If it fails where simulation passed
+## If it fails where simulation and the mock passed
 
-The vectors are identical to the passing sim run, so the differences are
-environmental. In rough order of likelihood:
+The vectors and the client are identical to the passing mock run
+(`python3 host/mock_server.py --selftest`), so the differences are the
+engine on silicon and the C server. In rough order of likelihood:
 
-1. **Weight hex missed synthesis** — output is consistent junk. Re-check
-   step 2.3; look for `$readmemh` warnings in the synthesis log.
-2. **recvchannel.wait() hangs** — engine never finished. Check the reset
-   polarity wiring (aresetn, not a raw reset net) and that connection
-   automation actually connected `aclk`.
-3. **Sporadic wrong words** — would suggest a timing failure; check
-   Vivado's timing summary says all constraints met (at 100 MHz this design
-   should meet timing trivially; if FCLK0 got set higher, drop it to 100).
+1. **`board error: DMA timeout`** — engine never produced 580 words. The
+   AXIS wrapper's tlast/handshake on real hardware, or the DMA S2MM length.
+   Check the block design wiring direction (§3) and that connection
+   automation connected `aclk`/`aresetn` to the engine.
+2. **Words WRONG, consistently** — weight hex didn't make it into synthesis
+   (`$readmemh` warning in the Vivado log; step 2.3), or the engine's
+   parameters in `axis_conv_top.v` don't match C1.
+3. **No PING reply at all** — server not running: check `program.sh`
+   output ended in "running", and that the ELF was linked to OCM (entry
+   0x00000000; `python3 -c` check in `program.sh` prints it).
+4. **`link: crc mismatch` from the client** — UART byte loss. Should not
+   happen at 115200 with the paced writer; if it does, the client's
+   `drain()` + retry is the workaround and the cause is worth a look.
