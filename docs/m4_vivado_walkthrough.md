@@ -160,10 +160,14 @@ against them.
    **ps7_cortexa9_0** → Finish. Then **Build** the platform (hammer icon;
    ~1–2 min). Standalone = bare metal = no OS.
 3. `File > New Component > Application` → name `loopback` → select the
-   platform you just built → template **Hello World** → Finish.
-4. In the Explorer, open `loopback/src/helloworld.c`. **Delete its
-   contents and paste in `host/board/loopback.c` from this repo** (or drop
-   the file in and delete helloworld.c). Build the application.
+   platform you just built → Finish. (2024.1's Unified IDE creates an
+   **empty** application here — there is no template dropdown; "Hello
+   World" lives under *Examples* and isn't needed.)
+4. Add `host/board/loopback.c` from this repo under `loopback/src/`
+   (drag it in, or right-click `src > Import`). That single file plus the
+   generated `lscript.ld` is the whole application — it does not need the
+   template's `platform.c`; the BSP already sets up caches and the UART as
+   stdout. Build the application.
 
 **Checkpoint:** application builds with 0 errors. If it complains about
 `XPAR_AXIDMA_0_DEVICE_ID`, the DMA isn't in the .xsa — re-export from
