@@ -108,6 +108,17 @@ BRAM). It's the honest price of the event-driven design and must appear in
 the resource comparison. Nothing else in D0016–D0018 changed. If you'd
 rather revisit it, nothing downstream depends on it yet.
 
+### M6 harness — the testbench exists before the RTL (D0020)
+
+The event-driven engine's port contract is fixed (address pushes + start
+instead of a bit buffer — the one difference from the dense engine).
+`sim/tb_ed_conv.v` drives the golden address lists and compares every
+neuron; a shim adapts the verified dense engine to that interface so the
+harness could be proven tonight: c1/c2/c3 clean, spike counts matching the
+Python engine, one dropped address fails 124 checks. The real RTL will
+slot in as `bash sim/run_ed_tb.sh c1 ed_conv_layer` with no harness change.
+The M6 RTL itself is deliberately NOT written — that's a session with you.
+
 ### Stage B host side — done, verified against a golden-model mock
 
 `host/protocol.md` defines a framed UART protocol (magic, cmd, length,
@@ -198,5 +209,18 @@ This is a real architectural constraint, so stating it plainly:
    `bash host/mac/program.sh …conv_server.elf` and
    `python3 host/uart_client.py`. That run is M4's done-when.
 
+## Final state at ~05:30
+
+Full regression, every suite in the repo, all green: M2 neuron (4,060),
+M3 dense c1/c2/c3 (1.13M), FC (16,384), AXIS wrapper (9,280 words), M6
+harness (591,872), M6 Python K=4 (591,872), host mock (9,280 words),
+golden model. `conv_server.c` and `loopback.c` syntax-check clean against
+stubbed BSP headers, and the C server's CRC matches Python's on a real
+frame — the classes of bug that cost round trips yesterday are ruled out.
+
+Board is powered, JTAG-reachable, sitting in a clean halted state.
+
 Not a bad night: from "does any of this work" to a passing loopback with a
-root cause, and a precise, testable question left over rather than a fog.
+root cause; the event-driven design proven in software and its testbench
+proven in simulation; the whole Stage B host side verified against a mock;
+and one precise, 10-minute question (the FSBL) left over instead of a fog.
