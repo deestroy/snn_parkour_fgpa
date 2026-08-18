@@ -12,8 +12,8 @@ and `docs/decisions.md` for the running log of design decisions.
 | `train/` | snnTorch training, quantisation, firing-rate logging |
 | `hdl/` | HDL sources (`common/`, `dense/`, `eventdriven/`) |
 | `sim/` | Testbenches and simulation scripts |
-| `host/` | PYNQ Python host code |
-| `measure/` | INA226 / Joulescope logging and plotting |
+| `host/` | board<->Mac link: bare-metal C servers (`board/`), Mac-side JTAG loader + UART tools (`mac/`), framed protocol + client + golden mock |
+| `measure/` | INA226 driver, idle-run-idle protocol, report (M5) |
 | `experiments/` | Result data, plots, notebooks |
 | `docs/` | Notes, decisions, thesis material |
 
@@ -23,7 +23,15 @@ and `docs/decisions.md` for the running log of design decisions.
   `numpy` 1.23.5, `matplotlib` 3.4.1
 - `iverilog` and `verilator` available locally — HDL can be simulated on this
   machine without Vivado
-- Vivado is not on this machine; synthesis and board bring-up happen elsewhere
+- Vivado/Vitis 2024.1 live on a Windows machine reached over RDP; the
+  **ZedBoard is plugged into this Mac** and is programmed over its Digilent
+  JTAG with OpenOCD (`host/mac/program.sh`) and observed over USB UART. Build
+  outputs travel Windows -> Mac via Google Drive (RDP clipboard corrupts
+  binaries; RDP folder redirection is blocked by the school).
+- Board is a **ZedBoard (rev-C, likely rev-1.0 XC7Z020 silicon)**, not the
+  PYNQ-Z2 the brief planned for; no PYNQ image exists for it, hence bare
+  metal. DDR is not usable so far; everything runs from 192 KB OCM. See
+  `docs/decisions.md` D0014/D0015 and `docs/overnight_2026-08-18.md`.
 - N-MNIST test split cached in `data/` (396 MB, gitignored). The train split is
   a separate ~1 GB download: `python3 train/01_nmnist_peek.py --train`
 - This python.org build has no linked CA certificates, so downloads fail with
@@ -76,11 +84,22 @@ ssh gpu-host 'cd ~/snn_parkour_fpga && ~/esparkour_venv/bin/python train/03_trai
 
 ## Checks
 
-Every component ships with something that proves it works. Run them:
+Every component ships with something that proves it works. The full set:
 
 ```
-python3 train/00_lif_demo.py && python3 train/01_nmnist_peek.py && python3 train/02_model_check.py
+python3 train/00_lif_demo.py && python3 train/02_model_check.py   # M0
+python3 train/06_golden_check.py                                   # M1 (full split; --limit is biased, D0009)
+bash sim/run_lif_tb.sh                                             # M2 neuron
+bash sim/run_conv_tb.sh c1 c2 c3 && bash sim/run_fc_tb.sh          # M3 dense engines
+bash sim/run_axis_tb.sh c1                                         # M4 AXIS wrapper
+bash sim/run_ed_tb.sh c1                                           # M6 harness (dense engine as DUT for now)
+python3 -c "from golden.eventdriven import verify_event_driven as v; print(v('c1', k=4))"   # M6 python engine
+python3 host/mock_server.py --selftest                             # Stage B host side vs golden mock
+python3 measure/protocol.py --mock                                 # M5 protocol vs mock meter
 ```
+
+Board-side (needs the ZedBoard on USB): `bash host/mac/program.sh <bit> <elf>`,
+`bash host/mac/stage_b.sh`, `bash host/mac/run_fsbl.sh <fsbl.elf>`.
 
 ## The network
 
