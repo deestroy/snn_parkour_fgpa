@@ -209,7 +209,17 @@ This is a real architectural constraint, so stating it plainly:
    `bash host/mac/program.sh …conv_server.elf` and
    `python3 host/uart_client.py`. That run is M4's done-when.
 
-## Final state at ~05:30
+### M5 software — written and desk-tested against a mock meter
+
+`measure/`: `ina226.py` (real chip over smbus2, calibrated for the 0.02 Ω
+shunt on 12 V; plus `MockINA226`), `protocol.py` (idle → run → idle with
+both baselines, SEM propagation, drift flag), `report.py` (every the project brief
+metric together, measured beside the Vivado estimate). Mock check: a
+synthetic 0.85 W load recovered as 0.849 W ± 0.4%; a drifting supply trips
+the flag. Waiting only on the INA226 order and a Stage B engine to drive.
+`python3 measure/protocol.py --mock` shows the whole thing.
+
+## Final state (~03:30 local — earlier timestamps in the log ran fast)
 
 Full regression, every suite in the repo, all green: M2 neuron (4,060),
 M3 dense c1/c2/c3 (1.13M), FC (16,384), AXIS wrapper (9,280 words), M6
