@@ -1188,3 +1188,32 @@ Retracting, in order: "DDR faulty (hardware)", "rev-1.0 silicon
 limitation", "JTAG-warm-reset artefact". All three were wrong. The lesson
 that survives: when a peripheral trains-but-fails, check what the DESIGN
 told it to expect before reading its status registers a dozen ways.
+
+**RESOLVED (13:00): DDR WORKS.** With the platform recreated from the .xsa
+that carries the ZedBoard preset (MT41J128M16, correct PHY delays, correct
+PLL/MIO), the debug FSBL boots from SD, narrates every step, initialises
+DDR, loads the bitstream (FPGA Done), and its own DDR memory test passes.
+Then, in that state: words written to DDR at 0x100000/0x08000000/0x1FF00000
+read back bit-perfect after 50 ms and after 2 s, from the AHB-AP and from the
+CPU. `deadbeef cafef00d 12345678 a5a5a5a5` — the first DDR round trip to
+survive on this board.
+
+Root cause, final: Run Block Automation did not apply the ZedBoard preset;
+the PS was configured for Vivado's default MT41J128M8. Every layer of
+software above it (my Tcl init, xsct-style init, the FSBL, the native
+program) was correctly initialising the wrong memory. Retracted for good:
+"hardware fault", "rev-1.0 silicon DDR limitation", "JTAG artefact",
+"BSP outbyte", "no UART enabled".
+
+One loose end: the FSBL stops at "No Execution Address JTAG handoff"
+because ddr_test is linked at OCM 0x0, which the Zynq FSBL treats as the
+"no app / hand to JTAG" sentinel. Fix: link apps at OCM 0x00000100 (or any
+non-zero base) — or use DDR now that it works. Then the FSBL hands off and
+the app runs unattended from SD.
+
+Consequences: 512 MB back. loopback N_WORDS returns to 100,000; apps link
+to DDR again; the JTAG loader gains a proper "run FSBL first" stage (or we
+simply boot from SD, which is what a deployed board would do anyway). Stage
+B proceeds with the CORRECT bitstream — the FIFO/engine bitstream must be
+rebuilt on top of the fixed block design, since the old ones carry the wrong
+PS config.
