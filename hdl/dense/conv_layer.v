@@ -37,6 +37,11 @@ module conv_layer #(
     parameter WIDTH = 16, LEAK_SHIFT = 3,
     parameter signed [15:0] THRESHOLD = 64,
     parameter WEIGHT_FILE = "sim/vectors/conv_c1_w.hex",
+    // BAKED_WEIGHTS: 0 = load WEIGHT_FILE with $readmemh (simulation, any
+    // layer); 1 = use the compiled-in conv1 table from
+    // hdl/dense/weights/conv1_w.vh (synthesis: no file dependency, so a
+    // silently-missing hex file can never yield a zero ROM on the board).
+    parameter BAKED_WEIGHTS = 0,
     parameter IN_BITS  = C_IN * H_IN * W_IN,
     parameter NEURONS  = C_OUT * H_OUT * W_OUT
 ) (
@@ -63,7 +68,15 @@ module conv_layer #(
     reg                     out_mem [0:NEURONS-1];
     reg signed [WIDTH-1:0]  vmem [0:NEURONS-1];
 
-    initial $readmemh(WEIGHT_FILE, wrom);
+    generate
+        if (BAKED_WEIGHTS) begin : g_baked
+            initial begin
+                `include "weights/conv1_w.vh"
+            end
+        end else begin : g_file
+            initial $readmemh(WEIGHT_FILE, wrom);
+        end
+    endgenerate
 
     // External read ports: REGISTERED (D0012). Present the address on one
     // clock edge; the data is valid after the next. This is the access

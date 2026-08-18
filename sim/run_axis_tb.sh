@@ -19,7 +19,7 @@ wi=$(( (in_bits + 31) / 32 ))
 wo=$(( (neurons + 31) / 32 ))
 
 mkdir -p sim/work
-iverilog -g2012 -o sim/work/tb_axis.vvp \
+iverilog -g2012 -I hdl/dense -o sim/work/tb_axis.vvp \
     hdl/common/lif_update.v hdl/dense/conv_layer.v hdl/dense/axis_conv.v hdl/dense/axis_conv_top.v \
     sim/tb_axis_conv.v
 

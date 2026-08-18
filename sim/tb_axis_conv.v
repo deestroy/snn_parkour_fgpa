@@ -32,8 +32,10 @@ module tb_axis_conv;
 
     // Instantiate the SYNTHESIS top (active-low reset and all), not the
     // inner module -- what gets synthesised is what got tested.
+    // BAKED_WEIGHTS=1: exercise the exact path synthesis uses (compiled-in
+    // table), so a hex-vs-baked mismatch would show up here, not on silicon.
     axis_conv_top #(
-        .WEIGHT_FILE(WEIGHT_FILE)
+        .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(1)
     ) dut (
         .aclk(clk), .aresetn(~rst),
         .s_axis_tdata(s_tdata), .s_axis_tvalid(s_tvalid),

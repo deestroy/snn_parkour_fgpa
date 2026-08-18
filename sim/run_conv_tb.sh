@@ -18,7 +18,7 @@ for layer in "$@"; do
     esac
     python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null
 
-    iverilog -g2012 -o "sim/work/tb_conv_${layer}.vvp" \
+    iverilog -g2012 -I hdl/dense -o "sim/work/tb_conv_${layer}.vvp" \
         -Ptb_conv_layer.C_IN="$ci"  -Ptb_conv_layer.H_IN="$hi"  -Ptb_conv_layer.W_IN="$wi" \
         -Ptb_conv_layer.C_OUT="$co" -Ptb_conv_layer.H_OUT="$ho" -Ptb_conv_layer.W_OUT="$wo" \
         -Ptb_conv_layer.WEIGHT_FILE="\"sim/vectors/conv_${layer}_w.hex\"" \

@@ -29,6 +29,7 @@ module axis_conv #(
     parameter T = 4,
     parameter signed [15:0] THRESHOLD = 64,
     parameter WEIGHT_FILE = "sim/vectors/conv_c1_w.hex",
+    parameter BAKED_WEIGHTS = 0,
     parameter IN_BITS    = C_IN * H_IN * W_IN,
     parameter NEURONS    = C_OUT * H_OUT * W_OUT,
     parameter WORDS_IN   = (IN_BITS + 31) / 32,
@@ -66,7 +67,8 @@ module axis_conv #(
     conv_layer #(
         .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
         .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
-        .THRESHOLD(THRESHOLD), .WEIGHT_FILE(WEIGHT_FILE)
+        .THRESHOLD(THRESHOLD), .WEIGHT_FILE(WEIGHT_FILE),
+        .BAKED_WEIGHTS(BAKED_WEIGHTS)
     ) engine (
         .clk(clk), .rst(rst),
         .clear(eng_clear), .start(eng_start),

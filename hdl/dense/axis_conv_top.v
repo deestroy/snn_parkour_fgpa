@@ -9,9 +9,11 @@
 //    streams and knows the reset's polarity. The s_axis_*/m_axis_* names
 //    themselves are what makes Vivado infer the AXI-Stream interfaces.
 //
-// WEIGHT_FILE defaults to the bare filename: in Vivado, conv_c1_w.hex is
-// added as a design source and $readmemh finds it by name. Simulation
-// overrides the parameter with the repo-relative path.
+// Weights are BAKED into the RTL (BAKED_WEIGHTS=1 -> hdl/dense/weights/
+// conv1_w.vh), so synthesis has no $readmemh file to find -- Vivado fails
+// that lookup silently and would hand you a zero ROM. The simulation
+// testbench sets BAKED_WEIGHTS=0 and reads the hex, and both paths are
+// checked against golden, so they must agree.
 //
 // Verified by sim/run_axis_tb.sh, which instantiates THIS module -- the
 // thing that gets synthesised is the thing that got tested.
@@ -19,7 +21,8 @@
 `default_nettype none
 
 module axis_conv_top #(
-    parameter WEIGHT_FILE = "conv_c1_w.hex"
+    parameter WEIGHT_FILE = "conv_c1_w.hex",
+    parameter BAKED_WEIGHTS = 1
 ) (
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 aclk CLK",
        X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF s_axis:m_axis, ASSOCIATED_RESET aresetn" *)
@@ -43,7 +46,7 @@ module axis_conv_top #(
         .C_IN(2), .H_IN(34), .W_IN(34),
         .C_OUT(16), .H_OUT(17), .W_OUT(17),
         .T(4), .THRESHOLD(64),
-        .WEIGHT_FILE(WEIGHT_FILE)
+        .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(BAKED_WEIGHTS)
     ) core (
         .clk(aclk), .rst(~aresetn),
         .s_axis_tdata(s_axis_tdata), .s_axis_tvalid(s_axis_tvalid),
