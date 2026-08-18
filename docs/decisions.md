@@ -682,3 +682,43 @@ testbench. Consequences accepted with eyes open:
   designed with the bank split in mind from the start.
 - The golden model / testbench must un-interleave bank-local addresses; the
   address <-> (bank, offset) mapping is one function, cited by both.
+
+---
+
+## D0018 — M6 architecture: scatter mechanics
+
+**Date:** 2026-08-16 · **Status:** DECIDED
+
+- **Targets computed on the fly**, not tabulated. Conv geometry (3x3, stride
+  2, pad 1) means an input position lands in at most a 2x2 block of output
+  positions across all C_OUT channels; a few adders and a bounds check per
+  target. A precomputed target table would cost ~200 KB for C1 alone. Scope
+  boundary worth stating in the thesis: this relies on the network being
+  regular convs; a general SNN accelerator cannot assume it.
+- **Transposed weight layout** `W_T[ic, ky, kx, oc]`: one input's weights
+  for a kernel tap are C_OUT contiguous bytes, banked by oc mod K at K>1.
+  Pure re-ordering of m1_weights_int8.npz at export; golden model unchanged.
+- **The per-target RMW is `V += w` only.** Leak, pending-reset and threshold
+  happen once per neuron in the per-timestep sweep, using the SAME
+  `lif_update.v` as the dense engine, on the membrane's accumulated input.
+  Integer addition is associative, so event-driven and dense produce
+  bit-identical membranes and spikes from the same golden traces — the
+  golden model needs no changes, and the same testbench data verifies both
+  designs. This is the concrete form of M6's done-when ("identical results
+  to the dense design").
+
+Engine outline recorded here so the code has something to be checked
+against:
+
+    for addr in spike_list[t]:
+        (ic, iy, ix) = decode(addr)
+        for (oy, ox) in output_positions(iy, ix):     # <= 4
+            (ky, kx) = tap(iy, ix, oy, ox)
+            for oc in 0..C_OUT-1:                       # K-wide at K>1
+                V[bank(oc), off(oc, oy, ox)] += W_T[ic, ky, kx, oc]
+    sweep all N: (V, s) = lif_update(V, 0); if s: append to spike_list[t+1]
+
+Build order (each step golden-verified before the next): transposed-weight
+export + address<->bank mapping in Python; C1 scatter engine at K=1; LIF
+sweep + address-list writer; C1 event-driven == dense on all traces; then
+C2/C3 by parameter, FC at K=1, and finally K=4 as a parameter flip.
