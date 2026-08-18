@@ -978,3 +978,34 @@ needing the user's Vitis session:
 - The 100,000-word loopback revert stays deferred: N_WORDS remains 12,288
   and loopback.c documents why. Revert instructions unchanged from the
   D0015 workaround note.
+
+---
+
+## D0019 — Event-driven neuron state is TWO words: membrane V and accumulator I
+
+**Date:** 2026-08-18 (overnight) · **Status:** DECIDED
+
+Writing D0018 as code (golden/eventdriven.py) exposed a subtlety the prose
+glossed over. The LIF leak and the pending-reset are functions of V[n-1]
+alone. If scatter accumulated I[n] into the same word as V, the sweep could
+no longer recover V[n-1] and both leak and reset would be computed on the
+wrong value. So the event-driven engine keeps two words per neuron: the
+membrane V and an input accumulator I. Scatter does I += w; the sweep does
+(V, s) = lif_update(V, I) and zeroes I. This is exactly what the dense
+engine does with V in RAM and I in a register — the difference is only that
+here I must persist across the whole scatter phase, so it needs storage.
+
+Cost: 2 x 16 bits per neuron instead of 1 x 16. For the target network's
+21,632 neurons that is +42.2 KB of BRAM (membrane budget doubles from 42.2
+to 84.4 KB; total on-chip 161 -> 203 KB, still 33% of the 612.5 KB). Must
+be stated in the resource comparison: the event-driven design carries this
+extra state and the dense design does not.
+
+**Verified in software (M6 step 1):** golden/eventdriven.py reproduces the
+golden traces bit-for-bit on c1/c2/c3 at K=1 AND K=4 (1.13M checks, 0
+mismatches), and the D0017 bank mapping is proven bijective and
+conflict-free for K in {1,2,4,8}. Measured work per timestep at trained
+rates: C1 14.1k RMWs vs 83k dense reads (5.9x), C2 29.3k vs 373k (12.7x),
+C3 38.3k vs 461k (12.0x). Sweep cost is N per timestep as predicted.
+sim/export_ed_vectors.py imports the same mapping functions, so the
+Verilog testbench cannot drift from the Python.
