@@ -601,3 +601,17 @@ fails to boot at all → B or C, and a serious conversation about acquiring a
 PYNQ-Z2 (~$150), which would turn the ZedBoard into the secondary/portability
 board the brief already wanted. This is the cost of the board swap: same
 chip, thinner support path.
+
+### D0015 update (2026-08-16): every prebuilt ZedBoard image is dead
+
+Checked exhaustively: sambuls 2.7 host returns 404 and its Releases page is
+empty; ECSAlab/pynq-zedboard is build-only; the 2019 OneDrive link in the
+PYNQ forum's 3rd-party-images wiki (PYNQ 2.3/2.4) is dead. **No prebuilt
+PYNQ image for the ZedBoard exists anywhere reachable in 2026.**
+
+Remaining paths, both costed above: build PYNQ 3.0.1 from source (1-2 weeks,
+Linux host + 2022.1 toolchain, known forum snags), or acquire a PYNQ-Z2 (~$150,
+zero friction, ZedBoard becomes the secondary/portability board the brief
+already planned). Recommendation stands: PYNQ-Z2. Awaiting the user's
+decision after checking lab availability. Board-independent work (M6 design)
+proceeds meanwhile.
