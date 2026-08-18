@@ -45,16 +45,29 @@ proc zynq_program {ps7 bit elf entry} {
     reset halt
     sleep 200
 
-    echo "== bitstream: $bit =="
-    pld load 0 $bit
-    sleep 100
-
     echo "== ps7_init: $ps7 =="
     # Source at GLOBAL scope: ps7_init.tcl's top-level `set`s (silicon
     # version constants, APU_FREQ) must be globals for the `variable`
     # lookups inside its procs to find them.
     uplevel #0 [list source $ps7]
     ps7_init
+
+    # Release the PL's PROGRAM_B line before configuring. SRST (which
+    # `reset halt` asserts) leaves devcfg.CTRL[PCFG_PROG_B]=0, holding the
+    # fabric cleared: pld load then streams a bitstream into a fabric that
+    # discards it, every PL access reads garbage, and the first PL write
+    # hangs the bus. Cost an entire night. xsct/FSBL do this implicitly.
+    echo "== release PL PROG_B =="
+    set ctrl [expr {"0x[string range [mrd 0xF8007000] end-8 end]"}]
+    mww 0xF8007000 [expr {$ctrl & ~(1 << 30)}]
+    sleep 5
+    mww 0xF8007000 [expr {$ctrl | (1 << 30)}]
+    sleep 50
+
+    echo "== bitstream: $bit =="
+    pld load 0 $bit
+    sleep 300
+
     ps7_post_config
 
     # BootROM leaves the L2 address filter at 0x40000001, which routes all

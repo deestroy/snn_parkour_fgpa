@@ -902,3 +902,42 @@ Next session, in order:
 
 Status: not yet LOOPBACK PASS. Every layer down to the DMA's own registers
 is verified working; the last gap is one L2 register pair.
+
+### Board-day log, part 5 (2026-08-18 ~01:40): LOOPBACK PASS
+
+`LOOPBACK PASS: 12288 words round-tripped bit-identical` on the ZedBoard,
+programmed and observed entirely from the Mac.
+
+**The actual root cause of the whole night**, from UG585 devcfg registers:
+`reset halt` asserts SRST, which leaves `devcfg.CTRL[PCFG_PROG_B] = 0` —
+the PL's PROGRAM_B line held low, the fabric held cleared. `pld load` then
+streamed the bitstream into a fabric that discarded it. Consequences that
+looked like four different bugs: PL reads returned stable garbage that
+differed by access path (the "CPU sees different DMA registers" mystery),
+the first PL *write* hung the bus (no slave to respond), and the DAP went
+sticky. My very first load of the evening had lit the DONE LED only because
+it followed a plain `halt`, not an SRST — I never noticed the difference.
+
+The L2 address filter was innocent throughout: UG585 confirms its reset
+value (start 0x40000000 enabled, end 0xFFF00000) routes DDR to M0 and
+everything else to M1, which is exactly right. My "disable it" change from
+part 1 broke peripheral routing and caused the every-second-character UART
+loss; both retracted. `boot.S`, the FSBL and `ps7_init` never touch it.
+
+Fix, in host/mac/zynq_load.tcl: after ps7_init, pulse PCFG_PROG_B low→high
+(devcfg.CTRL bit 30), then `pld load`, then ps7_post_config — the xsct/FSBL
+order. Verified: a DMA write completes and reads back changed; the program
+runs to PASS.
+
+Also learned tonight, for the record:
+- Never trust CPU-side memory reads of a halted target that has run a
+  program (MMU on). Use the AHB-AP mem_ap.
+- devcfg STATUS[PCFG_DONE] and MCTRL read 0 over the debug port on this
+  part regardless of true state; don't gate on them.
+- A wedged FTDI adapter (MPSSE assertion) recovers with a pyusb device
+  reset — no replug needed.
+- Vitis 2024.1: BSP stdin/stdout are in the domain's bsp.yaml
+  (ps7_uart_1 for the ZedBoard); the platform GUI is unreliable for it.
+- The BSP's xil_printf was NOT dropping bytes; the paced writer in
+  loopback.c is now unnecessary but harmless (kept: it's simple and it
+  gives the program its own diagnostics path with no library dependence).
