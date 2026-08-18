@@ -1112,3 +1112,13 @@ who supplied the board reports it working. A program-driven self-test
 (host/board/ddr_test.c: runs from OCM, patterns across five DDR regions plus
 walking-ones, reports over UART) is the actual discriminator. Until it runs,
 "DDR faulty" is a hypothesis, not a finding.
+
+**Resolved (10:30): DDR is faulty — confirmed by native code, no debugger in
+the loop.** host/board/ddr_test.c ran from OCM: banner printed, OCM control
+region 0 errors (test logic proven), then the first CPU write to DDR
+(0x00100000) hung the core so hard the debugger could not halt it. A working
+DRAM returns data, right or wrong; a hang means the controller never
+completed the transaction. Chips warm, PHY DLLs locked, silicon rev 1.0,
+CPU-native access stalls: a data-path fault on this board. Final.
+Recommend telling the supervisor: everything on the board works except
+DDR3; a replacement ZedBoard would be a 20-minute swap, otherwise OCM.
