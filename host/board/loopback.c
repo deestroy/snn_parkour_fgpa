@@ -28,8 +28,17 @@
 #include "xstatus.h"
 
 #define N_WORDS      (100000u)             /* 400 KB each way              */
-#define DMA_DEV_ID   XPAR_AXIDMA_0_DEVICE_ID
 #define TIMEOUT_LOOP (50000000u)           /* spin bound before we give up */
+
+/* Vitis 2024.x Unified IDE builds with -DSDT (System Device Tree). In that
+ * flow drivers are found by BASE ADDRESS, not the old numeric DEVICE_ID:
+ * XPAR_AXIDMA_0_DEVICE_ID no longer exists. Older classic-Vitis platforms
+ * still define DEVICE_ID, so support both. */
+#ifdef SDT
+#  define DMA_DEV_ID  XPAR_AXIDMA_0_BASEADDR
+#else
+#  define DMA_DEV_ID  XPAR_AXIDMA_0_DEVICE_ID
+#endif
 
 static uint32_t tx_buf[N_WORDS] __attribute__((aligned(64)));
 static uint32_t rx_buf[N_WORDS] __attribute__((aligned(64)));
@@ -58,7 +67,7 @@ int main(void) {
     xil_printf("\r\n=== snn_parkour_fpga : M4 stage A loopback (bare metal) ===\r\n");
 
     cfg = XAxiDma_LookupConfig(DMA_DEV_ID);
-    if (!cfg) { xil_printf("FAIL: no DMA config for id %d\r\n", DMA_DEV_ID); return 1; }
+    if (!cfg) { xil_printf("FAIL: no DMA config for 0x%08x\r\n", (unsigned)DMA_DEV_ID); return 1; }
     if (XAxiDma_CfgInitialize(&dma, cfg) != XST_SUCCESS) {
         xil_printf("FAIL: DMA init\r\n"); return 1;
     }
