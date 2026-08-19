@@ -1778,3 +1778,18 @@ is the known half.
 Also tonight: check_all.sh 17/17 green (ED AXIS, K=4 scatter, DMM
 arithmetic and ED lint added); measure/dmm_protocol.md +
 measure/manual_meter.py; docs/status_2026-08-19.md.
+
+### D0017 note (2026-08-19) — K=4 is a baseline, not an optimum; K is an M7 variable
+
+Recorded after the overnight sweep raised the question. K was chosen as
+the first banking step under three constraints: K must divide C_OUT=16
+(K=6 would leave 4 of 6 banks idle on the last group, 16=6+6+4);
+power-of-two K keeps `oc mod K` a bit-slice, no divider on an address
+path (see the 2026-08-18/19 timing history); and at trained rates the
+scatter (35k cycles) is already below the fixed sweep floor (74k) at K=4,
+so higher K buys little latency (K=8: ~11 % on C1) while doubling the
+accumulator bank BRAMs each step — a static-power cost only the meter can
+judge. Therefore: K in {1,2,4,8,16} is an experiment axis for M7
+(latency already known from simulation; energy and area per K measured),
+listed in README "Next steps / later". K=4 stays the baseline the meter
+sees first.

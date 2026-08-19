@@ -23,7 +23,10 @@ Written down so nobody has to remember them. Ordered by critical path.
    2026-08-18 resource section) with the exact post-implementation
    utilisation. Then M7's sweep has both engines behind one wrapper.
 
-Later, not now: word-parallel pack/unpack in the AXIS wrapper (~30 % of the
+Later, not now: sweep K (banks: 1/2/4/8/16 — K=4 was the first banking
+step, not an optimum; latency known from simulation, energy and area per K
+from the board once the meter exists — see D0017 note 2026-08-19);
+word-parallel pack/unpack in the AXIS wrapper (~30 % of the
 ED latency figure, shared by both engines); pipelined sweep (4 -> ~2
 cycles/neuron); event-driven FC layer (D0013); rename the GitHub repo to
 snn_parkour_fpga; delete ~/git_projects/snn_parkour_fpga_backup_pre_rewrite.
