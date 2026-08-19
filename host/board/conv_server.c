@@ -25,7 +25,6 @@
 #include "xaxidma.h"
 #include "xil_cache.h"
 #include "xstatus.h"
-#include "xtime_l.h"                 /* Cortex-A9 global timer: XTime_GetTime, COUNTS_PER_SECOND */
 
 /* ---------------------------------------------------------------- config */
 #define BUILD_ID       0x00000002u              /* 2: BURST command (2026-08-19) */
@@ -57,6 +56,22 @@
 #define WORDS_OUT_TS   145u                     /* ceil(16*17*17 / 32)    */
 #define REQ_WORDS      (T_STEPS * WORDS_IN_TS)  /* 292                    */
 #define RSP_WORDS      (T_STEPS * WORDS_OUT_TS) /* 580                    */
+
+/* --------------------------------------------- Cortex-A9 global timer */
+/* 64-bit free-running counter at CPU_3x2x = CPU clock / 2 (ZedBoard preset:
+ * 666.67 MHz CPU -> 333.33 MHz). Read directly (the SDT BSP has no
+ * xtime_l.h). The client cross-checks TICKS_PER_S against wall-clock. */
+#define GT_BASE      0xF8F00200u
+#define GT_LO        (*(volatile uint32_t *)(GT_BASE + 0x0))
+#define GT_HI        (*(volatile uint32_t *)(GT_BASE + 0x4))
+#define GT_CTRL      (*(volatile uint32_t *)(GT_BASE + 0x8))
+#define TICKS_PER_S  333333333u
+static uint64_t gt_read(void) {
+    uint32_t hi, lo, hi2;
+    do { hi = GT_HI; lo = GT_LO; hi2 = GT_HI; } while (hi != hi2);
+    return ((uint64_t)hi << 32) | lo;
+}
+static void gt_enable(void) { GT_CTRL |= 1u; }
 
 /* ---------------------------------------------------------- paced UART */
 #define UART1_BASE   0xE0001000u
@@ -195,8 +210,7 @@ static int run_burst(uint32_t n_in) {
     uint32_t iters = rx_words[0];
     if (iters == 0) { send_error(ERR_NWORDS); return -1; }
     uint32_t mism = 0, done = 0;
-    XTime t0, t1;
-    XTime_GetTime(&t0);
+    uint64_t t0 = gt_read(), t1;
     for (uint32_t i = 0; i < iters; i++) {
         int e = one_pass(sample_words);
         if (e) { send_error((uint32_t)e); return -1; }
@@ -208,18 +222,19 @@ static int run_burst(uint32_t n_in) {
                 if (tx_words[k] != ref_words[k]) { mism++; break; }
         }
     }
-    XTime_GetTime(&t1);
-    uint64_t ticks = (uint64_t)(t1 - t0);
+    t1 = gt_read();
+    uint64_t ticks = t1 - t0;
     uint32_t c = 0;                              /* crc_update folds init/final */
     for (uint32_t k = 0; k < RSP_WORDS; k++) c = crc_word(c, tx_words[k]);
     uint32_t rep[6] = { done, (uint32_t)ticks, (uint32_t)(ticks >> 32),
-                        (uint32_t)COUNTS_PER_SECOND, mism, c };
+                        TICKS_PER_S, mism, c };
     send_frame(CMD_BURST | RSP_OK_BIT, rep, 6);
     return 0;
 }
 
 int main(void) {
     crc_init();
+    gt_enable();
     XAxiDma_Config *cfg = XAxiDma_LookupConfig(DMA_DEV_ID);
     if (!cfg || XAxiDma_CfgInitialize(&dma, cfg) != XST_SUCCESS || XAxiDma_HasSg(&dma)) {
         for (;;) send_error(ERR_DMA_SETUP);   /* loud, forever */

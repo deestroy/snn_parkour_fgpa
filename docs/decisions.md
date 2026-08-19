@@ -1669,3 +1669,15 @@ Create Boot Image, card, boot, `python3 host/uart_client.py --burst 2000`
 -> PING must say build 2; expect ~1-3 ms/inference; mismatches 0; CRC ok.
 Then the meter: `--burst-only --burst N` with N sized for the run
 duration, idle reading before and after.
+
+### D0022 amendment (01:15) — global timer read directly; tick rate cross-checked
+
+The SDT BSP does not ship xtime_l.h (build error). conv_server.c now reads
+the Cortex-A9 global timer's three registers at 0xF8F00200 directly
+(64-bit, hi/lo/hi read) and enables it at start; TICKS_PER_S is the
+ZedBoard-preset constant 333,333,333 (CPU 666.67 MHz / 2). Because that is
+a constant and not a measurement, uart_client.py cross-checks the board's
+elapsed time against Mac wall-clock around the call (must agree within 5 %
++ 0.5 s once the burst exceeds 1 s) and fails the check otherwise. The
+mock now sleeps for the time it claims so the cross-check is exercised in
+the selftest (400 iterations, 1.36 s). Syntax-checked; mock PASS.

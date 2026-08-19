@@ -92,6 +92,8 @@ class MockConvServer:
                     # fabric would plausibly take, so the client's arithmetic
                     # and checks are exercised end to end
                     n = int(words[0])
+                    import time
+                    time.sleep(n * self.MOCK_LATENCY_S)   # take the time it claims
                     ticks = int(n * self.MOCK_LATENCY_S * self.MOCK_TICKS_PER_S)
                     rep = np.array([n, ticks & 0xFFFFFFFF, ticks >> 32,
                                     self.MOCK_TICKS_PER_S, 0,
@@ -130,7 +132,7 @@ def selftest() -> int:
     from host.uart_client import run_burst
     link = Link(client_end)
     ok = run_samples(link, label="mock (golden model)")
-    ok = run_burst(link, n=1000, sample=0, label="mock") and ok
+    ok = run_burst(link, n=400, sample=0, label="mock") and ok
     return 0 if ok else 1
 
 

@@ -79,13 +79,21 @@ def run_burst(link: Link, n: int, sample: int = 0, label: str = "board") -> bool
     if old is not None:
         link.s.timeout = max(old, est + 5.0)
     try:
+        t0 = time.time()
         r = BurstResult(link.call(CMD_BURST, np.array([n], "<u4")))
+        wall = time.time() - t0
     finally:
         if old is not None:
             link.s.timeout = old
     ok = (r.n == n and r.mismatches == 0 and r.crc_last == crc_words(rx[sample]))
     print("[%s] BURST sample %d: %s%s" % (label, sample, r,
           "" if ok else "  <-- CHECK FAILED (n/mismatch/crc)"))
+    # the board's tick rate is a constant in conv_server.c; wall-clock on
+    # the Mac (which includes ~0.1 s of UART/turnaround) must agree with it
+    print("[%s]   wall-clock %.3f s vs board %.3f s (tick-rate cross-check; "
+          "wall includes UART overhead)" % (label, wall, r.elapsed_s))
+    if r.elapsed_s > 1.0 and abs(wall - r.elapsed_s) > 0.05 * r.elapsed_s + 0.5:
+        print("[%s]   WARNING: tick rate looks wrong" % label); ok = False
     return ok
 
 
