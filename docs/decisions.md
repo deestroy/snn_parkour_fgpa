@@ -1581,3 +1581,20 @@ check on a marker string, and remember that the Timing tab and
 report_timing read the implemented design OPEN IN MEMORY — click Reload
 in the "out-of-date" banner after a run, or trust the Design Runs WNS
 column, which is always the latest run.
+
+### 00:35 (2026-08-19) — TIMING MET (WNS +0.735 ns, 0 failing endpoints) — but the .xsa lost the DMA address map
+
+Third pass closed timing at 100 MHz: WNS +0.735 ns, TNS 0, 0 of 11,117
+endpoints failing, "All user specified timing constraints are met." The
+event-driven design is now sign-off clean on the fabric.
+
+The delivered .xsa was NOT written to the card: its .hwh carries ZERO
+memory ranges for axi_dma_0's M_AXI_MM2S / M_AXI_S2MM (the known-good
+designs carry two, HP0_DDR_LOWOCM 0x0-0x1FFFFFFF). One of the evening's
+module refreshes / interconnect regenerations dropped the Address Editor
+assignments — the identical symptom to the 2026-08-18 morning HP0 problem
+(DMADecErr on the first transfer). Standing pre-write check extended: the
+.hwh must show ENGINE, ED_K, DDR part, HP0=1, AND two DMA MEMRANGEs to
+HP0_DDR_LOWOCM; and in Vivado, before Generate Bitstream,
+`get_bd_addr_segs -of [get_bd_addr_spaces axi_dma_0/Data_MM2S]` (and
+Data_S2MM) must each return an HP0_DDR_LOWOCM segment.
