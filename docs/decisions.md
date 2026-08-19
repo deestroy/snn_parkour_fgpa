@@ -1598,3 +1598,33 @@ assignments — the identical symptom to the 2026-08-18 morning HP0 problem
 HP0_DDR_LOWOCM; and in Vivado, before Generate Bitstream,
 `get_bd_addr_segs -of [get_bd_addr_spaces axi_dma_0/Data_MM2S]` (and
 Data_S2MM) must each return an HP0_DDR_LOWOCM segment.
+
+## M6 RESULT ON THE BOARD, SIGN-OFF CLEAN (2026-08-19 00:55) — event-driven K=4, WNS +0.735, BOARD PASS
+
+`BOARD PASS: 16 samples, 9280 words, bit-identical to the golden model
+(4.91 s, 307 ms/sample incl. UART)` — run twice.
+
+This supersedes the 2026-08-18 22:25 pass, which was functional only
+(that bitstream failed timing by 4.5 ns). This bitstream: WNS +0.735 ns,
+TNS 0, 0 failing endpoints at 100 MHz; ENGINE=1, ED_K=4, BAKED_WEIGHTS=1;
+ZedBoard preset (MT41J128M16), HP0 enabled, both DMA masters mapped
+0x0-0x1FFFFFFF; BOOT.bin PL partition byte-identical (1.000000) to the
+.xsa bitstream; app at 0x100000; DDR-init FSBL. Same server, client and
+16 golden samples as every previous pass.
+
+What it took from the first ED bitstream to this one, all logged above:
+(1) 62k-LUT overrun — accumulator banks given one write/one read port so
+they map to BRAM; (2) WNS −4.5 — bank offset and weight row stepped in
+registers instead of recomputed (two chained DSP multiplies removed);
+(3) WNS −3.5 — D0020 rev 2, addresses carried as fields, every divider
+on an address path gone; (4) WNS −0.42 — LIF chain fed from re-registered
+V and I, not BRAM latches; (5) the DMA address map dropped by a block-
+design refresh, caught by the pre-write .hwh check. Cycle counts never
+changed (76 / 22 per spike K=1/K=4; sweep 4 cycles/neuron), and every
+step re-passed the identical harness. The dense design needed none of
+this — that asymmetry is a thesis observation, not an aside.
+
+M6 done-when — "the event-driven design produces identical results to
+the dense design" — met on silicon with a timing-clean bitstream. Next
+on the critical path is unchanged: the meter (M5), then the crossover
+sweep (M7) with both engines behind the same wrapper.
