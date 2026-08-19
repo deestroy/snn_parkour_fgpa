@@ -40,7 +40,13 @@ def run(cmd, env=None):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true", help="3 densities, for a smoke test")
+    ap.add_argument("--replot", action="store_true", help="re-draw from sweep.csv, no simulation")
     a = ap.parse_args()
+    if a.replot:
+        with open(os.path.join(OUT, "sweep.csv")) as fh:
+            rd = csv.reader(fh); next(rd)
+            rows = [[float(r[0]), float(r[1]), float(r[2]), float(r[3]), r[4], float(r[5]), float(r[6]), r[7]] for r in rd]
+        plot(rows); return 0
     dens = [0.01, 0.10, 0.50] if a.quick else DENSITIES
     os.makedirs(OUT, exist_ok=True)
     rows = []
@@ -82,12 +88,24 @@ def plot(rows):
                             ("ed_k4", "event-driven, K=4", "^")):
         pts = sorted((r[1], r[5] / 1e5) for r in rows if r[4] == name)
         ax.plot([x for x, _ in pts], [y for _, y in pts], marker=mk, label=label)
+    # crossover K=1 vs dense: linear interpolation between the bracketing points
+    d = sorted((r[1], r[5]) for r in rows if r[4] == "dense")
+    k1 = sorted((r[1], r[5]) for r in rows if r[4] == "ed_k1")
+    dense_c = d[0][1]
+    for (x0, y0), (x1, y1) in zip(k1, k1[1:]):
+        if y0 <= dense_c <= y1:
+            xc = x0 + (dense_c - y0) * (x1 - x0) / (y1 - y0)
+            ax.axvline(xc, color="tab:orange", ls="--", lw=1)
+            ax.annotate("K=1 crossover\n~%.0f %% input rate" % (100 * xc), (xc, dense_c / 1e5),
+                        xytext=(xc * 0.35, dense_c / 1e5 + 1.2), fontsize=8, color="tab:orange",
+                        arrowprops=dict(arrowstyle="->", color="tab:orange", lw=0.8))
+            break
     ax.axvline(0.06, color="grey", ls=":", lw=1)
     ax.text(0.062, ax.get_ylim()[1] * 0.95, "trained C1\ninput rate", fontsize=8, color="grey", va="top")
     ax.set_xscale("log")
     ax.set_xlabel("C1 input firing rate (fraction of input bits = 1)")
     ax.set_ylabel("latency per inference, ms  (simulation, 100 MHz)")
-    ax.set_title("SIMULATED latency vs firing rate, C1 on the XC7Z020 -- not energy, not the board")
+    ax.set_title("SIMULATED latency vs firing rate, C1 (XC7Z020)\nnot energy, not the board -- K=4 never crosses dense in range", fontsize=10)
     ax.grid(True, which="both", alpha=0.3)
     ax.legend()
     fig.tight_layout()

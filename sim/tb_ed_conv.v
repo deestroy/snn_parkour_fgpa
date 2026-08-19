@@ -70,6 +70,12 @@ module tb_ed_conv;
     integer nsamples, s, t, i, k, cnt, pos, fails, checked, base, total_spk;
     integer fd, r;
 
+    // cycle accounting (first spike push of a timestep -> done): the layer's
+    // time per timestep including the push/scatter overlap, summed per sample
+    integer cyc_now = 0, cyc_t0, cyc_sample, cyc_fd = 0;
+    reg [1023:0] f_cyc;
+    always @(posedge clk) cyc_now <= cyc_now + 1;
+
     task wait_done;
         begin
             @(posedge clk); #1;
@@ -81,6 +87,10 @@ module tb_ed_conv;
         if (!$value$plusargs("spk=%s", f_spk) || !$value$plusargs("s=%s", f_s) ||
             !$value$plusargs("v=%s", f_v) || !$value$plusargs("nsamples=%d", nsamples)) begin
             $display("TB_FAIL missing plusargs"); $finish;
+        end
+        if ($value$plusargs("cycles=%s", f_cyc)) begin
+            cyc_fd = $fopen(f_cyc, "w");
+            $fdisplay(cyc_fd, "# sample cycles_per_sample (sum over T of: first spike push -> done)");
         end
         // read the decimal address list
         fd = $fopen(f_spk, "r"); pos = 0;
@@ -99,9 +109,11 @@ module tb_ed_conv;
             @(negedge clk) clear = 1;
             @(negedge clk) clear = 0;
             wait_done;
+            cyc_sample = 0;
 
             for (t = 0; t < T; t = t + 1) begin
                 cnt = spk_words[pos]; pos = pos + 1;
+                cyc_t0 = cyc_now;
                 for (k = 0; k < cnt; k = k + 1) begin
                     @(negedge clk);
                     spk_we = 1; spk_addr = spk_pack(spk_words[pos]); pos = pos + 1;
@@ -112,6 +124,7 @@ module tb_ed_conv;
                 @(negedge clk) start = 1;
                 @(negedge clk) start = 0;
                 wait_done;
+                cyc_sample = cyc_sample + (cyc_now - cyc_t0);
 
                 base = (s*T + t)*NEURONS;
                 for (i = 0; i < NEURONS; i = i + 1) begin
@@ -131,7 +144,9 @@ module tb_ed_conv;
                 // let the DUT finish any post-timestep housekeeping
                 while (busy) begin @(posedge clk); #1; end
             end
+            if (cyc_fd) $fdisplay(cyc_fd, "%0d %0d", s, cyc_sample);
         end
+        if (cyc_fd) $fclose(cyc_fd);
 
         if (fails == 0)
             $display("TB_PASS K=%0d %0d comparisons bit-identical over %0d samples x %0d timesteps, %0d input spikes",

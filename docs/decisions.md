@@ -1746,3 +1746,35 @@ C1 already on the board, the event-driven conv engine is now verified
 against golden for every conv layer of the network at the board's K. The
 FC layer remains dense-only (D0013 records the event-driven FC as future
 work). Not added to check_all.sh (runtime); run on demand.
+
+## M7 REHEARSAL IN SIMULATION + per-layer latency (2026-08-19 overnight)
+
+Two simulation results, both saved under experiments/ with raw counts.
+
+**Firing-rate sweep, C1 (experiments/m7_sim/):** synthetic Bernoulli
+inputs at ten densities (0.4 %-89 % realised), both engines, 30 runs, all
+bit-identical. Dense flat at 436,247 cycles. ED K=1 = 121.9k + 75.8/spike,
+crosses dense at ~45 % input rate. ED K=4 = 121.8k + 21.9/spike, never
+crosses (300.8k at 89 %). Plot m7_sim_crossover.png, labelled SIMULATION.
+
+**Per-layer, trained rates (experiments/latency_sim/layers.md):** dense
+C1/C2/C3 = 3.90 / 15.26 / 18.63 ms; ED K=4 = 1.10 / 1.08 / 1.07 ms; conv
+stack 37.8 ms vs 3.26 ms (11.6x). All 9 runs bit-identical (ED engine now
+verified on every conv layer, K=1 and K=4). C1 ED K=4 agrees with the AXIS
+bench (110,070 vs 110,078) and the board (3 %).
+
+**What this means for the thesis, said plainly.** In LATENCY, on this
+network at K=4, the event-driven design wins at every activity level
+tested; there is no latency crossover to find. The crossover question is
+therefore purely an ENERGY question — the ED design carries ~4x the BRAM
+and ~1.7x the logic (static/leakage and clocking power that is paid every
+cycle) against far fewer memory accesses (dynamic power). Which effect
+wins, and at what activity, cannot be answered without the meter. That is
+exactly CLAUDE.md's thesis and it is why the meter is the critical path.
+It also sharpens M7's design: sweep activity, measure ENERGY per inference
+for both engines, plot energy (not just latency) — the latency curve above
+is the known half.
+
+Also tonight: check_all.sh 17/17 green (ED AXIS, K=4 scatter, DMM
+arithmetic and ED lint added); measure/dmm_protocol.md +
+measure/manual_meter.py; docs/status_2026-08-19.md.
