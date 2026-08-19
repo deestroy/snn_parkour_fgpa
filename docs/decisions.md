@@ -1483,3 +1483,32 @@ Suspected path (to be confirmed from the timing report): the constant
 decode, feeding BRAM addresses combinationally — the D0021 "post-M7"
 optimisation, now mandatory. Standing rule from here: WNS is checked
 alongside the .hwh parameters before any card is written.
+
+### 23:00 — timing fix: incremental address registers in the scatter unit
+
+The timing report (report_timing, five worst paths) put every violation on
+one path, repeated per bank: `oc_reg -> off_r1 (x17, DSP48) -> off_r (x17,
+DSP48) -> bank BRAM address`, 13.8 ns data path (9.6 ns logic: two chained
+3.84 ns DSP multiplies) against 10 ns. That was the bank offset
+`((oc/K)*H_OUT + oy)*W_OUT + ox` and the weight row `((ic*3+ky)*3+kx)*C_OUT
++ oc` recomputed combinationally from the loop counters every cycle.
+
+Fix: both are now 16-bit REGISTERS initialised once per spike (from the
+decoded iy/ix, shift-adds on 6-bit values) and stepped by constants as the
+loops advance — oc += K: off += H_OUT*W_OUT, row += K; ox += 1: off += 1,
+row -= 2*C_OUT; oy += 1 (ox back to ox_lo): off += W_OUT - (ox - ox_lo),
+row += 2*C_OUT*(ox - ox_lo) - 6*C_OUT; and on both wraps oc -> 0: off -=
+(C_OUT/K - 1)*HW, row -= C_OUT - K. Register -> one adder -> register; no
+multipliers remain on the address path (the two DSPs should disappear).
+Verified: scatter vs I-dump K=1/K=4, engine vs golden K=1/K=4, AXIS
+hostile handshake ED and dense, lint clean — cycle counts unchanged (76 and
+22 per spike), i.e. the change is invisible to the harness, as intended.
+
+Next suspect if WNS is still negative after the rebuild: the external
+`i_addr -> p_off` translation (constant `/ 289`, `% 289` in LUTs) into
+the same BRAM address mux — not in the top five, so probably passing but
+with little margin. Proper fix if needed is a pipelined sweep in
+ed_conv_layer (read n+1 while updating n), which would also cut the sweep
+from 4 to ~2 cycles per neuron — a design improvement, not just a timing
+patch — but only after WNS says it is needed. Standing rule stays: WNS
+checked before any card is written.

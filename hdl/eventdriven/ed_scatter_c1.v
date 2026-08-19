@@ -376,11 +376,22 @@ module ed_scatter_c1 #(
     function integer hi_of(input integer i, input integer hmax);
         begin hi_of = ((i + 1) >> 1); if (hi_of > hmax - 1) hi_of = hmax - 1; end endfunction
 
-    wire [1:0]  ky = iy - 2*oy + 1;
-    wire [1:0]  kx = ix - 2*ox + 1;
-    wire [31:0] wt_row = ((ic*3 + ky)*3 + kx)*C_OUT + oc;   // W_T[ic][ky][kx][oc..oc+K-1]
-    // bank offset for channel oc+j at (oy,ox): ((oc+j)/K == oc/K since oc%K==0)
-    wire [31:0] off_r = ((oc / K) * H_OUT + oy) * W_OUT + ox;
+    // wt_row = ((ic*3 + ky)*3 + kx)*C_OUT + oc     W_T[ic][ky][kx][oc..oc+K-1]
+    // off_r  = ((oc / K) * H_OUT + oy) * W_OUT + ox    bank offset for channel oc+j
+    // Both are REGISTERS stepped incrementally as (oc, ox, oy) advance, not
+    // recomputed from the counters each cycle. The first board build did the
+    // latter and the offset became two chained DSP multipliers feeding the
+    // BRAM address port -- 13.8 ns on a 10 ns clock, WNS -4.5 ns (2026-08-18).
+    // Steps: oc += K  -> off += HW,           row += K
+    //        ox += 1  -> off += 1,            row -= 2*C_OUT   (kx -= 2)
+    //        oy += 1, ox -> ox_lo
+    //                 -> off += W_OUT - (ox - ox_lo),
+    //                    row += 2*C_OUT*(ox - ox_lo) - 6*C_OUT   (ky -= 2)
+    //        and oc -> 0 on the last two: off -= (C_OUT/K - 1)*HW, row -= C_OUT-K
+    reg [15:0] wt_row, off_r;
+    localparam OC_WRAP = (C_OUT/K - 1) * HW;
+    wire [15:0] ky0 = iy - 2*lo_of(iy) + 1;      // tap at the block's first row/col
+    wire [15:0] kx0 = ix - 2*lo_of(ix) + 1;
 
     // --- FSM --------------------------------------------------------------
     localparam S_IDLE = 0, S_DEC = 1, S_RD = 2, S_ADD = 3, S_NEXT = 4;
@@ -453,6 +464,10 @@ module ed_scatter_c1 #(
                 oy_lo <= lo_of(iy); oy_hi <= hi_of(iy, H_OUT);
                 ox_lo <= lo_of(ix); ox_hi <= hi_of(ix, W_OUT);
                 oy <= lo_of(iy); ox <= lo_of(ix); oc <= 0;
+                // starting offset / row for (oc=0, oy_lo, ox_lo): shift-adds
+                // on 6-bit values, register to register
+                off_r  <= lo_of(iy) * W_OUT + lo_of(ix);
+                wt_row <= ((ic*3 + ky0)*3 + kx0) * C_OUT;
                 ic_wait <= 1'b0;
             end else begin
                 // K-wide read: weights oc..oc+K-1 for this tap; the K
@@ -468,13 +483,20 @@ module ed_scatter_c1 #(
         S_ADD: begin   // K read-modify-writes land this cycle (we_add)
             if (oc + K < C_OUT) begin
                 oc <= oc + K; state <= S_RD;
+                off_r <= off_r + HW;  wt_row <= wt_row + K;
             end else begin
                 oc <= 0;
-                if (ox < ox_hi) begin ox <= ox + 1; state <= S_RD; end
-                else begin
+                if (ox < ox_hi) begin
+                    ox <= ox + 1; state <= S_RD;
+                    off_r  <= off_r - OC_WRAP + 1;
+                    wt_row <= wt_row - (C_OUT - K) - 2*C_OUT;
+                end else begin
                     ox <= ox_lo;
-                    if (oy < oy_hi) begin oy <= oy + 1; state <= S_RD; end
-                    else state <= S_IDLE;
+                    if (oy < oy_hi) begin
+                        oy <= oy + 1; state <= S_RD;
+                        off_r  <= off_r - OC_WRAP + W_OUT - (ox - ox_lo);
+                        wt_row <= wt_row - (C_OUT - K) + 2*C_OUT*(ox - ox_lo) - 6*C_OUT;
+                    end else state <= S_IDLE;
                 end
             end
         end
