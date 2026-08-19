@@ -1681,3 +1681,36 @@ elapsed time against Mac wall-clock around the call (must agree within 5 %
 + 0.5 s once the burst exceeds 1 s) and fails the check otherwise. The
 mock now sleeps for the time it claims so the cross-check is exercised in
 the selftest (400 iterations, 1.36 s). Syntax-checked; mock PASS.
+
+## BURST RESULT ON THE BOARD (2026-08-19 01:30) — event-driven K=4: 1.51 ms/inference, deterministic
+
+conv_server build 2 (BURST) on the timing-clean ED bitstream, SD boot.
+16-sample BOARD PASS first, then:
+
+| sample | iterations | elapsed | latency/inference | mismatches | CRC = golden |
+|---|---|---|---|---|---|
+| 0 | 2,000 | 3.029 s | 1,514.5 us (660/s) | 0 | yes |
+| 1 | 1,000 | 1.543 s | 1,542.5 us | 0 | yes |
+| 5 | 1,000 | 1.492 s | 1,492.5 us | 0 | yes |
+| 9 | 1,000 | 1.556 s | 1,556.1 us | 0 | yes |
+| 0 | 12,000 | 18.174 s | 1,514.5 us | 0 | yes |
+
+Board timer vs Mac wall-clock agree to 5 ms over 18 s (tick rate
+verified). Latency varies with the sample's activity (1.49-1.56 ms), as an
+event-driven engine's should; the 12,000-iteration run reproduces the
+2,000-iteration figure to the microsecond — the mode is stable for
+meter-length runs.
+
+Decomposition against the cycle model (100 MHz): scatter ~35k cycles
+(1,567 spikes/sample x 22) + sweep 74k (4 x 4,624 x 4) + AXIS wrapper
+bit-serial unpack/pack ~46k = ~155k cycles = 1.55 ms, vs 1.51 ms measured
+-> DMA + software loop overhead is small; the wrapper's serial packing is
+~30 % of the ED figure. It is shared by both engines (fair for the
+comparison) but is a real cost to note; a word-parallel pack is a
+post-M7 optimisation.
+
+This is the latency half of the metrics table for the ED design at the
+trained C1 activity. Energy needs the meter: `uart_client.py --burst-only
+--burst 12000` gives an 18 s window; idle before/after; delta_W x 18.17 s
+/ 12,000 = energy per inference. The dense engine gets the same command
+once its bitstream is back on the card (ENGINE=0 rebuild).
