@@ -20,7 +20,8 @@ import numpy as np
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
-from host.snn_link import Link, CMD_PING, CMD_RUN_CONV  # noqa: E402
+from host.snn_link import (Link, CMD_PING, CMD_RUN_CONV, CMD_BURST,  # noqa: E402
+                           BurstResult, crc_words)
 
 DEFAULT_PORT = "/dev/cu.usbmodem0201258920271"
 DATA = os.path.join(REPO, "host", "conv_test_data.npz")
@@ -61,16 +62,53 @@ def run_samples(link: Link, label: str = "board") -> bool:
     return False
 
 
+def run_burst(link: Link, n: int, sample: int = 0, label: str = "board") -> bool:
+    """M5/M7 measurement mode: load ONE golden sample, then have the board
+    replay it n times back to back (protocol.md BURST). Verifies the last
+    output's CRC against golden and that every iteration matched the first,
+    then reports system latency per inference. Blocks for as long as the
+    burst runs -- choose n for the duration the meter needs."""
+    d = np.load(DATA)
+    tx, rx = d["tx_words"], d["rx_words"]
+    got = link.call(CMD_RUN_CONV, tx[sample])
+    if got.size != rx.shape[1] or int((got != rx[sample]).sum()):
+        print("[%s] burst: sample %d did not match golden on load" % (label, sample))
+        return False
+    est = 5e-3 * n                       # generous timeout: 5 ms/inference
+    old = getattr(link.s, "timeout", None)
+    if old is not None:
+        link.s.timeout = max(old, est + 5.0)
+    try:
+        r = BurstResult(link.call(CMD_BURST, np.array([n], "<u4")))
+    finally:
+        if old is not None:
+            link.s.timeout = old
+    ok = (r.n == n and r.mismatches == 0 and r.crc_last == crc_words(rx[sample]))
+    print("[%s] BURST sample %d: %s%s" % (label, sample, r,
+          "" if ok else "  <-- CHECK FAILED (n/mismatch/crc)"))
+    return ok
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", default=DEFAULT_PORT)
     ap.add_argument("--baud", type=int, default=115200)
+    ap.add_argument("--burst", type=int, default=0,
+                    help="after the 16-sample check, replay sample --sample N times and report latency")
+    ap.add_argument("--sample", type=int, default=0)
+    ap.add_argument("--burst-only", action="store_true",
+                    help="skip the 16-sample check (meter runs)")
     args = ap.parse_args()
     import serial
     ser = serial.Serial(args.port, args.baud, timeout=2.0)
-    ok = run_samples(Link(ser), label="board")
-    if ok:
-        print("M4's done-when is met: correct results back from real hardware.")
+    link = Link(ser)
+    ok = True
+    if not args.burst_only:
+        ok = run_samples(link, label="board")
+        if ok:
+            print("M4's done-when is met: correct results back from real hardware.")
+    if ok and args.burst:
+        ok = run_burst(link, n=args.burst, sample=args.sample, label="board")
     return 0 if ok else 1
 
 

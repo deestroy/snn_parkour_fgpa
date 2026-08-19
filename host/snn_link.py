@@ -14,10 +14,36 @@ import numpy as np
 MAGIC = 0x5A4E4E53
 CMD_RUN_CONV = 0x01
 CMD_PING = 0x02
+CMD_BURST = 0x03
 RSP_OK = 0x80
 RSP_ERR = 0xFF
 ERR_NAMES = {1: "bad magic", 2: "bad crc", 3: "wrong n_words",
-             4: "DMA timeout", 5: "DMA setup failed"}
+             4: "DMA timeout", 5: "DMA setup failed", 6: "no sample loaded"}
+
+
+def crc_words(words) -> int:
+    """CRC-32 of packed words as the board computes it (LSB-first bytes)."""
+    return zlib.crc32(np.asarray(words, dtype="<u4").tobytes()) & 0xFFFFFFFF
+
+
+class BurstResult:
+    """Decoded BURST reply (protocol.md): system latency per inference and
+    the two self-checks the client must verify."""
+    def __init__(self, words):
+        self.n = int(words[0])
+        self.ticks = int(words[1]) | (int(words[2]) << 32)
+        self.ticks_per_s = int(words[3])
+        self.mismatches = int(words[4])
+        self.crc_last = int(words[5])
+        self.elapsed_s = self.ticks / self.ticks_per_s
+        self.latency_s = self.elapsed_s / max(self.n, 1)
+
+    def __str__(self):
+        return ("%d iterations in %.3f s -> %.1f us/inference (%.0f inf/s), "
+                "%d mismatches, crc %08x"
+                % (self.n, self.elapsed_s, 1e6 * self.latency_s,
+                   self.n / self.elapsed_s if self.elapsed_s else 0.0,
+                   self.mismatches, self.crc_last))
 
 
 def encode(cmd: int, payload: np.ndarray) -> bytes:

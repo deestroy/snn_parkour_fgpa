@@ -1628,3 +1628,44 @@ M6 done-when — "the event-driven design produces identical results to
 the dense design" — met on silicon with a timing-clean bitstream. Next
 on the critical path is unchanged: the meter (M5), then the crossover
 sweep (M7) with both engines behind the same wrapper.
+
+## D0022 — BURST mode: the engine at ~100 % duty for the meter (M5 infrastructure, feeds M7)
+
+**Date:** 2026-08-19 · **Status:** DECIDED, desk-tested vs the mock; board run pending
+
+**Problem.** Under RUN_CONV the engine works for microseconds per ~300 ms
+of UART, so any meter on the board rail sees the ARM idle floor plus a
+blip. "Power while running minus power while idle" would not measure the
+engine. (Noticed while planning the multimeter-based first measurement.)
+
+**Decision.** One new protocol command, BURST (0x03, host/protocol.md):
+replay the last-loaded sample N times back to back through DMA + engine
+with no UART traffic; time the loop; reply with N, elapsed ticks, tick
+rate, a mismatch count (every iteration's 580 words compared with
+iteration 1) and the CRC of the last output. The client verifies
+mismatches == 0 and CRC == golden, then prints latency per inference.
+Energy per inference = meter delta_W x elapsed / N. Same command for both
+engines behind the same wrapper.
+
+**Judgement call: where the clock lives.** Chose the Cortex-A9 global
+timer (333 MHz) around the loop in conv_server.c over a cycle counter in
+the fabric: no RTL/Vivado change, and it measures the SYSTEM latency the
+meter actually sees (engine + DMA + loop). Engine-only cycles are known
+exactly from simulation (dense C1 ~340k cycles/sample; ED K=4 ~110k), so
+the loop/DMA overhead is the difference — if it turns out large, a fabric
+counter is the follow-up. Recorded so the two numbers are never confused.
+
+**Implementation.** conv_server.c BUILD_ID 2: sample kept in its own
+buffer (every request payload lands in rx_words, so BURST's own payload
+would otherwise clobber the sample's first word), one_pass() shared by
+RUN_CONV and BURST, error 6 = no sample loaded. snn_link.py BurstResult +
+crc_words; mock_server.py answers BURST with plausible fabric ticks so the
+client arithmetic and checks are exercised; uart_client.py --burst N
+[--sample S] [--burst-only]. C syntax-checked against stub headers (cannot
+be compiled here); mock selftest passes incl. burst.
+
+**Board procedure (unchanged bitstream):** rebuild conv_server in Vitis,
+Create Boot Image, card, boot, `python3 host/uart_client.py --burst 2000`
+-> PING must say build 2; expect ~1-3 ms/inference; mismatches 0; CRC ok.
+Then the meter: `--burst-only --burst N` with N sized for the run
+duration, idle reading before and after.

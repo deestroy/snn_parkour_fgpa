@@ -22,8 +22,8 @@ sys.path.insert(0, REPO)
 sys.path.insert(0, os.path.join(REPO, "sim"))
 from golden.network import GoldenNetwork  # noqa: E402
 from export_axis_vectors import pack_words  # noqa: E402
-from host.snn_link import (Link, CMD_PING, CMD_RUN_CONV, RSP_OK,  # noqa: E402
-                           RSP_ERR)
+from host.snn_link import (Link, CMD_PING, CMD_RUN_CONV, CMD_BURST,  # noqa: E402
+                           RSP_OK, RSP_ERR, crc_words)
 
 T, C_IN, H_IN, W_IN = 4, 2, 34, 34
 C_OUT, H_OUT, W_OUT = 16, 17, 17
@@ -39,8 +39,13 @@ def unpack_words(words: np.ndarray, n_bits: int) -> np.ndarray:
 
 
 class MockConvServer:
+    # a plausible stand-in for the fabric: dense C1 ~340k cycles at 100 MHz
+    MOCK_LATENCY_S = 3.4e-3
+    MOCK_TICKS_PER_S = 333333333
+
     def __init__(self):
         self.golden = GoldenNetwork()
+        self.last_out = None          # BURST replays the last RUN_CONV
 
     def run_conv(self, words: np.ndarray) -> np.ndarray:
         assert words.size == T * WORDS_IN
@@ -74,7 +79,24 @@ class MockConvServer:
                 if words.size != T * WORDS_IN:
                     link.send(RSP_ERR, np.array([3], "<u4"))
                 else:
-                    link.send(CMD_RUN_CONV | RSP_OK, self.run_conv(words))
+                    self.last_out = self.run_conv(words)
+                    link.send(CMD_RUN_CONV | RSP_OK, self.last_out)
+            elif cmd == CMD_BURST:
+                if words.size != 1 or int(words[0]) == 0:
+                    link.send(RSP_ERR, np.array([3], "<u4"))
+                elif self.last_out is None:
+                    link.send(RSP_ERR, np.array([6], "<u4"))
+                else:
+                    # the mock does not re-run N times: it is deterministic by
+                    # construction, so mismatches = 0; it reports the ticks the
+                    # fabric would plausibly take, so the client's arithmetic
+                    # and checks are exercised end to end
+                    n = int(words[0])
+                    ticks = int(n * self.MOCK_LATENCY_S * self.MOCK_TICKS_PER_S)
+                    rep = np.array([n, ticks & 0xFFFFFFFF, ticks >> 32,
+                                    self.MOCK_TICKS_PER_S, 0,
+                                    crc_words(self.last_out)], "<u4")
+                    link.send(CMD_BURST | RSP_OK, rep)
             else:
                 link.send(RSP_ERR, np.array([1], "<u4"))
 
@@ -105,7 +127,10 @@ def selftest() -> int:
     srv = MockConvServer()
     th = threading.Thread(target=srv.serve, args=(Link(server_end),), daemon=True)
     th.start()
-    ok = run_samples(Link(client_end), label="mock (golden model)")
+    from host.uart_client import run_burst
+    link = Link(client_end)
+    ok = run_samples(link, label="mock (golden model)")
+    ok = run_burst(link, n=1000, sample=0, label="mock") and ok
     return 0 if ok else 1
 
 

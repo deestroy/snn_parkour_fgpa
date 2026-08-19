@@ -25,9 +25,10 @@
 #include "xaxidma.h"
 #include "xil_cache.h"
 #include "xstatus.h"
+#include "xtime_l.h"                 /* Cortex-A9 global timer: XTime_GetTime, COUNTS_PER_SECOND */
 
 /* ---------------------------------------------------------------- config */
-#define BUILD_ID       0x00000001u
+#define BUILD_ID       0x00000002u              /* 2: BURST command (2026-08-19) */
 #define CAP_WORDS      65535u                   /* per direction; DDR-resident. 65535 = max the 16-bit n_words field can carry */
 #define TIMEOUT_LOOP   (50000000u)
 
@@ -40,6 +41,7 @@
 #define MAGIC          0x5A4E4E53u
 #define CMD_RUN_CONV   0x01
 #define CMD_PING       0x02
+#define CMD_BURST      0x03                     /* run the loaded sample N times, timed (protocol.md) */
 #define RSP_OK_BIT     0x80
 #define RSP_ERR        0xFF
 #define ERR_MAGIC 1
@@ -47,6 +49,7 @@
 #define ERR_NWORDS 3
 #define ERR_DMA_TIMEOUT 4
 #define ERR_DMA_SETUP 5
+#define ERR_NO_SAMPLE 6
 
 /* C1 geometry -- must match axis_conv_top's parameters */
 #define T_STEPS        4u
@@ -105,6 +108,11 @@ static uint32_t crc_word(uint32_t crc, uint32_t w) {
 /* ---------------------------------------------------------------- frames */
 static uint32_t rx_words[CAP_WORDS] __attribute__((aligned(64)));
 static uint32_t tx_words[CAP_WORDS] __attribute__((aligned(64)));
+/* BURST replays the last RUN_CONV sample. Every request's payload lands in
+ * rx_words, so the sample lives in its own buffer, copied at RUN_CONV. */
+static uint32_t sample_words[REQ_WORDS] __attribute__((aligned(64)));
+static uint32_t ref_words[RSP_WORDS];
+static int      have_sample = 0;
 static XAxiDma dma;
 
 static void send_frame(uint8_t cmd, const uint32_t *payload, uint32_t n) {
@@ -152,22 +160,61 @@ static int wait_idle(int dir) {
     return XST_SUCCESS;
 }
 
-static int run_conv(uint32_t n_in) {
-    if (n_in != REQ_WORDS) { send_error(ERR_NWORDS); return -1; }
-    Xil_DCacheFlushRange((UINTPTR)rx_words, REQ_WORDS * 4);
+/* One DMA round trip: src (REQ_WORDS, already flushed) -> engine -> tx_words.
+ * Returns 0 or an ERR_ code. Shared by RUN_CONV and BURST. */
+static int one_pass(const uint32_t *src) {
     Xil_DCacheFlushRange((UINTPTR)tx_words, RSP_WORDS * 4);
     if (XAxiDma_SimpleTransfer(&dma, (UINTPTR)tx_words, RSP_WORDS * 4,
                                XAXIDMA_DEVICE_TO_DMA) != XST_SUCCESS ||
-        XAxiDma_SimpleTransfer(&dma, (UINTPTR)rx_words, REQ_WORDS * 4,
-                               XAXIDMA_DMA_TO_DEVICE) != XST_SUCCESS) {
-        send_error(ERR_DMA_SETUP); return -1;
-    }
+        XAxiDma_SimpleTransfer(&dma, (UINTPTR)src, REQ_WORDS * 4,
+                               XAXIDMA_DMA_TO_DEVICE) != XST_SUCCESS) return ERR_DMA_SETUP;
     if (wait_idle(XAXIDMA_DMA_TO_DEVICE) != XST_SUCCESS ||
-        wait_idle(XAXIDMA_DEVICE_TO_DMA) != XST_SUCCESS) {
-        send_error(ERR_DMA_TIMEOUT); return -1;
-    }
+        wait_idle(XAXIDMA_DEVICE_TO_DMA) != XST_SUCCESS) return ERR_DMA_TIMEOUT;
     Xil_DCacheInvalidateRange((UINTPTR)tx_words, RSP_WORDS * 4);
+    return 0;
+}
+
+static int run_conv(uint32_t n_in) {
+    if (n_in != REQ_WORDS) { send_error(ERR_NWORDS); return -1; }
+    for (uint32_t k = 0; k < REQ_WORDS; k++) sample_words[k] = rx_words[k];
+    Xil_DCacheFlushRange((UINTPTR)sample_words, REQ_WORDS * 4);
+    int e = one_pass(sample_words);
+    if (e) { send_error((uint32_t)e); return -1; }
     send_frame(CMD_RUN_CONV | RSP_OK_BIT, tx_words, RSP_WORDS);
+    have_sample = 1;
+    return 0;
+}
+
+/* BURST: the M5/M7 measurement mode (protocol.md). Drive the engine at
+ * ~100 % duty for N iterations of the loaded sample, time the loop with
+ * the global timer, check every iteration reproduces iteration 1's output
+ * words, and report N, ticks, tick rate, mismatches, CRC of the last output. */
+static int run_burst(uint32_t n_in) {
+    if (n_in != 1) { send_error(ERR_NWORDS); return -1; }
+    if (!have_sample) { send_error(ERR_NO_SAMPLE); return -1; }
+    uint32_t iters = rx_words[0];
+    if (iters == 0) { send_error(ERR_NWORDS); return -1; }
+    uint32_t mism = 0, done = 0;
+    XTime t0, t1;
+    XTime_GetTime(&t0);
+    for (uint32_t i = 0; i < iters; i++) {
+        int e = one_pass(sample_words);
+        if (e) { send_error((uint32_t)e); return -1; }
+        done++;
+        if (i == 0) {
+            for (uint32_t k = 0; k < RSP_WORDS; k++) ref_words[k] = tx_words[k];
+        } else {
+            for (uint32_t k = 0; k < RSP_WORDS; k++)
+                if (tx_words[k] != ref_words[k]) { mism++; break; }
+        }
+    }
+    XTime_GetTime(&t1);
+    uint64_t ticks = (uint64_t)(t1 - t0);
+    uint32_t c = 0;                              /* crc_update folds init/final */
+    for (uint32_t k = 0; k < RSP_WORDS; k++) c = crc_word(c, tx_words[k]);
+    uint32_t rep[6] = { done, (uint32_t)ticks, (uint32_t)(ticks >> 32),
+                        (uint32_t)COUNTS_PER_SECOND, mism, c };
+    send_frame(CMD_BURST | RSP_OK_BIT, rep, 6);
     return 0;
 }
 
@@ -191,6 +238,8 @@ int main(void) {
             send_frame(CMD_PING | RSP_OK_BIT, info, 2);
         } else if (cmd == CMD_RUN_CONV) {
             run_conv(n);
+        } else if (cmd == CMD_BURST) {
+            run_burst(n);
         } else if (cmd != 0) {
             send_error(ERR_MAGIC);
         }

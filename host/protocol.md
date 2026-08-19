@@ -10,7 +10,7 @@ in OCM (host/board/conv_server.c) and a Python client on the Mac
 | offset | size | field | notes |
 |---|---|---|---|
 | 0 | 4 | magic | `0x5A4E4E53` ("SNNZ" as bytes `53 4E 4E 5A`) |
-| 4 | 1 | cmd | request: 0x01 = RUN_CONV, 0x02 = PING. response: 0x81 / 0x82; 0xFF = error |
+| 4 | 1 | cmd | request: 0x01 = RUN_CONV, 0x02 = PING, 0x03 = BURST. response: 0x81 / 0x82 / 0x83; 0xFF = error |
 | 5 | 1 | flags | reserved, 0 |
 | 6 | 2 | n_words | 32-bit words of payload that follow |
 | 8 | 4*n | payload | packed spike words (LSB-first bit packing, as axis_conv.v) |
@@ -24,13 +24,45 @@ T * WORDS_OUT packed output words (C1: 4*145 = 580 words) as cmd 0x81.
 
 Error response (0xFF): payload is one word, an error code:
 1 = bad magic, 2 = bad crc, 3 = wrong n_words, 4 = DMA timeout,
-5 = DMA setup failed.
+5 = DMA setup failed, 6 = no sample loaded (BURST before any RUN_CONV).
 
 ## PING (0x02)
 
 Empty payload; response 0x82 with payload = 2 words: [build id, N_WORDS cap].
 Used by the client to confirm the link and the server's buffer size before
 sending anything.
+
+## BURST (0x03) — M5/M7 measurement mode
+
+Request payload: 1 word, N (iterations, 1..2^32-1). Precondition: a
+RUN_CONV has completed, so the board's input buffer already holds a
+sample. The board runs THAT sample through DMA + engine N times back to
+back with no UART traffic, timing the whole loop with the Cortex-A9 global
+timer, then replies (0x83) with 6 words:
+
+| word | field | meaning |
+|---|---|---|
+| 0 | n_done | iterations completed |
+| 1 | ticks_lo | elapsed timer ticks, low 32 |
+| 2 | ticks_hi | elapsed timer ticks, high 32 |
+| 3 | ticks_per_s | timer frequency (COUNTS_PER_SECOND; 333,333,333 on the ZedBoard) |
+| 4 | mismatches | iterations whose output words differed from iteration 1 |
+| 5 | crc32_last | CRC-32 (zlib) of the last iteration's output words |
+
+Why it exists. During RUN_CONV the engine is busy for microseconds per
+~300 ms of UART, so a meter on the board sees only the ARM's idle floor.
+BURST drives the engine at ~100 % duty for a chosen duration, which is
+the condition under which "power while running minus power while idle"
+is the engine's power. From one reply: latency per inference = ticks /
+n_done / ticks_per_s (system latency: engine + DMA + loop overhead; the
+engine-only cycles are known exactly from simulation), and with the
+meter's idle->burst delta, energy per inference = delta_W * elapsed_s /
+n_done. mismatches must be 0 (the engine is deterministic) and crc32_last
+must equal the golden CRC for that sample -- the client checks both.
+
+Errors as above; DMA errors abort the loop and report the count so far in
+n_done of an error-free reply only if the loop finished -- otherwise the
+usual 0xFF error is sent.
 
 ## Sizing
 
