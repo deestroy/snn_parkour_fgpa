@@ -7,6 +7,8 @@ cd "$(dirname "$0")/.."
 layer="${1:-c1}"
 ENGINE="${ENGINE:-0}"   # 0 dense, 1 event-driven
 K="${K:-1}"
+NOGAP="${NOGAP:-0}"     # 1: no gaps/backpressure (latency measurement)
+CYCLES="${CYCLES:-}"    # optional: write per-sample cycle counts to this file
 case "$layer" in
     c1) ci=2; hi=34; wi_=34; co=16; ho=17; wo_=17 ;;
     *) echo "only c1 wired for the axis TB so far"; exit 2 ;;
@@ -32,5 +34,5 @@ iverilog -g2012 -I hdl/dense -o sim/work/tb_axis.vvp \
 vvp sim/work/tb_axis.vvp \
     +in="sim/vectors/axis_${layer}_in.hex" \
     +out="sim/vectors/axis_${layer}_out.hex" \
-    +nsamples=16 +wi="$wi" +wo="$wo" +seed=7 \
+    +nsamples=16 +wi="$wi" +wo="$wo" +seed=7 +nogap=$NOGAP ${CYCLES:++cycles=$CYCLES} \
     | grep -E "TB_|MISMATCH" | head -8

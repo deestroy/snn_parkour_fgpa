@@ -55,7 +55,15 @@ module tb_axis_conv;
     integer nsamples, wi, wo, seed;
     integer n_in, n_out, tx_i, rx_i, fails, lasts;
 
-    reg [1023:0] f_in, f_out;
+    reg [1023:0] f_in, f_out, f_cyc;
+    integer nogap, cyc_fd, cyc_now, cyc_first_in, cyc_busy, cyc_busy_total;
+    integer sample_idx, w_in_sample;
+    // cycle counter + engine-busy counter (hierarchical probe of the
+    // wrapper's eng_busy: engine-only cycles vs wrapper+engine cycles)
+    always @(posedge clk) begin
+        cyc_now <= cyc_now + 1;
+        if (dut.core.eng_busy) cyc_busy <= cyc_busy + 1;
+    end
 
     // watchdog: a stalled stream must fail loudly, not hang the sim
     initial begin
@@ -75,6 +83,14 @@ module tb_axis_conv;
             $display("TB_FAIL missing plusargs"); $finish;
         end
         if (!$value$plusargs("seed=%d", seed)) seed = 1;
+        if (!$value$plusargs("nogap=%d", nogap)) nogap = 0;
+        cyc_fd = 0;
+        if ($value$plusargs("cycles=%s", f_cyc)) begin
+            cyc_fd = $fopen(f_cyc, "w");
+            $fdisplay(cyc_fd, "# sample total_cycles engine_busy_cycles   (ENGINE=%0d K=%0d, %s)",
+                      ENGINE, ED_K, nogap ? "no gaps, no backpressure" : "hostile handshake");
+        end
+        cyc_now = 0; cyc_busy = 0; cyc_busy_total = 0; cyc_first_in = -1; sample_idx = 0; w_in_sample = 0;
         n_in  = nsamples * T * wi;
         n_out = nsamples * T * wo;
         $readmemh(f_in, in_words, 0, n_in-1);
@@ -89,12 +105,13 @@ module tb_axis_conv;
         // posedge reads post-transfer state and silently drops words -- the
         // first version of this bench did exactly that.
         for (tx_i = 0; tx_i < n_in; tx_i = tx_i + 1) begin
-            while ($dist_uniform(seed, 0, 99) < 30) @(negedge clk);  // gap
+            while (!nogap && $dist_uniform(seed, 0, 99) < 30) @(negedge clk);  // gap
             @(negedge clk);
             s_tdata  = in_words[tx_i];
             s_tvalid = 1;
             s_tlast  = (tx_i == n_in-1);
             while (!s_tready) @(negedge clk);
+            if ((tx_i % (T * wi)) == 0) begin cyc_first_in = cyc_now; cyc_busy_total = cyc_busy; end
             @(posedge clk);            // transfer completes here
             @(negedge clk);
             s_tvalid = 0; s_tlast = 0;
@@ -106,7 +123,7 @@ module tb_axis_conv;
         rx_i = 0;
         forever begin
             @(negedge clk);
-            m_tready = ($dist_uniform(seed, 0, 99) < 70);
+            m_tready = nogap ? 1 : ($dist_uniform(seed, 0, 99) < 70);
             #1;  // same negedge-sampling rule as the driver: stable mid-cycle
             if (m_tvalid && m_tready) begin
                 if (m_tdata !== exp_words[rx_i]) begin
@@ -118,6 +135,8 @@ module tb_axis_conv;
                 // tlast must land on the final word of each SAMPLE
                 if (m_tlast) begin
                     lasts = lasts + 1;
+                    if (cyc_fd) $fdisplay(cyc_fd, "%0d %0d %0d", lasts - 1,
+                                          cyc_now - cyc_first_in, cyc_busy - cyc_busy_total);
                     if (((rx_i + 1) % (T * wo)) != 0) begin
                         fails = fails + 1;
                         $display("MISMATCH tlast at word %0d", rx_i);
@@ -126,11 +145,12 @@ module tb_axis_conv;
                 rx_i = rx_i + 1;
                 if (rx_i == n_out) begin
                     if (fails == 0 && lasts == nsamples)
-                        $display("TB_PASS engine=%s K=%0d: %0d words bit-identical, tlast x%0d correct, hostile handshake",
-                                 ENGINE ? "event-driven" : "dense", ED_K, n_out, lasts);
+                        $display("TB_PASS engine=%s K=%0d: %0d words bit-identical, tlast x%0d correct, %s",
+                                 ENGINE ? "event-driven" : "dense       ", ED_K, n_out, lasts, nogap ? "no gaps" : "hostile handshake");
                     else
                         $display("TB_FAIL %0d mismatches, %0d tlasts (expect %0d)",
                                  fails, lasts, nsamples);
+                    if (cyc_fd) $fclose(cyc_fd);
                     $finish;
                 end
             end

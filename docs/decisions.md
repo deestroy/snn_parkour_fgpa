@@ -1725,3 +1725,15 @@ once its bitstream is back on the card (ENGINE=0 rebuild).
    energy, and the exact utilisation to replace the provisional dense row.
 Later: word-parallel AXIS pack/unpack; pipelined sweep; ED FC layer
 (D0013); repo rename; delete the pre-rewrite backup.
+
+## Latency in simulation, per sample, both engines (2026-08-19 overnight)
+
+AXIS testbench gained a no-gap mode and per-sample cycle counters
+(`NOGAP=1 CYCLES=file`; engine-busy probed hierarchically). C1, 16 golden
+samples, 100 MHz: dense 436,247 cycles/sample, exactly constant (4.36 ms);
+ED K=1 234,009 mean (2.34 ms); ED K=4 149,273 mean (1.49 ms), 3 % under the
+board's measured 1.51 ms — so DMA + loop overhead is ~46 us and the model
+is trustworthy. Predicted dense on the board ~4.4 ms. Wrapper pack/unpack
+is 39-48k cycles of every figure (11 % dense, 26 % ED K=4). Table and raw
+counts in experiments/latency_sim/. Hostile-handshake regression re-run,
+still passing.
