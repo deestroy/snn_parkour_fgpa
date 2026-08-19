@@ -4,6 +4,30 @@ Measuring, rather than estimating, the energy of event-driven vs dense spiking
 neural network hardware on an FPGA. See the project brief for the full description
 and `docs/decisions.md` for the running log of design decisions.
 
+## Next steps (as of 2026-08-19)
+
+Written down so nobody has to remember them. Ordered by critical path.
+
+1. **Power meter on the 12 V input -> first measured energy-per-inference.**
+   Professor's suggestion: try a lab DMM (>= 1 mA resolution, ideally 0.1 mA)
+   before buying the INA226. Procedure: board booted, engine idle -> read
+   current; `python3 host/uart_client.py --burst-only --burst 12000` gives an
+   18 s window at ~100 % engine duty -> read current; idle again after.
+   delta_W x 18.17 s / 12000 = uJ per inference. If the DMM cannot resolve
+   the delta, that fact justifies the INA226 (list in
+   docs/m5_power_meter_shopping.md). Report next to Vivado's estimate
+   (1.73 W total on-chip for the ED build).
+2. **Dense engine back on the board (ENGINE=0 rebuild)** with the same
+   BURST command, for its latency and energy numbers, and to replace the
+   "provisional" dense row in the resource table (docs/decisions.md,
+   2026-08-18 resource section) with the exact post-implementation
+   utilisation. Then M7's sweep has both engines behind one wrapper.
+
+Later, not now: word-parallel pack/unpack in the AXIS wrapper (~30 % of the
+ED latency figure, shared by both engines); pipelined sweep (4 -> ~2
+cycles/neuron); event-driven FC layer (D0013); rename the GitHub repo to
+snn_parkour_fpga; delete ~/git_projects/snn_parkour_fpga_backup_pre_rewrite.
+
 ## Layout
 
 | Path | Contents |

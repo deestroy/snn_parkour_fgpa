@@ -1714,3 +1714,14 @@ trained C1 activity. Energy needs the meter: `uart_client.py --burst-only
 --burst 12000` gives an 18 s window; idle before/after; delta_W x 18.17 s
 / 12,000 = energy per inference. The dense engine gets the same command
 once its bitstream is back on the card (ENGINE=0 rebuild).
+
+### Standing next steps (2026-08-19 01:40) — also in README "Next steps"
+
+1. Meter on the 12 V input: DMM first (professor's suggestion), INA226 if
+   it cannot resolve the delta. Window: `uart_client.py --burst-only
+   --burst 12000` (18 s, ~100 % duty). Energy/inference = delta_W x 18.17 s
+   / 12000, reported next to Vivado's 1.73 W estimate.
+2. Dense engine back on the board (ENGINE=0 rebuild): BURST latency and
+   energy, and the exact utilisation to replace the provisional dense row.
+Later: word-parallel AXIS pack/unpack; pipelined sweep; ED FC layer
+(D0013); repo rename; delete the pre-rewrite backup.
