@@ -42,13 +42,21 @@ module ed_conv_layer #(
     // once wr_p crossed 2312 -- sample 1, timestep 2 -- and read garbage.)
     parameter LIST_DEPTH = 1 << $clog2(C_IN * H_IN * W_IN),
     parameter IN_BITS = C_IN * H_IN * W_IN,
-    parameter NEURONS = C_OUT * H_OUT * W_OUT
+    parameter NEURONS = C_OUT * H_OUT * W_OUT,
+    // Address FIELDS (D0020 rev 2): spk_addr = {ic, iy, ix}; the scatter
+    // unit's i_addr = {oc, pos}. See ed_scatter.v header.
+    parameter IC_W = (C_IN  > 1) ? $clog2(C_IN)  : 1,
+    parameter IY_W = $clog2(H_IN), IX_W = $clog2(W_IN),
+    parameter OC_W = (C_OUT > 1) ? $clog2(C_OUT) : 1,
+    parameter POS_W = $clog2(H_OUT * W_OUT),
+    parameter SPK_W = IC_W + IY_W + IX_W,
+    parameter IA_W  = OC_W + POS_W
 ) (
     input  wire                        clk,
     input  wire                        rst,
     input  wire                        clear,
     input  wire                        spk_we,
-    input  wire [$clog2(IN_BITS)-1:0]  spk_addr,
+    input  wire [SPK_W-1:0]            spk_addr,      // {ic, iy, ix}
     input  wire                        start,
     output wire                        busy,
     output reg                         done,
@@ -59,7 +67,7 @@ module ed_conv_layer #(
 );
 
     // --- the input address list (D0016): a queue that cannot overflow ------
-    reg [$clog2(IN_BITS)-1:0] fifo [0:LIST_DEPTH-1];
+    reg [SPK_W-1:0] fifo [0:LIST_DEPTH-1];
     reg [$clog2(LIST_DEPTH):0] wr_p, rd_p;          // one extra bit: full/empty
     wire fifo_empty = (wr_p == rd_p);
     wire fifo_full  = (wr_p[$clog2(LIST_DEPTH)] != rd_p[$clog2(LIST_DEPTH)]) &&
@@ -70,9 +78,9 @@ module ed_conv_layer #(
 
     // --- scatter unit -----------------------------------------------------
     reg                        sc_we;
-    reg  [$clog2(IN_BITS)-1:0] sc_addr;
+    reg  [SPK_W-1:0]           sc_addr;
     wire                       sc_busy;
-    reg  [$clog2(NEURONS)-1:0] i_addr;
+    reg  [IA_W-1:0]            i_addr;      // {oc, pos} of neuron n
     wire signed [WIDTH-1:0]    i_rdata;
     reg                        i_we;
     reg  signed [WIDTH-1:0]    i_wdata;
@@ -124,7 +132,9 @@ module ed_conv_layer #(
     localparam S_IDLE = 0, S_FEED = 1, S_SW_ZERO = 2, S_CLR = 3, S_CLRW = 4,
                S_SW_RD = 5, S_SW_WAIT = 6, S_SW_UPD = 7;
     reg [2:0] state;
-    integer n;                    // sweep index
+    integer n;                    // sweep index (flat, for vmem/out_mem)
+    reg [OC_W-1:0]  sw_oc;        // the same index as fields, for i_addr
+    reg [POS_W-1:0] sw_pos;
     reg start_pend;               // start seen while draining
 
     assign busy = (state != S_IDLE) || sc_busy || !fifo_empty;
@@ -147,7 +157,8 @@ module ed_conv_layer #(
                     rd_p <= rd_p + 1;
                     state <= S_FEED;
                 end else if (start_pend && fifo_empty && !sc_busy) begin
-                    start_pend <= 1'b0; n <= 0; state <= S_SW_RD;
+                    start_pend <= 1'b0; n <= 0; sw_oc <= 0; sw_pos <= 0;
+                    state <= S_SW_RD;
                 end
             end
 
@@ -165,7 +176,7 @@ module ed_conv_layer #(
             //     folding it into S_SW_UPD zeroed I[n+1] instead (off by one).
             S_SW_RD: begin
                 v_r    <= vmem[n];
-                i_addr <= n[$clog2(NEURONS)-1:0];   // i_rdata valid next cycle
+                i_addr <= {sw_oc, sw_pos};          // i_rdata valid next cycle
                 state  <= S_SW_WAIT;
             end
             S_SW_WAIT: state <= S_SW_UPD;         // registered I read settles
@@ -177,7 +188,11 @@ module ed_conv_layer #(
             end
             S_SW_ZERO: begin                       // write lands this edge; i_addr held
                 if (n == NEURONS-1) begin state <= S_IDLE; done <= 1'b1; end
-                else begin n <= n + 1; state <= S_SW_RD; end
+                else begin
+                    n <= n + 1; state <= S_SW_RD;
+                    if (sw_pos == H_OUT*W_OUT-1) begin sw_pos <= 0; sw_oc <= sw_oc + 1; end
+                    else sw_pos <= sw_pos + 1;
+                end
             end
             endcase
         end

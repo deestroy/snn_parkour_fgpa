@@ -1512,3 +1512,46 @@ ed_conv_layer (read n+1 while updating n), which would also cut the sweep
 from 4 to ~2 cycles per neuron — a design improvement, not just a timing
 patch — but only after WNS says it is needed. Standing rule stays: WNS
 checked before any card is written.
+
+## D0020 rev 2 — Event-driven addresses are packed FIELDS, not flat indices
+
+**Date:** 2026-08-18 23:40 · **Status:** DECIDED (supersedes the address
+format in D0020; the rest of D0020 stands)
+
+**Trigger.** After the incremental-offset fix, the fresh timing report put
+the worst path (WNS −3.541 ns, 17 logic levels, 13.3 ns) on the spike
+decode `iy = (a % 1156) / 34` in ed_scatter.v — a 12-bit divide-by-constant
+in one cycle — and the sweep-port translation `i_addr / 289` was estimated
+to sit right at the 10 ns edge behind it. Every `/` and `%` on an address
+was a timing failure waiting to be found one build at a time.
+
+**Options.** (1) Split the decode divider over two cycles: +1 cycle per
+spike (~4.5% at K=4), leaves the sweep-port divider in place, probably a
+third round. (2) Change the address format so no divide is needed
+anywhere: the producers already walk in order and can keep the fields as
+counters for free. Chose (2) — it removes the class of problem, adds no
+cycles, and D0021 had already named it as the intended final design.
+
+**Format.**
+    spk_addr = {ic, iy, ix}   widths clog2(C_IN), clog2(H_IN), clog2(W_IN)
+    i_addr   = {oc, pos}      widths clog2(C_OUT), clog2(H_OUT*W_OUT)
+The fields are the flat index's mixed-radix digits, so golden ORDER and the
+list semantics are unchanged; the address list simply stores 13 instead of
+12 bits for C1. out_addr / v_addr (the layer's own memories) stay flat.
+
+**Where the fields come from.** axis_conv.v's unpacker keeps (u_ic, u_iy,
+u_ix) counters in lockstep with the flat bit index and pushes {ic,iy,ix};
+ed_conv_layer's sweep keeps (sw_oc, sw_pos) alongside n and presents
+{oc,pos}; ed_scatter decodes by bit-slicing (S_DEC is now wires) and
+translates i_addr with `oc % K`, `(oc/K)*HW + pos` on a 4-bit oc — a
+2-bit constant multiply, not a divider. ed_iface_shim (sim only) does
+fields -> flat with a multiply, so the dense engine keeps proving the
+harness. Testbenches pack the vector files' flat indices at the point of
+use; the Python side and the vector files are untouched.
+
+**Verified.** Scatter vs I-dump K=1/K=4 (76 and 22 cycles/spike — unchanged);
+engine vs golden K=1/K=4 (591,872 comparisons each); shim harness C1, C2,
+C3 (widths differ per layer — the width bug would show there); AXIS hostile
+handshake ED K=4, ED K=1, dense (9,280 words each); verilator lint clean.
+Board result: pending the next bitstream; the pass criterion is now WNS ≥ 0
+AND BOARD PASS AND the byte-exact BOOT.bin check.

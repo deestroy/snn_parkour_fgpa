@@ -21,9 +21,25 @@ module tb_ed_scatter;
     localparam MAX_SPK = MAX_SAMPLES * T * IN_BITS + MAX_SAMPLES * T;
 
     reg clk = 0, rst = 1, clear = 0, spk_we = 0;
-    reg [$clog2(IN_BITS)-1:0] spk_addr = 0;
+    // D0020 rev 2: both addresses are FIELDS; pack the golden flat indices here
+    localparam IC_W = (C_IN > 1) ? $clog2(C_IN) : 1;
+    localparam IY_W = $clog2(H_IN), IX_W = $clog2(W_IN);
+    localparam OC_W = (C_OUT > 1) ? $clog2(C_OUT) : 1;
+    localparam POS_W = $clog2(H_OUT*W_OUT);
+    localparam SPK_W = IC_W + IY_W + IX_W, IA_W = OC_W + POS_W;
+    reg [SPK_W-1:0] spk_addr = 0;
     wire busy;
-    reg  [$clog2(NEURONS)-1:0] i_addr = 0;
+    reg  [IA_W-1:0] i_addr = 0;
+    function [SPK_W-1:0] spk_pack(input integer flat);
+        integer ic, iy, ix;
+        begin ic = flat / (H_IN*W_IN); iy = (flat % (H_IN*W_IN)) / W_IN; ix = flat % W_IN;
+              spk_pack = {ic[IC_W-1:0], iy[IY_W-1:0], ix[IX_W-1:0]}; end
+    endfunction
+    function [IA_W-1:0] ia_pack(input integer flat);
+        integer oc, pos;
+        begin oc = flat / (H_OUT*W_OUT); pos = flat % (H_OUT*W_OUT);
+              ia_pack = {oc[OC_W-1:0], pos[POS_W-1:0]}; end
+    endfunction
     wire signed [15:0] i_rdata;
     reg  i_we = 0;
     reg  signed [15:0] i_wdata = 0;
@@ -72,7 +88,7 @@ module tb_ed_scatter;
                 for (k = 0; k < cnt; k = k + 1) begin
                     // push one spike, wait until the unit has consumed it
                     @(negedge clk);
-                    spk_we = 1; spk_addr = spk_words[pos]; pos = pos + 1;
+                    spk_we = 1; spk_addr = spk_pack(spk_words[pos]); pos = pos + 1;
                     @(negedge clk) spk_we = 0;
                     wait_idle;
                 end
@@ -82,7 +98,7 @@ module tb_ed_scatter;
                 // compare every I word against the Python post-scatter dump
                 base = (s*T + t)*NEURONS;
                 for (i = 0; i < NEURONS; i = i + 1) begin
-                    @(negedge clk); i_addr = i[$clog2(NEURONS)-1:0];
+                    @(negedge clk); i_addr = ia_pack(i);
                     @(posedge clk); #1;
                     checked = checked + 1;
                     if (i_rdata !== $signed(exp_i[base + i])) begin
@@ -94,7 +110,7 @@ module tb_ed_scatter;
                 end
                 // stand in for the sweep: zero I
                 for (i = 0; i < NEURONS; i = i + 1) begin
-                    @(negedge clk); i_we = 1; i_addr = i[$clog2(NEURONS)-1:0]; i_wdata = 0;
+                    @(negedge clk); i_we = 1; i_addr = ia_pack(i); i_wdata = 0;
                 end
                 @(negedge clk) i_we = 0;
             end

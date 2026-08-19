@@ -21,8 +21,19 @@
 // at K consecutive bytes, so one K-wide word read feeds all K RMWs.
 //
 // I is the ACCUMULATOR (D0019). The sweep reads/zeroes it through i_addr,
-// which takes a GOLDEN FLAT index and is translated to (bank, offset) here,
-// so ed_conv_layer, the sweep and every testbench are K-agnostic.
+// which carries the golden neuron as FIELDS {oc, pos} (D0020 rev 2) and is
+// translated to (bank, offset) here, so ed_conv_layer, the sweep and every
+// testbench are K-agnostic.
+//
+// ADDRESS FORMAT (D0020 rev 2, 2026-08-18): both addresses are packed
+// fields, not flat indices --
+//     spk_addr = {ic, iy, ix}   widths clog2(C_IN), clog2(H_IN), clog2(W_IN)
+//     i_addr   = {oc, pos}      widths clog2(C_OUT), clog2(H_OUT*W_OUT)
+// -- because decoding a flat index costs a divide-by-constant (17 logic
+// levels, 13.3 ns, WNS -3.5 ns on the first board build), while the
+// producers (the AXIS unpacker, the sweep) walk in order and get the fields
+// for free from counters. Golden ORDER is unchanged: fields are the flat
+// index's mixed-radix digits.
 //
 // UNVERIFIED until sim/run_ed_scatter_tb.sh passes at the chosen K.
 
@@ -36,18 +47,25 @@ module ed_scatter #(
     parameter WT_FILE = "sim/vectors/ed_c1_wt.hex",
     parameter IN_BITS = C_IN * H_IN * W_IN,
     parameter NEURONS = C_OUT * H_OUT * W_OUT,
-    parameter BANK_N  = NEURONS / K              // neurons per bank
+    parameter BANK_N  = NEURONS / K,             // neurons per bank
+    // field widths (D0020 rev 2)
+    parameter IC_W = (C_IN  > 1) ? $clog2(C_IN)  : 1,
+    parameter IY_W = $clog2(H_IN), IX_W = $clog2(W_IN),
+    parameter OC_W = (C_OUT > 1) ? $clog2(C_OUT) : 1,
+    parameter POS_W = $clog2(H_OUT * W_OUT),
+    parameter SPK_W = IC_W + IY_W + IX_W,
+    parameter IA_W  = OC_W + POS_W
 ) (
     input  wire                        clk,
     input  wire                        rst,
     input  wire                        clear,
 
     input  wire                        spk_we,
-    input  wire [$clog2(IN_BITS)-1:0]  spk_addr,
+    input  wire [SPK_W-1:0]            spk_addr,     // {ic, iy, ix}
     output reg                         busy,
 
-    // I access for the sweep / testbench, GOLDEN flat index
-    input  wire [$clog2(NEURONS)-1:0]  i_addr,
+    // I access for the sweep / testbench, golden neuron as {oc, pos}
+    input  wire [IA_W-1:0]             i_addr,
     output wire signed [WIDTH-1:0]     i_rdata,     // registered read
     input  wire                        i_we,
     input  wire signed [WIDTH-1:0]     i_wdata
@@ -64,13 +82,13 @@ module ed_scatter #(
     // offset = ((oc/K)*H_OUT + oy)*W_OUT + ox
     localparam HW = H_OUT * W_OUT;
     localparam AB = $clog2(BANK_N);              // bank address bits
-    wire [31:0] p_oc  = i_addr / HW;
-    wire [31:0] p_pos = i_addr % HW;
+    wire [31:0] p_oc  = i_addr[IA_W-1 -: OC_W];       // field slices, no divide
+    wire [31:0] p_pos = i_addr[POS_W-1:0];
     wire [31:0] p_bank = p_oc % K;
     wire [31:0] p_off  = (p_oc / K) * HW + p_pos;
 
     // --- decode the spike address -----------------------------------------
-    reg [$clog2(IN_BITS)-1:0] a_r;
+    reg [SPK_W-1:0] a_r;
     integer ic, iy, ix;
     integer oy_lo, oy_hi, ox_lo, ox_hi;
     integer oy, ox, oc;
@@ -157,9 +175,9 @@ module ed_scatter #(
         end
 
         S_DEC: begin
-            ic <= a_r / (H_IN*W_IN);
-            iy <= (a_r % (H_IN*W_IN)) / W_IN;
-            ix <= a_r % W_IN;
+            ic <= a_r[SPK_W-1 -: IC_W];              // field slices, no divide
+            iy <= a_r[IX_W +: IY_W];
+            ix <= a_r[IX_W-1:0];
             state <= S_RD; ic_wait <= 1'b1;
         end
 

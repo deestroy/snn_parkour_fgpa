@@ -29,13 +29,16 @@ module ed_iface_shim #(
     parameter signed [15:0] THRESHOLD = 64,
     parameter WEIGHT_FILE = "sim/vectors/conv_c1_w.hex",
     parameter IN_BITS = C_IN * H_IN * W_IN,
-    parameter NEURONS = C_OUT * H_OUT * W_OUT
+    parameter NEURONS = C_OUT * H_OUT * W_OUT,
+    parameter IC_W = (C_IN > 1) ? $clog2(C_IN) : 1,
+    parameter IY_W = $clog2(H_IN), IX_W = $clog2(W_IN),
+    parameter SPK_W = IC_W + IY_W + IX_W
 ) (
     input  wire                        clk,
     input  wire                        rst,
     input  wire                        clear,
     input  wire                        spk_we,
-    input  wire [$clog2(IN_BITS)-1:0]  spk_addr,
+    input  wire [SPK_W-1:0]            spk_addr,   // {ic, iy, ix} (D0020 rev 2)
     input  wire                        start,
     output wire                        busy,
     output wire                        done,
@@ -48,6 +51,10 @@ module ed_iface_shim #(
     // Track which addresses were pushed so we can zero them after the
     // timestep (the dense engine's buffer persists; the address list does not).
     reg [$clog2(IN_BITS)-1:0] pushed [0:IN_BITS-1];
+    // fields -> the dense engine's flat bit index (simulation-only shim,
+    // so the multiply is fine here)
+    wire [$clog2(IN_BITS)-1:0] spk_flat =
+        (spk_addr[SPK_W-1 -: IC_W] * H_IN + spk_addr[IX_W +: IY_W]) * W_IN + spk_addr[IX_W-1:0];
     integer n_pushed = 0;
     integer clr_i;
 
@@ -86,8 +93,8 @@ module ed_iface_shim #(
         end else case (state)
         S_IDLE: begin
             if (spk_we) begin
-                in_we <= 1'b1; in_addr <= spk_addr; in_data <= 1'b1;
-                pushed[n_pushed] <= spk_addr;
+                in_we <= 1'b1; in_addr <= spk_flat; in_data <= 1'b1;
+                pushed[n_pushed] <= spk_flat;
                 n_pushed <= n_pushed + 1;
             end
             if (start) begin

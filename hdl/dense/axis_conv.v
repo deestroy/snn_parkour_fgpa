@@ -71,8 +71,16 @@ module axis_conv #(
     // port connection; a plainly-typed zero wire is the same thing.
     wire [$clog2(NEURONS)-1:0]   v_addr_zero = 0;
 
-    // event-driven engine takes spike ADDRESS pushes, not bit writes
+    // event-driven engine takes spike ADDRESS pushes, not bit writes -- and
+    // the address is FIELDS {ic, iy, ix} (D0020 rev 2), which the unpacker
+    // keeps as three counters walking in lockstep with the flat bit index.
+    localparam IC_W = (C_IN > 1) ? $clog2(C_IN) : 1;
+    localparam IY_W = $clog2(H_IN), IX_W = $clog2(W_IN);
     reg                          spk_we;
+    reg  [IC_W-1:0]              u_ic;
+    reg  [IY_W-1:0]              u_iy;
+    reg  [IX_W-1:0]              u_ix;
+    reg  [IC_W+IY_W+IX_W-1:0]    spk_addr_f;
 
     generate if (ENGINE == 1) begin : g_ed
         ed_conv_layer #(
@@ -82,7 +90,7 @@ module axis_conv #(
             .BAKED_WEIGHTS(BAKED_WEIGHTS)
         ) engine (
             .clk(clk), .rst(rst),
-            .clear(eng_clear), .spk_we(spk_we), .spk_addr(in_addr),
+            .clear(eng_clear), .spk_we(spk_we), .spk_addr(spk_addr_f),
             .start(eng_start), .busy(eng_busy), .done(eng_done),
             .out_addr(out_addr), .out_data(out_bit),
             .v_addr(v_addr_zero), .v_data(v_unused)
@@ -155,7 +163,7 @@ module axis_conv #(
         S_CLR: begin                       // new sample: zero the membranes
             eng_clear <= 1'b1;
             t_step <= 0;
-            rx_bits <= 0;
+            rx_bits <= 0; u_ic <= 0; u_iy <= 0; u_ix <= 0;
             state <= S_CLRW;
         end
 
@@ -172,8 +180,14 @@ module axis_conv #(
                 in_we   <= 1'b1;                    // dense: write every bit
                 spk_we  <= shift[0];                // event-driven: push only the 1s
                 in_addr <= rx_bits[$clog2(IN_BITS)-1:0];
+                spk_addr_f <= {u_ic, u_iy, u_ix};   // same bit, as fields
                 in_bit  <= shift[0];
                 rx_bits <= rx_bits + 1;
+                if (u_ix == W_IN-1) begin
+                    u_ix <= 0;
+                    if (u_iy == H_IN-1) begin u_iy <= 0; u_ic <= u_ic + 1; end
+                    else u_iy <= u_iy + 1;
+                end else u_ix <= u_ix + 1;
             end
             shift <= {1'b0, shift[31:1]};
             bit_cnt <= bit_cnt + 1;
@@ -231,7 +245,7 @@ module axis_conv #(
                         state <= S_CLR;    // sample finished
                     else begin
                         t_step <= t_step + 1;
-                        rx_bits <= 0;
+                        rx_bits <= 0; u_ic <= 0; u_iy <= 0; u_ix <= 0;
                         state <= S_RX;     // next timestep's input
                     end
                 end else begin

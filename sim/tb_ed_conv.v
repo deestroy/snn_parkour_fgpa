@@ -26,7 +26,17 @@ module tb_ed_conv;
     localparam MAX_SPK = MAX_SAMPLES * T * IN_BITS;   // upper bound on list
 
     reg clk = 0, rst = 1, clear = 0, start = 0, spk_we = 0;
-    reg [$clog2(IN_BITS)-1:0] spk_addr = 0;
+    // D0020 rev 2: spike addresses are FIELDS {ic, iy, ix}. The vector files
+    // hold golden flat indices; pack them here (the DUT never sees a divide).
+    localparam IC_W = (C_IN > 1) ? $clog2(C_IN) : 1;
+    localparam IY_W = $clog2(H_IN), IX_W = $clog2(W_IN);
+    localparam SPK_W = IC_W + IY_W + IX_W;
+    reg [SPK_W-1:0] spk_addr = 0;
+    function [SPK_W-1:0] spk_pack(input integer flat);
+        integer ic, iy, ix;
+        begin ic = flat / (H_IN*W_IN); iy = (flat % (H_IN*W_IN)) / W_IN; ix = flat % W_IN;
+              spk_pack = {ic[IC_W-1:0], iy[IY_W-1:0], ix[IX_W-1:0]}; end
+    endfunction
     wire busy, done;
     reg [$clog2(NEURONS)-1:0] out_addr = 0, v_addr = 0;
     wire out_data;
@@ -94,7 +104,7 @@ module tb_ed_conv;
                 cnt = spk_words[pos]; pos = pos + 1;
                 for (k = 0; k < cnt; k = k + 1) begin
                     @(negedge clk);
-                    spk_we = 1; spk_addr = spk_words[pos]; pos = pos + 1;
+                    spk_we = 1; spk_addr = spk_pack(spk_words[pos]); pos = pos + 1;
                 end
                 @(negedge clk) spk_we = 0;
                 total_spk = total_spk + cnt;
