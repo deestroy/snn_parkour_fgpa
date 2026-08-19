@@ -1555,3 +1555,29 @@ C3 (widths differ per layer — the width bug would show there); AXIS hostile
 handshake ED K=4, ED K=1, dense (9,280 words each); verilator lint clean.
 Board result: pending the next bitstream; the pass criterion is now WNS ≥ 0
 AND BOARD PASS AND the byte-exact BOOT.bin check.
+
+### 00:10 (2026-08-19) — third timing pass: LIF chain sourced from BRAM latches
+
+After D0020 rev 2 the build had ONE failing endpoint, WNS −0.420 ns
+(from 93 endpoints / −3.5 ns). The path: vmem block RAM output (2.45 ns
+clock-to-out latch) -> lif_update (pending compare, subtract, add, spike
+compare) -> out_mem/vmem write data, 10.04 ns. That is the intended
+arithmetic; it was simply starting from the slowest possible source.
+
+Fix, no cycles added: the sweep already has a wait state between read and
+update. v_r2 <= v_r and i_r2 <= i_rdata are captured there (plain
+flip-flops, ~0.5 ns clock-to-out) and lif_update reads those. For the
+accumulator I to be readable in that state, i_addr for neuron n is now
+presented one state EARLY (in the previous S_SW_ZERO, and at sweep start
+for n=0); the zero write in S_SW_ZERO still sees n because the assignment
+takes effect at the end of the state. Expected gain ~2 ns on both the V
+and I paths. Verified: engine vs golden K=1/K=4 (591,872 comparisons
+each), AXIS hostile handshake ED K=4/K=1 and dense (9,280 words each),
+lint clean; sweep still 4 cycles/neuron.
+
+Process note (recorded because it cost an hour): after copying changed
+.v files, confirm Vivado sees them with `get_files *.v` + a `string first`
+check on a marker string, and remember that the Timing tab and
+report_timing read the implemented design OPEN IN MEMORY — click Reload
+in the "out-of-date" banner after a run, or trust the Design Runs WNS
+column, which is always the latest run.

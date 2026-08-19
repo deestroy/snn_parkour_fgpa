@@ -121,11 +121,16 @@ module ed_conv_layer #(
     assign v_data   = v_data_r;
 
     // the shared LIF rule (D0019: V from vmem, I from the scatter unit)
-    reg  signed [WIDTH-1:0] v_r;
+    // v_r / i_rdata are block-RAM output latches (2.5 ns clock-to-out); the
+    // LIF chain fed straight from them was 0.42 ns over a 10 ns clock
+    // (2026-08-19). v_r2 / i_r2 are plain flip-flops captured in the wait
+    // state that already exists, so the LIF logic starts from a fast source
+    // and the sweep's cycle timing is unchanged.
+    reg  signed [WIDTH-1:0] v_r, v_r2, i_r2;
     wire signed [WIDTH-1:0] v_next;
     wire                    spike_next;
     lif_update #(.WIDTH(WIDTH), .LEAK_SHIFT(LEAK_SHIFT), .THRESHOLD(THRESHOLD)) update (
-        .v_in(v_r), .current_in(i_rdata), .v_out(v_next), .spike(spike_next)
+        .v_in(v_r2), .current_in(i_r2), .v_out(v_next), .spike(spike_next)
     );
 
     // --- control FSM ------------------------------------------------------
@@ -158,6 +163,7 @@ module ed_conv_layer #(
                     state <= S_FEED;
                 end else if (start_pend && fifo_empty && !sc_busy) begin
                     start_pend <= 1'b0; n <= 0; sw_oc <= 0; sw_pos <= 0;
+                    i_addr <= 0;                      // neuron 0's I read starts now
                     state <= S_SW_RD;
                 end
             end
@@ -170,28 +176,38 @@ module ed_conv_layer #(
             end
             S_CLRW: if (!sc_busy) begin state <= S_IDLE; done <= 1'b1; end
 
-            // --- the sweep: one neuron per 4 cycles (read V,I; settle; update;
-            //     zero I). The zero gets its OWN cycle so i_addr is still n
-            //     when the scatter unit performs the write on the next edge --
-            //     folding it into S_SW_UPD zeroed I[n+1] instead (off by one).
+            // --- the sweep: one neuron per 4 cycles (read V,I; re-register;
+            //     update; zero I). i_addr for neuron n is presented one state
+            //     EARLY (in the previous S_SW_ZERO / at sweep start), so the
+            //     scatter unit's registered read is already valid during
+            //     S_SW_WAIT and can be copied into a flip-flop there. The zero
+            //     write in S_SW_ZERO still sees i_addr == n: the assignment to
+            //     n+1 takes effect only at the end of that state.
             S_SW_RD: begin
-                v_r    <= vmem[n];
-                i_addr <= {sw_oc, sw_pos};          // i_rdata valid next cycle
+                v_r    <= vmem[n];                  // BRAM latch, valid next cycle
                 state  <= S_SW_WAIT;
             end
-            S_SW_WAIT: state <= S_SW_UPD;         // registered I read settles
+            S_SW_WAIT: begin
+                v_r2 <= v_r; i_r2 <= i_rdata;       // fast sources for the LIF chain
+                state <= S_SW_UPD;
+            end
             S_SW_UPD: begin
                 vmem[n]    <= v_next;
                 out_mem[n] <= spike_next;
                 i_we <= 1'b1; i_wdata <= 0;       // request: zero I[i_addr==n]
                 state <= S_SW_ZERO;
             end
-            S_SW_ZERO: begin                       // write lands this edge; i_addr held
+            S_SW_ZERO: begin                       // zero write lands this edge (i_addr == n)
                 if (n == NEURONS-1) begin state <= S_IDLE; done <= 1'b1; end
                 else begin
                     n <= n + 1; state <= S_SW_RD;
-                    if (sw_pos == H_OUT*W_OUT-1) begin sw_pos <= 0; sw_oc <= sw_oc + 1; end
-                    else sw_pos <= sw_pos + 1;
+                    if (sw_pos == H_OUT*W_OUT-1) begin
+                        sw_pos <= 0; sw_oc <= sw_oc + 1;
+                        i_addr <= {sw_oc + 1'b1, {POS_W{1'b0}}};   // n+1, early
+                    end else begin
+                        sw_pos <= sw_pos + 1;
+                        i_addr <= {sw_oc, sw_pos + 1'b1};
+                    end
                 end
             end
             endcase
