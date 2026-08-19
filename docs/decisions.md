@@ -1737,3 +1737,12 @@ is trustworthy. Predicted dense on the board ~4.4 ms. Wrapper pack/unpack
 is 39-48k cycles of every figure (11 % dense, 26 % ED K=4). Table and raw
 counts in experiments/latency_sim/. Hostile-handshake regression re-run,
 still passing.
+
+### 2026-08-19 overnight — ED engine verified on C2 and C3 (K=4)
+
+`K=4 bash sim/run_ed_tb.sh c2 ed_conv_layer` -> 331,776 comparisons
+bit-identical (26,017 input spikes); `c3` -> 204,800 (16,777 spikes). With
+C1 already on the board, the event-driven conv engine is now verified
+against golden for every conv layer of the network at the board's K. The
+FC layer remains dense-only (D0013 records the event-driven FC as future
+work). Not added to check_all.sh (runtime); run on demand.
