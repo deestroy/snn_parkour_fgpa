@@ -1447,3 +1447,22 @@ platform must be updated (or the .bit path overridden) after every Vivado
 export, even when the ELF is unchanged; (3) "bit-identical in simulation"
 says nothing about whether the memories became block RAM — port discipline
 is a design input (the 62k-LUT overrun).
+
+### Resource use, C1 on the XC7Z020 (2026-08-18, post-implementation, whole design incl. DMA + interconnects)
+
+| build | LUT | LUTRAM | FF | BRAM tiles | DSP | Vivado est. total on-chip power |
+|---|---|---|---|---|---|---|
+| event-driven, ENGINE=1, K=4 (the 21:53 bitstream, BOARD PASS) | 3,383 (6.4%) | 218 | 4,036 (3.8%) | 13 (9.3%) | 2 | 1.731 W (confidence: medium) |
+| dense, ENGINE=0 (stale in-memory implemented design; TO CONFIRM by re-opening that run) | ~1,860 (3.5%) | 161 | ~2,510 | 3 (2.1%) | 0 | — |
+
+Both numbers include the fixed platform (AXI DMA, two interconnects,
+reset block) — roughly 1,000–1,500 LUTs of that is not the engine. What
+the delta says: the event-driven layer costs ~4x the block RAM (address
+list 4096x12, four accumulator banks, membranes vs. the dense engine's
+membranes + input buffer) and ~1.5–1.8x the logic of the dense one, for
+identical outputs. The two DSPs are the constant multipliers in the
+scatter address arithmetic (a "post-M7 optimisation" already noted).
+This is the "the event-driven machinery costs area — and therefore
+static power — itself" half of the thesis argument, in numbers. Vivado's
+1.731 W is the estimate M5's meter is meant to be compared against
+(most of it is the ARM PS, not the fabric; the meter reads the board rail).
