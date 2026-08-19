@@ -1409,3 +1409,41 @@ a half-regenerated interconnect (`auto_us` clock unconnected) after that;
 M_AXI_S2MM briefly unconnected until connection automation re-ran. The
 standing check before any card write: unzip the .xsa and grep the .hwh for
 ENGINE, ED_K, PCW_USE_S_AXI_HP0 and the DDR part.
+
+## M6 RESULT ON THE BOARD (2026-08-18 22:25) — event-driven engine, K=4, BOARD PASS
+
+`BOARD PASS: 16 samples, 9280 words, bit-identical to the golden model
+(4.91 s, 307 ms/sample incl. UART)`
+
+Same block design, same conv_server, same uart_client.py, same 16 golden
+samples as the M4 dense pass this afternoon; the only change is the engine
+behind the AXIS wrapper: axis_conv_top with ENGINE=1, ED_K=4 (ed_conv_layer
++ K=4-banked ed_scatter_c1, address list 4096 x 12, weights inlined). Booted
+from SD: BootROM -> debug FSBL -> DDR -> bitstream -> conv_server at
+0x100000. M6's done-when — "the event-driven design produces identical
+results to the dense design" — is met on silicon.
+
+What the pass does and does NOT prove. The two engines are DESIGNED to emit
+identical words, so the client output alone cannot tell which fabric ran.
+The chain of evidence that it was the event-driven one: the .xsa's .hwh
+says ENGINE=1 ED_K=4; the PL partition of the BOOT.bin on the card is
+byte-for-byte (1.000000, after undoing bootgen's 32-bit byte swap and the
+dropped .bit length word) the bitstream inside that .xsa; and the previous
+BOOT.bin, checked the same way, was byte-for-byte the 15:07 dense bitstream
+(0.958 against the ED one) — which is how the stale-platform mistake was
+caught before the card was written. That comparison is now the standing
+pre-write check, alongside the .hwh grep.
+
+Timing is UART-bound (307 vs 310 ms/sample this afternoon): the host link
+hides the engine entirely. Separating the two engines in TIME and ENERGY is
+exactly M5+M7's job (meter on the rail, timestamps at the DMA), not this
+run's. Resource numbers (LUT/FF/BRAM/DSP) for the ED build to be taken from
+Vivado's utilization report and recorded next to the dense build's.
+
+Process lessons tonight, all recorded above: (1) block-design parameter
+customisation must be verified in the .hwh, not assumed; (2) the Vitis
+platform carries the bitstream — Create Boot Image reuses it, so the
+platform must be updated (or the .bit path overridden) after every Vivado
+export, even when the ELF is unchanged; (3) "bit-identical in simulation"
+says nothing about whether the memories became block RAM — port discipline
+is a design input (the 62k-LUT overrun).
