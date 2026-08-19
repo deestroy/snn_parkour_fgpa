@@ -35,3 +35,4 @@ sim/vectors/
 the project brief
 host/mac/build/
 host/mac/ps7_init.tcl
+host/mac/build/logs/

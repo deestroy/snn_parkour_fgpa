@@ -8,7 +8,7 @@ Three outputs:
 
 1. Accuracy of the all-integer network on the N-MNIST test set, next to the
    float baseline. The M1 gate is a drop of about 1 pp or less.
-2. The observed membrane range per layer, as "bits needed". the project brief budgets
+2. The observed membrane range per layer, as "bits needed". The project brief budgets
    16 bits of membrane state per neuron; this is where that claim gets checked
    against data instead of assumed.
 3. Per-layer spike/membrane/current traces for the first 16 test samples,

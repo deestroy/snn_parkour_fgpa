@@ -1,7 +1,7 @@
 # snn_parkour_fpga
 
 Measuring, rather than estimating, the energy of event-driven vs dense spiking
-neural network hardware on an FPGA. See the project brief for the full project brief
+neural network hardware on an FPGA. See the project brief for the full description
 and `docs/decisions.md` for the running log of design decisions.
 
 ## Layout

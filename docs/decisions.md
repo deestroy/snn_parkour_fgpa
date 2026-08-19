@@ -63,13 +63,13 @@ check can assert equality rather than a tolerance.
 
 **Date:** 2026-08-15 · **Status:** DECIDED — see verdict at the bottom
 
-the project brief specifies `V[n] = beta*V[n-1] + sum(w*s[n])`, fire and reset when
+The project brief specifies `V[n] = beta*V[n-1] + sum(w*s[n])`, fire and reset when
 `V >= V_threshold`. snnTorch's `snn.Leaky` defaults do **not** implement that.
 Two differences, both confirmed by experiment:
 
 **(a) When the reset is applied.** snnTorch's `reset_delay=True` computes the
 reset from the *previous* membrane, so the threshold subtraction lands one
-timestep after the crossing. the project brief describes an immediate reset. Same
+timestep after the crossing. The project brief describes an immediate reset. Same
 input, same beta, same threshold:
 
 ```
@@ -81,7 +81,7 @@ reset_delay=False (the project brief's model): .........|....|....|....|........
 independent variable of the entire thesis.
 
 **(b) Strict vs non-strict threshold.** snnTorch fires on `V > threshold`
-(it evaluates a Heaviside of `V - threshold`). the project brief says `V >=`. Driving
+(it evaluates a Heaviside of `V - threshold`). The project brief says `V >=`. Driving
 a neuron to land exactly on the threshold:
 
 ```
@@ -109,7 +109,7 @@ training library's default.
 
 ### Verdict: option 1 — match snnTorch (`reset_delay=True`, strict `>`)
 
-Chosen 2026-08-15. the project brief has been amended to describe the neuron we
+Chosen 2026-08-15. The project brief has been amended to describe the neuron we
 actually build. `golden/lif.py` keeps both behaviours behind flags, but
 `reset_delay=True, fire_on_equal=False` is now the project default and every
 comparison against hardware uses it.
@@ -200,7 +200,7 @@ expected outcome; the cost is one extra training run.
 
 **Date:** 2026-08-15 · **Status:** DECIDED
 
-the project brief's layer table does not close arithmetically. All three conv layers
+The project brief's layer table does not close arithmetically. All three conv layers
 and their spatial shapes are correct, but C3 emits `64 x 6 x 8 = 3072` features
 while the table lists the FC layer as `768 -> 128`. Nothing in the table turns
 3072 into 768.
@@ -463,7 +463,7 @@ synthesised, never on hardware. M4 is where that changes.
 
 **Date:** 2026-08-16 · **Status:** DECIDED — supersedes the project brief's original plan
 
-the project brief proposed Vitis HLS for the dense datapath. Two facts changed the
+The project brief proposed Vitis HLS for the dense datapath. Two facts changed the
 recommendation once the toolchain was real:
 
 1. **Vitis HLS does not run on macOS.** The entire M2 discipline — edit,
