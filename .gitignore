@@ -32,7 +32,6 @@ experiments/*_smoke.*
 sim/vectors/
 
 # Project brief stays local
-the project brief
 host/mac/build/
 host/mac/ps7_init.tcl
 host/mac/build/logs/
