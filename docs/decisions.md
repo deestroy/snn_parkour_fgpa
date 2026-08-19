@@ -1466,3 +1466,20 @@ This is the "the event-driven machinery costs area — and therefore
 static power — itself" half of the thesis argument, in numbers. Vivado's
 1.731 W is the estimate M5's meter is meant to be compared against
 (most of it is the ARM PS, not the fabric; the meter reads the board rail).
+
+### 22:40 addendum — the event-driven build FAILS TIMING (WNS −4.534 ns, TNS −287 ns at 100 MHz)
+
+Seen in the Design Runs tab after the pass. The bitstream that produced
+tonight's BOARD PASS does not meet setup timing: its worst path needs
+~14.5 ns against a 10 ns clock. It worked at the bench because typical
+silicon at 25 °C is faster than the worst-case model Vivado signs off
+against — that is luck, not margin. Consequences, stated plainly:
+tonight's result is a FUNCTIONAL verification (correct words on real
+hardware) and nothing more; no timing, latency or energy figure may be
+taken from this bitstream; the failure must be fixed and the board run
+repeated with WNS >= 0 before M5 measures anything on the ED design.
+Suspected path (to be confirmed from the timing report): the constant
+`/` and `%` in ed_scatter.v's flat-to-(bank,offset) translation and spike
+decode, feeding BRAM addresses combinationally — the D0021 "post-M7"
+optimisation, now mandatory. Standing rule from here: WNS is checked
+alongside the .hwh parameters before any card is written.
