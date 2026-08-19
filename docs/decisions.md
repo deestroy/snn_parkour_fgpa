@@ -1377,3 +1377,35 @@ address with `/` and `%` by constants and translates i_addr with `/ %`;
 Vivado will build small constant dividers. Fine for correctness and 100 MHz
 on a 12-bit operand; a final design keeps the address as separate fields.
 Recorded alongside the sweep-skip as post-M7 optimisations.
+
+### D0021 board attempt 1 (2026-08-18 21:40) — LUT overrun, cause and fix
+
+First event-driven bitstream failed in place_design: `[DRC UTLZ-1] LUT as
+Logic over-utilized: 62,456 required, 53,200 available`. Cause: the
+accumulator memory `imem` in ed_scatter.v was written from three different
+addresses (sweep zero at p_off, scatter add at off_hold, clear at clr) and
+read from two (p_off with a variable bank index, off_r). A block RAM has two
+ports; Vivado could not map that and built 4,624 x 16 bits of flip-flops
+with two 4,624:1 read-mux trees. iverilog has no notion of ports, so every
+simulation passed. Lesson for the methodology chapter: "bit-identical in
+simulation" says nothing about what the memories became -- the port
+discipline has to be designed in.
+
+Fix: each bank is now its own array with exactly ONE write port (address,
+data, enable muxed by FSM state) and ONE registered read port (address
+muxed: p_off when idle, off_r when scattering); the external i_rdata is a
+post-register bank select. Every access lands on the same clock edge as
+before, so the sweep handshake with ed_conv_layer is unchanged -- confirmed
+by the cycle counts being identical (76/spike K=1, 22/spike K=4) and by
+every check re-passing: scatter vs I-dump (K=1, K=4), engine vs golden
+(K=1, K=4, 591,872 comparisons each), AXIS wrapper hostile handshake
+(ED K=4 and dense, 9,280 words), verilator lint clean.
+
+Also seen on the way (all Vivado process, not design): the ENGINE=1
+customisation had not been applied on the first rebuild (the .xsa said
+ENGINE=0 -- caught by unzipping the .xsa before writing the card);
+"Spawn failed" during validation while background block runs were active;
+a half-regenerated interconnect (`auto_us` clock unconnected) after that;
+M_AXI_S2MM briefly unconnected until connection automation re-ran. The
+standing check before any card write: unzip the .xsa and grep the .hwh for
+ENGINE, ED_K, PCW_USE_S_AXI_HP0 and the DDR part.

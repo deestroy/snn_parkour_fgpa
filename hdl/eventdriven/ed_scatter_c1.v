@@ -355,21 +355,15 @@ module ed_scatter_c1 #(
         wt[286] = 8'h20;
         wt[287] = 8'h1d;
     end
-    // K banks of the accumulator
-    reg signed [WIDTH-1:0]  imem [0:K-1][0:BANK_N-1];
-
     // --- flat <-> (bank, offset) for the external port -------------------
     // flat = (oc*H_OUT + oy)*W_OUT + ox;  bank = oc % K;
     // offset = ((oc/K)*H_OUT + oy)*W_OUT + ox
     localparam HW = H_OUT * W_OUT;
+    localparam AB = $clog2(BANK_N);              // bank address bits
     wire [31:0] p_oc  = i_addr / HW;
     wire [31:0] p_pos = i_addr % HW;
     wire [31:0] p_bank = p_oc % K;
     wire [31:0] p_off  = (p_oc / K) * HW + p_pos;
-
-    reg signed [WIDTH-1:0] i_rdata_r;
-    always @(posedge clk) i_rdata_r <= imem[p_bank][p_off];
-    assign i_rdata = i_rdata_r;
 
     // --- decode the spike address -----------------------------------------
     reg [$clog2(IN_BITS)-1:0] a_r;
@@ -393,9 +387,44 @@ module ed_scatter_c1 #(
     reg [2:0] state;
 
     reg signed [7:0]       w_r [0:K-1];
-    reg signed [WIDTH-1:0] i_r [0:K-1];
     reg [31:0]             off_hold;
     integer j, clr;
+
+    // --- the K accumulator banks: ONE write port + ONE read port each -----
+    // This shape is what a synthesis tool maps onto a block RAM. The first
+    // version wrote imem from three different addresses (sweep zero, scatter
+    // add, clear) and read it from two; Vivado could not put that on BRAM
+    // and built 4,624 x 16 bits of flip-flops plus two 4,624:1 mux trees --
+    // 62k LUTs on a 53k-LUT chip. Simulation never noticed (2026-08-18).
+    // The FSM now steers ONE write address/data/enable and ONE read address
+    // per bank; every access below lands on the same clock edge as before,
+    // so ed_conv_layer's sweep timing is unchanged.
+    wire we_add  = (state == S_ADD);                       // K RMWs land
+    wire we_clr  = (state == S_NEXT);                      // clear, one row
+    wire we_ext  = (state == S_IDLE) && i_we && !clear && !spk_we;  // sweep zero
+    wire [AB-1:0] waddr = we_add ? off_hold[AB-1:0] :
+                          we_clr ? clr[AB-1:0]      : p_off[AB-1:0];
+    wire [AB-1:0] raddr = (state == S_IDLE) ? p_off[AB-1:0] : off_r[AB-1:0];
+    wire [K*WIDTH-1:0] rd_flat;                            // bank j read data
+    reg  [31:0] p_bank_r;
+
+    genvar g;
+    generate for (g = 0; g < K; g = g + 1) begin : g_bank
+        reg signed [WIDTH-1:0] mem [0:BANK_N-1];
+        reg signed [WIDTH-1:0] rd_q;
+        wire we = we_add || we_clr || (we_ext && p_bank == g);
+        wire signed [WIDTH-1:0] wdata =
+            we_add ? rd_q + {{(WIDTH-8){w_r[g][7]}}, w_r[g]} :
+            we_clr ? {WIDTH{1'b0}} : i_wdata;
+        always @(posedge clk) begin
+            if (we) mem[waddr] <= wdata;
+            rd_q <= mem[raddr];
+        end
+        assign rd_flat[g*WIDTH +: WIDTH] = rd_q;
+    end endgenerate
+
+    always @(posedge clk) p_bank_r <= p_bank;
+    assign i_rdata = rd_flat[p_bank_r*WIDTH +: WIDTH];    // registered, 1 cycle
 
     always @(posedge clk) begin
         if (rst) begin
@@ -408,9 +437,8 @@ module ed_scatter_c1 #(
                 clr <= 0; busy <= 1'b1; state <= S_NEXT;
             end else if (spk_we) begin
                 a_r <= spk_addr; busy <= 1'b1; state <= S_DEC;
-            end else if (i_we) begin
-                imem[p_bank][p_off] <= i_wdata;             // sweep zeroing I
             end
+            // else if (i_we): the sweep's zero-write, handled by we_ext above
         end
 
         S_DEC: begin
@@ -427,20 +455,17 @@ module ed_scatter_c1 #(
                 oy <= lo_of(iy); ox <= lo_of(ix); oc <= 0;
                 ic_wait <= 1'b0;
             end else begin
-                // K-wide read: weights oc..oc+K-1 for this tap, and the K
-                // accumulators they target -- one per bank, no conflicts
-                for (j = 0; j < K; j = j + 1) begin
+                // K-wide read: weights oc..oc+K-1 for this tap; the K
+                // accumulators they target are read by the banks themselves
+                // this cycle (raddr = off_r) -- one per bank, no conflicts
+                for (j = 0; j < K; j = j + 1)
                     w_r[j] <= wt[wt_row + j];
-                    i_r[j] <= imem[j][off_r];      // bank j holds channel oc+j
-                end
                 off_hold <= off_r;
                 state <= S_ADD;
             end
         end
 
-        S_ADD: begin   // K read-modify-writes, one per bank, this cycle
-            for (j = 0; j < K; j = j + 1)
-                imem[j][off_hold] <= i_r[j] + {{(WIDTH-8){w_r[j][7]}}, w_r[j]};
+        S_ADD: begin   // K read-modify-writes land this cycle (we_add)
             if (oc + K < C_OUT) begin
                 oc <= oc + K; state <= S_RD;
             end else begin
@@ -454,8 +479,7 @@ module ed_scatter_c1 #(
             end
         end
 
-        S_NEXT: begin  // clear: zero all banks, one offset per cycle
-            for (j = 0; j < K; j = j + 1) imem[j][clr] <= 0;
+        S_NEXT: begin  // clear: zero all banks, one offset per cycle (we_clr)
             if (clr == BANK_N-1) state <= S_IDLE;
             else clr <= clr + 1;
         end
