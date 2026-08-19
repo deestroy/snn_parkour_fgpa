@@ -14,9 +14,13 @@ case "$layer" in
     *) echo "only c1 wired for the axis TB so far"; exit 2 ;;
 esac
 
-python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null
-python3 sim/export_ed_vectors.py --layer "$layer" > /dev/null
-python3 sim/export_axis_vectors.py --layer "$layer"
+AXIS_IN="${AXIS_IN:-}"; AXIS_OUT="${AXIS_OUT:-}"   # override the vector files (sweeps)
+if [ -z "$AXIS_IN" ]; then
+    python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null
+    python3 sim/export_ed_vectors.py --layer "$layer" > /dev/null
+    python3 sim/export_axis_vectors.py --layer "$layer"
+    AXIS_IN="sim/vectors/axis_${layer}_in.hex"; AXIS_OUT="sim/vectors/axis_${layer}_out.hex"
+fi
 
 in_bits=$(( ci * hi * wi_ ))
 neurons=$(( co * ho * wo_ ))
@@ -32,7 +36,6 @@ iverilog -g2012 -I hdl/dense -o sim/work/tb_axis.vvp \
     sim/tb_axis_conv.v
 
 vvp sim/work/tb_axis.vvp \
-    +in="sim/vectors/axis_${layer}_in.hex" \
-    +out="sim/vectors/axis_${layer}_out.hex" \
+    +in="$AXIS_IN" +out="$AXIS_OUT" \
     +nsamples=16 +wi="$wi" +wo="$wo" +seed=7 +nogap=$NOGAP ${CYCLES:++cycles=$CYCLES} \
     | grep -E "TB_|MISMATCH" | head -8
