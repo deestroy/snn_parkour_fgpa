@@ -2229,3 +2229,29 @@ Caveats carried forward: the wrapper's fixed cost saturates both arms at
 high P/K (C0035, next), and cycles are not energy — dense P=4 holds 4x
 weight-bank BRAMs just as ED K=4 holds 4x accumulator banks; the meter
 arbitrates, now with a genuinely fair pair at every K.
+
+### C-batch resolutions (2026-08-20 16:00)
+
+**C0038, C0004, C0001, C0002, C0009/C0020, C0013/C0019, boundary/protocol:**
+measure/dmm_protocol.md now defines the three energy quantities (system /
+delta-between-engines / engine), the measurement-boundary caption
+sentence, idle power as a first-class per-bitstream measurement, the
+session noise-floor procedure, the thermal warm-up + XADC logging rule,
+and the repeats/CI/seed-variance statistics. The VCCINT schematic check
+and everything needing the meter or Vivado (C0003 builds, C0019 seed
+builds, C0007 SAIF runs, C0021 iso-latency build, C0025 K-energy) remain
+open hardware actions, now specified.
+
+**C0036 (three geometries conflated):** the table below is the reference;
+every resource/parameter claim in this log should name its column. The
+"81 % of weights in FC" figure is the BRIEF's network only; for the
+implemented N-MNIST network it is 58 % (32,768 of ~56,096) — D0006's use
+of 81 % for the built network is corrected by this entry.
+
+| | brief target | N-MNIST as built | robot/distilled (D0024) |
+|---|---|---|---|
+| input | 48x64x2 | 2x34x34 | 2x64x64 |
+| c3 out | 64x6x8 | 64x5x5 | 64x8x8 |
+| FC | 768->128 | 256->128 | 1024->34 |
+| params | 121,632 | ~56,096 | 58,178 |
+| weights+membranes | 161 KB | ~73 KB dense / ~91 KB ED | ~114 KB / ~172 KB |

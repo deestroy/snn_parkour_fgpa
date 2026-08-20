@@ -68,3 +68,70 @@ If `I_run - I_idle` is within the reading noise, say so: "the DMM cannot
 resolve the engine's power at 12 V" is a legitimate, useful sentence, and
 it is the justification for the INA226 (0.02 ohm shunt, 2.5 uV LSB) or for
 measuring a lower-current rail.
+
+
+---
+
+# Protocol upgrades from the 2026-08-20 methodology review
+
+## The three energy quantities (C0038) — never let them merge
+
+1. **System energy per inference** — board-level (12 V input), dominated by
+   the ARM/PS (~96 % of dynamic). The deployment number.
+2. **Delta-E between the two engines** — the fabric-attributable
+   difference between builds measured in the same session. THE
+   architecture result. All dense-vs-ED claims cite this.
+3. **Engine energy** — (2) plus the static attribution from idle
+   measurements, method stated.
+Every table labels which quantity each number is. The ES-Parkour audit
+uses (2) or (3), never (1).
+
+## Measurement boundary (C0004) — the sentence every table caption cites
+
+"Measured at the 12 V board input: the boundary encloses the whole
+ZedBoard — FPGA (PS+PL), DDR3, clocks, PHYs, OLED, LEDs and all regulator
+losses. Published accelerator figures are almost always die-only tool
+estimates; the two are not directly comparable and are never mixed in one
+column." Open question to settle from the Rev C.1 schematic before the
+first session: whether VCCINT (PL core) is a separately shuntable net —
+if yes, a load-side measurement isolates the fabric and supersedes the
+barrel-jack numbers for quantity (2). Regulator non-linearity (C0026):
+if staying at the barrel jack, characterise input-vs-load with a known
+variable load, or bound and declare it.
+
+## Idle power is a first-class measurement (C0001)
+
+Report P_idle(design) AND delta-P(design) per bitstream. Idle state,
+defined once: PL configured and clocked, DMA idle, CPU in the
+conv_server receive loop, no BURST. Static power is half the thesis
+argument; the delta alone subtracts it away.
+
+## Noise floor first (C0002) — at the start of EVERY session
+
+Same bitstream: twice cold (power-cycle between), twice warm (10 min
+apart). The spread is the session's noise floor; no delta smaller than it
+may be reported. If the floor exceeds the dense-vs-ED delta, engine
+replication (N_ENGINES, C0003) becomes mandatory.
+
+## Thermal discipline (C0009/C0020)
+
+Warm up with continuous BURST until XADC die temperature is stable
+(tolerance stated, e.g. +/-1 degC over 2 min) BEFORE the measurement
+window; log die temperature at every idle and burst reading. Idle-vs-
+burst temperature difference bounds the leakage term inside delta-P.
+
+## Statistics (C0013/C0019)
+
+Per condition: >= 5 repeats, report mean +/- 95 % CI, never single
+values. Between-repeats: re-arm BURST fresh (new sample order where
+C0018's sweep mode applies). Implementation-seed variance: each design
+built 3-5 times with different placer seeds (all WNS >= 0), P_idle and
+delta-P per build; the seed spread is quoted next to every design-level
+delta, and if it rivals the delta, the comparison says so.
+
+## Sample distribution (C0018)
+
+Never a single sample: BURST's sweep mode cycles the loaded sample set;
+energy is reported as mean +/- spread over samples. State-reset behaviour
+between iterations is documented in host/protocol.md and identical for
+both engines.
