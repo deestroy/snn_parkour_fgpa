@@ -1882,3 +1882,27 @@ tool-vs-meter comparison for the ENGINE is this fabric number, not the
 engines); both get reported (project brief: estimate next to measurement);
 (3) the dense-vs-ED estimate gap at the fabric level is ~25 mW on ~30 mW
 — the tool genuinely cannot rank the two designs. The meter can.
+
+## DENSE RESULT ON THE BOARD, SIGN-OFF CLEAN (2026-08-19 23:10) — 4.409 ms/inference, data-independent, BOARD PASS
+
+Dense bitstream (ENGINE=0, WNS +0.787, DSP 0), conv_server build 2, SD
+boot. 16-sample BOARD PASS (9,280 words bit-identical), then BURST:
+sample 0 x 2,000 -> 4,408.7 us/inference; sample 5 x 1,000 -> 4,408.7 us
+(identical to 0.1 us — data-independent, exactly as a clock-driven design
+must be); sample 0 x 4,100 (18.08 s, the meter-length window) -> 4,408.7
+us. 0 mismatches everywhere, CRCs = golden, timer cross-checked.
+
+Predicted from simulation: 4.362 ms + ~46 us DMA/loop overhead = 4.41 ms.
+Measured: 4.409 ms. The cycle model is now verified on BOTH engines.
+
+The board-measured latency table (C1, 100 MHz, timing-clean bitstreams):
+| engine | latency/inference | rate | data-dependent? |
+|---|---|---|---|
+| dense | 4.409 ms | 227/s | no (0.1 us spread across samples) |
+| event-driven K=4 | 1.51 ms (1.49-1.56) | ~660/s | yes, with activity |
+
+Event-driven is 2.9x faster at trained activity, on silicon, both engines
+sign-off clean behind the same wrapper, same server, same client, same
+samples. Latency half of M7's table: done for these two points. Meter
+windows rehearsed for both engines (~18 s each: ED --burst 12000, dense
+--burst 4100). Everything now waits on the instrument.
