@@ -25,6 +25,7 @@
 #include "xaxidma.h"
 #include "xil_cache.h"
 #include "xstatus.h"
+#include "xadcps.h"                  /* PS XADC: die temperature (C0009) */
 
 /* ---------------------------------------------------------------- config */
 #define BUILD_ID       0x00000003u              /* 3: BURST sweep mode, C0018 (2026-08-20) */
@@ -134,6 +135,16 @@ static uint32_t s_next = 0;      /* next slot to fill */
 static uint32_t ref_words[RSP_WORDS];
 static int      have_sample = 0;
 static XAxiDma dma;
+static XAdcPs xadc;
+static int xadc_ok = 0;
+
+/* die temperature in milli-degC, 0 if the XADC is unavailable */
+static int32_t die_temp_mc(void) {
+    if (!xadc_ok) return 0;
+    u16 raw = XAdcPs_GetAdcData(&xadc, XADCPS_CH_TEMP);
+    float c = XAdcPs_RawToTemperature(raw);
+    return (int32_t)(c * 1000.0f);
+}
 
 static void send_frame(uint8_t cmd, const uint32_t *payload, uint32_t n) {
     uint8_t hdr[8] = { 0x53, 0x4E, 0x4E, 0x5A, cmd, 0, n & 0xFF, (n >> 8) & 0xFF };
@@ -227,6 +238,7 @@ static int run_burst(uint32_t n_in) {
     static uint32_t ref_crc[MAX_SAMPLES];
     uint8_t have_ref[MAX_SAMPLES] = {0};
     uint32_t mism = 0, done = 0;
+    int32_t t_mc0 = die_temp_mc();
     uint64_t t0 = gt_read(), t1;
     for (uint32_t i = 0; i < iters; i++) {
         uint32_t si = sweep ? (i % nset) : last;
@@ -243,15 +255,23 @@ static int run_burst(uint32_t n_in) {
     uint64_t ticks = t1 - t0;
     uint32_t c = 0;                              /* crc_update folds init/final */
     for (uint32_t k = 0; k < RSP_WORDS; k++) c = crc_word(c, tx_words[k]);
-    uint32_t rep[6] = { done, (uint32_t)ticks, (uint32_t)(ticks >> 32),
-                        TICKS_PER_S, mism, c };
-    send_frame(CMD_BURST | RSP_OK_BIT, rep, 6);
+    /* words 6..7: die temperature (milli-degC) at burst start/end (C0009/
+     * C0020). Older clients read only words 0..5 and are unaffected. */
+    uint32_t rep[8] = { done, (uint32_t)ticks, (uint32_t)(ticks >> 32),
+                        TICKS_PER_S, mism, c,
+                        (uint32_t)t_mc0, (uint32_t)die_temp_mc() };
+    send_frame(CMD_BURST | RSP_OK_BIT, rep, 8);
     return 0;
 }
 
 int main(void) {
     crc_init();
     gt_enable();
+    {   /* XADC init is best-effort: metering wants it, nothing depends on it */
+        XAdcPs_Config *xc = XAdcPs_LookupConfig(XPAR_XADCPS_0_DEVICE_ID);
+        if (xc && XAdcPs_CfgInitialize(&xadc, xc, xc->BaseAddress) == XST_SUCCESS)
+            xadc_ok = 1;
+    }
     XAxiDma_Config *cfg = XAxiDma_LookupConfig(DMA_DEV_ID);
     if (!cfg || XAxiDma_CfgInitialize(&dma, cfg) != XST_SUCCESS || XAxiDma_HasSg(&dma)) {
         for (;;) send_error(ERR_DMA_SETUP);   /* loud, forever */

@@ -11,7 +11,8 @@ Three outputs:
 2. The observed membrane range per layer, as "bits needed". The project brief budgets
    16 bits of membrane state per neuron; this is where that claim gets checked
    against data instead of assumed.
-3. Per-layer spike/membrane/current traces for the first 16 test samples,
+3. Per-layer spike/membrane/current traces for 16 SEEDED-RANDOM test
+   samples spanning the classes (C0039; was: the first 16 = all digit 0),
    written to golden/traces_m1.npz. These are the waveforms every HDL
    testbench from M2 onward replays and compares against. Not committed to
    git: integer arithmetic is deterministic, so they regenerate exactly from
@@ -32,6 +33,9 @@ from golden.network import GoldenNetwork  # noqa: E402
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRACES = os.path.join(REPO, "golden", "traces_m1.npz")
 N_TRACE_SAMPLES = 16
+TRACE_SEED = 20260820   # C0039: seeded random draw across ALL classes --
+                        # N-MNIST is class-ordered (D0009), so "the first
+                        # 16" were all digit 0. Fixed seed = reproducible.
 
 
 def main() -> int:
@@ -78,10 +82,14 @@ def main() -> int:
         print("  %-3s V in [%7d, %6d]  -> %2d bits  %s"
               % (name, lo, hi, bits, "fits int16" if fits else "DOES NOT FIT"))
 
-    counts, trace = net.forward(frames[:N_TRACE_SAMPLES], record=True)
+    rng = __import__("numpy").random.default_rng(TRACE_SEED)
+    pick = __import__("numpy").sort(rng.choice(len(frames), N_TRACE_SAMPLES, replace=False))
+    print("\ntrace samples (C0039, seed %d): idx %s labels %s"
+          % (TRACE_SEED, pick.tolist(), labels[pick].tolist()))
+    counts, trace = net.forward(frames[pick], record=True)
     packed = {k: np.stack(v, axis=1) for k, v in trace.items()}  # (B, T, ...)
     packed["fc_counts"] = counts
-    packed["labels"] = labels[:N_TRACE_SAMPLES]
+    packed["labels"] = labels[pick]
     np.savez_compressed(TRACES, **packed)
     sz = os.path.getsize(TRACES) / 1e6
     print("\ntraces for %d samples -> %s  (%.1f MB)"

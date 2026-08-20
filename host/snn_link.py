@@ -35,6 +35,8 @@ class BurstResult:
         self.ticks_per_s = int(words[3])
         self.mismatches = int(words[4])
         self.crc_last = int(words[5])
+        self.temp_start_c = int(np.int32(words[6])) / 1000.0 if words.size > 7 else None
+        self.temp_end_c = int(np.int32(words[7])) / 1000.0 if words.size > 7 else None
         self.elapsed_s = self.ticks / self.ticks_per_s
         self.latency_s = self.elapsed_s / max(self.n, 1)
 
@@ -43,7 +45,9 @@ class BurstResult:
                 "%d mismatches, crc %08x"
                 % (self.n, self.elapsed_s, 1e6 * self.latency_s,
                    self.n / self.elapsed_s if self.elapsed_s else 0.0,
-                   self.mismatches, self.crc_last))
+                   self.mismatches, self.crc_last)) + (
+                "" if self.temp_start_c is None else
+                "  die %.1f->%.1f degC" % (self.temp_start_c, self.temp_end_c))
 
 
 def encode(cmd: int, payload: np.ndarray) -> bytes:
