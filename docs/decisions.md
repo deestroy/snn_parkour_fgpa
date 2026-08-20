@@ -2037,3 +2037,26 @@ exactly 5 predicted misses at the predicted ticks, stale-latent identity
 verified through a 3-tick miss run, escalation at exactly cycle 25,
 t_command_sent strictly increasing (no silent waits). The physical-robot
 groundwork (cycle_log) carried over unchanged.
+
+### P1 close-out pipeline PROVEN mid-training (2026-08-20 02:50)
+
+The whole chain from a distillation checkpoint to verified RTL ran
+end-to-end using the 2h-old MID-TRAINING checkpoint (proof of pipeline,
+to be re-run on student_final):
+
+  record_event_frames.py (box): 8 samples of REAL teacher-rollout event
+  frames, T=4 windows, rate 6.2 % ->
+  export_fpga_student_vectors.py (Mac): c1 weights quantised per D0008
+  (k=4, threshold 2^4=16, rms rounding err 0.018), golden traces via the
+  imported LIF rule, |V|max 568 (int16 fine) ->
+  both engines at 2x64x64 with THRESH=16: 1,048,576 comparisons each,
+  BIT-IDENTICAL. ED K=4: 306,480 cycles = 3.06 ms/sample at the real 6 %
+  activity.
+
+So: the year-two network's C1, quantised exactly as year one's, runs
+bit-identical on both verified engines, on real simulated-camera data.
+What remains for P1 proper: the final checkpoint (training ends ~noon),
+its evaluation (scripts/evaluate_fpga.py, ready), the same export for
+C2/C3/FC, and the accuracy-after-quantisation check inside the task.
+Threshold plumbing (THRESH env) and a real-vs-synthetic switch (R1_REAL)
+added to the runners.

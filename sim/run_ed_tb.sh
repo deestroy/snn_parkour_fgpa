@@ -5,6 +5,7 @@ set -eu
 cd "$(dirname "$0")/.."
 layer="${1:-c1}"; dut="${2:-ed_iface_shim}"
 K="${K:-1}"          # banks: K=1 (default) or K=4
+THRESH="${THRESH:-64}" # firing threshold (real-weight r1 vectors need 2^k)
 CYCLES="${CYCLES:-}" # optional per-sample cycle file
 case "$layer" in
     c1) ci=2;  hi=34; wi=34; co=16; ho=17; wo=17 ;;
@@ -14,7 +15,11 @@ case "$layer" in
     *) echo "unknown layer"; exit 2 ;;
 esac
 if [ "$layer" = r1 ]; then
-    python3 sim/export_robot_vectors.py > /dev/null
+    if [ "${R1_REAL:-0}" = 1 ]; then
+        python3 sim/export_fpga_student_vectors.py > /dev/null   # real distilled weights
+    else
+        python3 sim/export_robot_vectors.py > /dev/null          # synthetic
+    fi
 else
     python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null   # dense weight hex (shim)
     python3 sim/export_ed_vectors.py --layer "$layer" > /dev/null     # address lists + expected + W_T
@@ -27,7 +32,7 @@ iverilog -g2012 -I hdl/dense -DED_DUT="$dut" $extra -o "sim/work/tb_ed_${layer}.
     -Ptb_ed_conv.C_IN=$ci -Ptb_ed_conv.H_IN=$hi -Ptb_ed_conv.W_IN=$wi \
     -Ptb_ed_conv.C_OUT=$co -Ptb_ed_conv.H_OUT=$ho -Ptb_ed_conv.W_OUT=$wo \
     -Ptb_ed_conv.WEIGHT_FILE="\"sim/vectors/conv_${layer}_w.hex\"" \
-    -Ptb_ed_conv.K_BANKS=$K -Ptb_ed_conv.WT_FILE="\"sim/vectors/ed_${layer}_wt.hex\"" \
+    -Ptb_ed_conv.K_BANKS=$K -Ptb_ed_conv.THRESHOLD=$THRESH -Ptb_ed_conv.WT_FILE="\"sim/vectors/ed_${layer}_wt.hex\"" \
     $srcs sim/tb_ed_conv.v
 vvp "sim/work/tb_ed_${layer}.vvp" +spk="sim/vectors/ed_${layer}_spk.txt" \
     +s="sim/vectors/ed_${layer}_s.bin" +v="sim/vectors/ed_${layer}_v.hex" +nsamples=${NS:-16} ${CYCLES:++cycles=$CYCLES} \

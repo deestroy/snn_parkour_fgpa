@@ -8,6 +8,7 @@ cd "$(dirname "$0")/.."
 if [ "$#" -eq 0 ]; then set -- c1; fi
 mkdir -p sim/work
 overall=0
+THRESH="${THRESH:-64}"
 
 for layer in "$@"; do
     case "$layer" in
@@ -18,7 +19,11 @@ for layer in "$@"; do
         *) echo "unknown layer $layer"; exit 2 ;;
     esac
     if [ "$layer" = r1 ]; then
-        python3 sim/export_robot_vectors.py > /dev/null
+        if [ "${R1_REAL:-0}" = 1 ]; then
+        python3 sim/export_fpga_student_vectors.py > /dev/null   # real distilled weights
+    else
+        python3 sim/export_robot_vectors.py > /dev/null          # synthetic
+    fi
         ns=8
     else
         python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null
@@ -28,7 +33,7 @@ for layer in "$@"; do
     iverilog -g2012 -I hdl/dense -o "sim/work/tb_conv_${layer}.vvp" \
         -Ptb_conv_layer.C_IN="$ci"  -Ptb_conv_layer.H_IN="$hi"  -Ptb_conv_layer.W_IN="$wi" \
         -Ptb_conv_layer.C_OUT="$co" -Ptb_conv_layer.H_OUT="$ho" -Ptb_conv_layer.W_OUT="$wo" \
-        -Ptb_conv_layer.WEIGHT_FILE="\"sim/vectors/conv_${layer}_w.hex\"" \
+        -Ptb_conv_layer.THRESHOLD=$THRESH -Ptb_conv_layer.WEIGHT_FILE="\"sim/vectors/conv_${layer}_w.hex\"" \
         hdl/common/lif_update.v hdl/dense/conv_layer.v sim/tb_conv_layer.v
 
     out=$(vvp "sim/work/tb_conv_${layer}.vvp" \
