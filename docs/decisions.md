@@ -1970,3 +1970,37 @@ verified event-driven implementation in simulation; the conv layers
 additionally have C1 on silicon. Cost per spike: N_OUT/K cycles + 2
 (128/4 = 34 at the default) — FC event-driven latency for M7's model can
 now be computed rather than assumed.
+
+## D0024 — Year-two platform: the ES-Parkour recreation is the simulator AND the policy source
+
+**Date:** 2026-08-20 (overnight) · **Status:** DECIDED overnight, flagged
+for morning review
+
+Found on the GPU box: es_parkour_recreation — a complete MuJoCo-based
+recreation of the ES-Parkour paper (event sim from depth, PPO teacher,
+SNN-student distillation with DAgger, terrain curriculum, evaluation).
+State: teacher TRAINED and strong (L3: 94-100 % on all four terrains;
+L6: 91-97 % on step/hurdle); the paper-sized student (11.19M spiking
+ResNet-18) was distilled for only 12k iterations (~92 min) and is
+UNDERTRAINED (L_act plateau ~1.0; 19 % step-L3, 0 % elsewhere) — the
+pipeline works, the training time was insufficient.
+
+Decisions: (1) the year-two simulator is this repo's MuJoCo env — the
+simulator and policy source are coupled, and the policy source is here
+(supersedes the PyBullet/spot_mini_mini candidate). (2) The robot-era
+network geometry follows the framework as built: event frames 2x64x64,
+T=4 direct coding, encoder output = latent 32 + heading 2 (corrects the
+older 48x64/latent-128 table). (3) P1 = distill the FPGA-SIZED encoder
+inside this framework: c1 2->16 s2, c2 16->32 s2, c3 32->64 s2, 2x2 sum
+pool, FC 1024->34 — 58,178 parameters, ~200x smaller than the paper's,
+with the HARDWARE's neuron semantics in float (beta 0.875, delayed
+reset-by-subtraction, strict >, D0002) and no batch norm, so M1
+quantisation and the golden-model contract carry over unchanged.
+(4) Launched overnight: scripts/distill_fpga.py (additive, nothing in
+their package modified), warm-up 6k + DAgger 90k (~8x the undertrained
+run), teacher ckpt_018000, checkpoints every 500. Either outcome is a
+result: a working 58k student, or evidence on what this task needs.
+
+Also: DVS-Gesture training DEFERRED — the shared GPU box is at 95 % disk
+(9.9 GB free); the dataset+extraction would risk filling a machine other
+people use. Revisit when disk is cleared or with a streamed pipeline.
