@@ -12,6 +12,21 @@ assumed. `*_cycles.txt`: `sample total engine_busy`.
 | event-driven K=1 | 234,009 (215,499–259,076) | 2.340 | 1.948 | 17 % |
 | event-driven K=4 | 149,273 (143,801–156,596) | 1.493 | 1.101 | 26 % |
 
+## The K axis (2026-08-19 overnight 2): all divisors of C_OUT, same harness
+
+| K | total cycles (mean) | ms | engine-only | scatter cycles/spike |
+|---|---|---|---|---|
+| 1 | 234,009 | 2.340 | 194,817 | 76 |
+| 2 | 177,514 | 1.775 | 138,319 | 40 |
+| 4 | 149,273 | 1.493 | 110,070 | 22 |
+| 8 | 135,161 | 1.352 | 95,945 | 13 |
+| 16 | 128,165 | 1.282 | 88,883 | 8 |
+
+Bit-identical at every K (scatter, engine and AXIS benches). Diminishing
+returns exactly as D0017 predicted: K=4 -> K=16 buys 14 % latency for 4x
+the accumulator bank BRAMs. Which K is ENERGY-optimal is the meter's
+question; these are the latency halves of those points.
+
 Cross-check against the board (2026-08-19 01:30, BURST): ED K=4 sample 0
 measured 1,514.5 us; simulated 146,822 cycles = 1,468 us -> DMA + software
 loop overhead ~46 us (3 %). Predicted dense on the board: ~4.4 ms.

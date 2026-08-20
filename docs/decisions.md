@@ -1906,3 +1906,12 @@ sign-off clean behind the same wrapper, same server, same client, same
 samples. Latency half of M7's table: done for these two points. Meter
 windows rehearsed for both engines (~18 s each: ED --burst 12000, dense
 --burst 4100). Everything now waits on the instrument.
+
+### 2026-08-19 23:30 — the K axis filled in simulation (K = 1,2,4,8,16)
+
+All divisors of C_OUT run through the same three benches, bit-identical at
+every K. C1 totals: 234.0k / 177.5k / 149.3k / 135.2k / 128.2k cycles
+(2.34 / 1.78 / 1.49 / 1.35 / 1.28 ms). Scatter cycles/spike: 76 / 40 / 22 /
+13 / 8. Diminishing returns as D0017 predicted — the fixed sweep floor
+dominates from K=4 up. Latency half of M7's K axis done; energy per K is
+the meter's question. Table in experiments/latency_sim/README.md.
