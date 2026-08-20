@@ -20,6 +20,7 @@ run "M2 LIF neuron HDL"                       bash sim/run_lif_tb.sh
 run "M3 dense conv c1/c2/c3"                  bash sim/run_conv_tb.sh c1 c2 c3
 run "M3 dense FC"                             bash sim/run_fc_tb.sh
 run "M4 AXIS wrapper, dense (hostile handshake)"  bash sim/run_axis_tb.sh c1
+run "C0029 P-wide dense engine, P=4 (fair baseline)" env P=4 bash sim/run_conv_p_tb.sh c1
 run "M6 AXIS wrapper, event-driven K=4"          env ENGINE=1 K=4 bash sim/run_axis_tb.sh c1
 run "M6 event-driven engine vs golden, K=1"   bash sim/run_ed_tb.sh c1 ed_conv_layer
 run "M6 event-driven engine vs golden, K=4"   env K=4 bash sim/run_ed_tb.sh c1 ed_conv_layer

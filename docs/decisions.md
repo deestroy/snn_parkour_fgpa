@@ -2189,3 +2189,43 @@ same floor for every layer including FC with far less bookkeeping, and
 after the first meter session, so its benefit is measured against a
 stable baseline. For FC the skip is provably worthless (99.8 % touched)
 and will not be built.
+
+## D0026 — The P-wide dense baseline (resolves C0029): the crossover is real, and it lives in fan-in
+
+**Date:** 2026-08-20 16:00 · conv_layer_p.v + sim/run_conv_p_tb.sh
+
+The dense engine now has the parallelism knob the comparison was missing:
+P output channels advance together (one input-bit read + P banked weight
+reads + P accumulators per cycle; weights and membranes banked oc mod P —
+the same partition ed_scatter uses for K, so P == K is matched parallelism
+by construction). Sign-off rules applied from the start; external ports
+keep the 1-cycle read contract. Bit-identical at P = 1/2/4/8 on C1, P=4
+on C2/C3, and P=4 at the ROBOT geometry with the real distilled weights
+(1,048,576 comparisons). Scaling is exact: 406,908 / 203,452 / 101,724 /
+50,860 cycles per sample.
+
+**The matched-parallelism table (engine-only cycles/sample, trained
+activity, P = K = 4):**
+
+| layer | dense P=4 | ED K=4 | winner |
+|---|---|---|---|
+| C1 (N-MNIST, 18 taps/neuron) | 101,724 | 110,070 | **dense, by 8 %** |
+| C2 (144 taps) | 383,612 | 108,191 | ED, 3.5x |
+| C3 (288 taps) | 467,196 | 107,403 | ED, 4.3x |
+| C1 robot geometry, real weights (6 % activity) | 360,444 | 306,480 | ED, 1.18x |
+
+Stated plainly, replacing the retracted C0028-era finding with a measured
+one: **against a fairly-parallelised dense baseline, the event-driven
+design loses narrowly on the shallow layer and wins multiples on the deep
+ones. The crossover the thesis is looking for exists, and its axis is
+LAYER FAN-IN (taps per neuron), not just input activity.** Dense P=4
+walks 21/4 ~= 5.25 effective cycles/neuron regardless of data; ED pays
+scatter per spike x fan-out plus the sweep floor. Where fan-in is small
+(C1: 18 taps), walking it all is cheap and dense edges ahead; where
+fan-in is large (C2/C3: 144/288 taps), skipping zeros wins big. Both
+engines behind the same wrapper still; the P=1 figures are hereby
+relabelled the NAIVE baseline, and P = K is the primary comparison.
+Caveats carried forward: the wrapper's fixed cost saturates both arms at
+high P/K (C0035, next), and cycles are not energy — dense P=4 holds 4x
+weight-bank BRAMs just as ED K=4 holds 4x accumulator banks; the meter
+arbitrates, now with a genuinely fair pair at every K.
