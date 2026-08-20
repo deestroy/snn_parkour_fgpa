@@ -2087,3 +2087,29 @@ mid-training signal (54 % trained): step 12 % / others 0 % with waypoint
 fractions 0.29-0.39 — already at the 11.19M ResNet student's FINAL level
 with 1/200th the parameters; theoretical encoder energy 0.0059 mJ vs the
 ResNet's 0.184 mJ (31x). Success rates from the full run to follow.
+
+## P1 RESULT, behavioural side (2026-08-20 10:10) — the 58k encoder matches/beats the 11.19M reference student
+
+Full evaluation of the distilled FPGA-sized student (96k iterations), 32
+episodes/terrain, against the same teacher:
+
+| | teacher | 11.19M ResNet student (their run, 12k its) | 58k FPGA student (ours, 96k its) |
+|---|---|---|---|
+| L3 step | 88-100 % | 19 % | **25 %** |
+| L3 others | 53-97 % | 0 % | 0 % |
+| L6 step | 78 % | 0 % | **19 %** |
+| L6 others | 0-94 % | 0 % | 0 % |
+| theoretical encoder energy | 0.666 mJ (ANN) | 0.184 mJ | **0.0059 mJ** (31x below ResNet) |
+
+Reading, stated carefully: absolute success is LOW for both students —
+the distillation recipe/iteration budget is the limiter, and that is a
+finding, not a failure to hide. Within that recipe, the FPGA-sized
+encoder is NOT the bottleneck: at 1/200th the parameters it equals or
+beats the paper-sized student everywhere, including a level the larger
+one never passed. Combined with the hardware half (bit-identical on both
+engines at 3.065 ms), P1's risk questions are answered: the year-two
+network fits the engines, quantises cleanly, and loses nothing observable
+to its size under this training. Lifting absolute success (longer
+DAgger, recipe tuning) is year-two work, listed in the outline's future
+work. Artifacts: experiments/p1_distill/ (L3, L6, mid-training tables);
+checkpoints and logs on the GPU box under runs/fpga_student/.
