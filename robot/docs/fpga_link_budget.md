@@ -1,9 +1,10 @@
-# FPGA-in-the-loop link budget (from measured year-one numbers)
+# FPGA-in-the-loop link budget (sim-in-the-loop era, updated 2026-08-20)
 
-Written 2026-08-19. Decides-in-advance the R4 question: how does the
-ZedBoard join the robot's control loop, and does the loop close in time?
-All engine numbers below are MEASURED (BURST mode, timing-clean bitstreams);
-link numbers are computed from the protocol as implemented.
+Originally written for the physical robot; revised for the simulation
+pivot. Two changes of meaning: (1) the sim runs in LOCKSTEP, so a slow
+link cannot break the loop — it produces logged deadline misses instead
+(which is data); (2) the engine numbers at the ROBOT GEOMETRY are now
+simulated-verified, not extrapolated.
 
 ## The budget
 
@@ -13,14 +14,14 @@ literature runs perception at 10 Hz (100 ms) with control at 50 Hz using
 the latest latent. Two budgets to satisfy: 100 ms comfortable, 20 ms
 ambitious (the "exploit the camera's 90 fps" result the plan wants).
 
-## What the robot must ship to the FPGA per perception tick
+## What the sim ships to the FPGA per perception tick
 
-The robot-era network input is 48x64x2 binary spikes x T=4 timesteps
-(the project's target-network table) = 49,152 bits = 1,536 32-bit words in;
-C1-equivalent output back. NOTE: today's engines are built/verified at
-N-MNIST geometry (34x34x2); the engines are fully parameterised, so the
-retarget is a re-synthesis with new parameters + a retrained network —
-planned, not done.
+Event frames are 2x64x64 binary x T=4 (D0024; corrected from the older
+48x64 table) = 32,768 bits = 1,024 words in; C1 output back 16x32x32 x4 =
+2,048 words. The engines are verified at this geometry (synthetic AND
+real distilled weights); the board bitstream retarget is a parameter
+change + baked-weight regeneration, prepared in sim/ for the next Vivado
+session.
 
 ## Transport options, computed
 
@@ -38,15 +39,16 @@ first, then the framed protocol over UDP with the same CRC discipline).
 The robot side treats the FPGA as one more UDP peer on 192.168.123.x
 (Go1) or a DDS-adjacent raw-UDP peer (Go2) — either way plain sockets.
 
-## Compute inside the budget (measured)
+## Compute inside the budget (verified at the robot geometry, 2026-08-20)
 
-C1 at N-MNIST geometry: dense 4.41 ms, ED K=4 1.51 ms. Robot geometry is
-48x64 = 2.65x the pixels of 34x34: scaling the sweep+scatter linearly
-predicts ED K=4 ~4 ms/inference for C1, conv stack ~9-12 ms — inside 20 ms
-but not by much at 50 Hz perception; comfortable at 10-25 Hz. The
-pipelined-sweep and word-parallel-wrapper items on the "later" list are
-exactly the levers if 50 Hz perception is pursued. Energy per tick:
-[meter, then re-measure at robot geometry].
+At the ACTUAL year-two shape (2x64x64 -> 16x32x32; both engines
+bit-identical there, 1,048,576 comparisons, incl. with the distilled
+network's real quantised weights and real sim event frames at 6 %
+activity): C1 dense 13.79 ms; C1 ED K=4 3.06-3.21 ms. So per-C1-layer:
+ED K=4 fits 10 Hz (100 ms) and 25 Hz (40 ms) with big margin, fits 20 ms
+(50 Hz) for C1 alone; the full conv stack at 50 Hz needs the pipelined
+sweep or K=8/16 (both on the later list). Dense misses 20 ms per layer —
+which is itself the thesis point restated. Energy per tick: [meter].
 
 ## Power on the robot
 

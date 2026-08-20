@@ -67,3 +67,35 @@ def emit_inlined_ed_scatter_c1():
     open(os.path.join(REPO,'hdl','eventdriven','ed_scatter_c1.v'),'w').write(hdr+out)
     print('ed_scatter_c1.v: inlined (%d W_T entries)' % len(wt))
 emit_inlined_ed_scatter_c1()
+
+
+# --- r1 (robot-geometry) baked variants, generated only when the real-weight
+# vectors exist (P1). Same anchor-replacement approach as the c1 variants:
+# conv_layer_r1.v / ed_scatter_r1.v with the DISTILLED quantised weights
+# inlined, ready for the next Vivado session's 64x64 bitstream.
+def gen_r1():
+    wt_hex = os.path.join(REPO, 'sim', 'vectors', 'ed_r1_wt.hex')
+    w_hex = os.path.join(REPO, 'sim', 'vectors', 'conv_r1_w.hex')
+    if not (os.path.exists(wt_hex) and os.path.exists(w_hex)):
+        return
+    def hexvals(path):
+        return [l.strip() for l in open(path) if l.strip()]
+    src = open(os.path.join(REPO, 'hdl', 'dense', 'conv_layer.v')).read()
+    vals = hexvals(w_hex)
+    init = "    // DISTILLED r1 weights (P1), inlined -- no $readmemh\n    initial begin\n" + \
+        "".join("        wrom[%d] = 8'h%s;\n" % (i, v) for i, v in enumerate(vals)) + "    end\n"
+    src = src.replace("module conv_layer #(", "module conv_layer_r1 #(")
+    src = src.replace("    initial $readmemh(WEIGHT_FILE, wrom);\n", init)
+    open(os.path.join(REPO, 'hdl', 'dense', 'conv_layer_r1.v'), 'w').write(src)
+    src = open(os.path.join(REPO, 'hdl', 'eventdriven', 'ed_scatter.v')).read()
+    vals = hexvals(wt_hex)
+    init = "    // DISTILLED r1 W_T (P1), inlined -- no $readmemh\n    initial begin\n" + \
+        "".join("        wt[%d] = 8'h%s;\n" % (i, v) for i, v in enumerate(vals)) + "    end\n"
+    src = src.replace("module ed_scatter #(", "module ed_scatter_r1 #(")
+    src = src.replace("    initial $readmemh(WT_FILE, wt);\n", init)
+    open(os.path.join(REPO, 'hdl', 'eventdriven', 'ed_scatter_r1.v'), 'w').write(src)
+    print("conv_layer_r1.v / ed_scatter_r1.v: inlined (%d / %d entries)"
+          % (len(hexvals(w_hex)), len(vals)))
+
+
+gen_r1()

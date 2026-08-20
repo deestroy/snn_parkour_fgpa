@@ -2060,3 +2060,16 @@ its evaluation (scripts/evaluate_fpga.py, ready), the same export for
 C2/C3/FC, and the accuracy-after-quantisation check inside the task.
 Threshold plumbing (THRESH env) and a real-vs-synthetic switch (R1_REAL)
 added to the runners.
+
+### Board-retarget prep (2026-08-20 03:10) — r1 baked variants generated
+
+gen_weight_vh.py now also emits conv_layer_r1.v / ed_scatter_r1.v with the
+DISTILLED quantised c1 weights inlined (288 entries each), syntax-checked,
+regenerated whenever the real-weight r1 vectors exist. NOT yet selectable
+from ed_conv_layer/axis_conv (their baked branches name the c1 variants);
+wiring that selection is a 3-line generate change deliberately left for
+the actual board-retarget session, when the harness will be re-run around
+it — no churn of verified RTL for a build that is not imminent. Vivado
+customization for the 64x64 build, when it comes: C_IN=2 H_IN=64 W_IN=64
+C_OUT=16 H_OUT=32 W_OUT=32 THRESHOLD=16(=2^k from the final checkpoint's
+export), WORDS_IN 256/timestep, WORDS_OUT 512/timestep.

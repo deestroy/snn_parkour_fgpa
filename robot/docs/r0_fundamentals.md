@@ -1,4 +1,6 @@
-# R0 briefing: how a legged-robot control loop actually works
+# Control-loop fundamentals briefing (written for the physical-robot plan;
+# kept after the 2026-08-20 simulation pivot — the concepts transfer, the
+# hazards become experiment-integrity risks instead of physical ones)
 
 Written 2026-08-19 for the year-two start, per the year-two plan's
 explain-first list. Read before any robot session. Platform-agnostic —
