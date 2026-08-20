@@ -88,6 +88,13 @@ uses (2) or (3), never (1).
 
 ## Measurement boundary (C0004) — the sentence every table caption cites
 
+Worked example of why this matters (cite it, without editorialising):
+Harmeling et al., Neuromorph. Comput. Eng. 6, 024022 (2026) derive energy
+per digit from Vivado post-implementation estimation, "1.13 W (including
+the HUB75 display)" — every energy figure in their Table 3 has a 32x64
+LED matrix inside the boundary. Not sloppiness; the norm when the
+boundary is not decomposed.
+
 "Measured at the 12 V board input: the boundary encloses the whole
 ZedBoard — FPGA (PS+PL), DDR3, clocks, PHYs, OLED, LEDs and all regulator
 losses. Published accelerator figures are almost always die-only tool

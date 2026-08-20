@@ -2314,3 +2314,16 @@ statement, C0034 chained C1->C2 sim, C0010 scope sentence, C0011
 baseline table, C0012 DVS-Gesture (disk), C0023 T/bit-width sweeps,
 C0040 real-data energy sweep, C0041 wrapper attribution, C0042 metric
 mapping (S3+ wiring exists in perception_loop).
+
+### C-batch 2 (2026-08-20 16:15) — Harmeling et al. anchors landed
+
+corrections.md updated by review with Harmeling et al. (NCE 6, 024022,
+2026) material; actioned: the C0004 boundary worked example is in
+measure/dmm_protocol.md; docs/baseline_table.md now exists (C0011
+skeleton — Harmeling row transcribed from the review, OUR two rows from
+measured data, remaining rows are [fill]-marked awaiting transcription
+from the papers, never from memory; comparability trap stated); the
+C0022-addendum gap quotes and the C0043 neuron-model cost table live in
+the same doc for the thesis's related-work section. C0023's T/bit-width
+sweeps now name Harmeling tables 3/5 as their published comparison
+points (sweeps themselves still need builds + meter).
