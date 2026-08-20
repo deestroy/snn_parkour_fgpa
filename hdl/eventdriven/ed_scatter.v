@@ -39,6 +39,13 @@
 
 `default_nettype none
 
+// use_dsp="no": any remaining variable-x-constant multiply (all address
+// bookkeeping, all register-to-register with a full cycle to settle) is
+// built from fabric logic, not a DSP48. The datapath itself has no
+// multiplies -- spikes are binary, the leak is a shift (D0007) -- so the
+// engines' DSP count is zero BY CONSTRUCTION, and the utilization report
+// now checks that property instead of hiding it.
+(* use_dsp = "no" *)
 module ed_scatter #(
     parameter C_IN  = 2,  H_IN  = 34, W_IN  = 34,
     parameter C_OUT = 16, H_OUT = 17, W_OUT = 17,

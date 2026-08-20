@@ -1828,3 +1828,18 @@ AXIS dense hostile + ED K=4 hostile, lint clean, and the per-sample cycle
 count asserted EXACTLY 436,247 on all 16 samples — the fix changes wiring,
 not behaviour or latency. conv_layer_c1.v regenerated. Board rebuild
 pending; the pre-write rule (WNS >= 0) now applies to both engines.
+
+### 2026-08-19 22:10 — use_dsp="no" on both engines: DSP count is now a checked property
+
+Answering "why do we have 2 DSPs at all": the datapath never needed any
+(binary spikes -> adds; shift leak; compares). Every DSP in every build was
+Vivado mapping a variable-x-constant in my ADDRESS arithmetic onto a DSP48
+-- and at 3.8 ns per traversal they were the timing problem, not a help.
+The stepped-register fixes removed most; `(* use_dsp = "no" *)` on
+ed_scatter and conv_layer (and the generated _c1 variants) now forbids the
+rest (the ED sweep-port translation (oc/K)*HW+pos and the per-spike off_r/
+wt_row init -- 2-to-5-bit operands, register-to-register, comfortably fabric
+logic). Expected utilization after the next builds: DSP = 0 for BOTH
+engines; anything else in the report is a flag. Harness re-run after the
+attribute: scatter K=1/K=4, engine K=4, dense c1, AXIS both, lint -- all
+bit-identical/clean, cycle counts unchanged (76/22 per spike).
