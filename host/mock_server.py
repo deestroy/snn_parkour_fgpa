@@ -46,6 +46,7 @@ class MockConvServer:
     def __init__(self):
         self.golden = GoldenNetwork()
         self.last_out = None          # BURST replays the last RUN_CONV
+        self.loaded = []              # outputs of loaded samples, in order (C0018)
 
     def run_conv(self, words: np.ndarray) -> np.ndarray:
         assert words.size == T * WORDS_IN
@@ -80,24 +81,31 @@ class MockConvServer:
                     link.send(RSP_ERR, np.array([3], "<u4"))
                 else:
                     self.last_out = self.run_conv(words)
+                    self.loaded.append(self.last_out)
+                    self.loaded = self.loaded[-16:]
                     link.send(CMD_RUN_CONV | RSP_OK, self.last_out)
             elif cmd == CMD_BURST:
-                if words.size != 1 or int(words[0]) == 0:
+                if words.size not in (1, 2) or int(words[0]) == 0:
                     link.send(RSP_ERR, np.array([3], "<u4"))
                 elif self.last_out is None:
                     link.send(RSP_ERR, np.array([6], "<u4"))
                 else:
-                    # the mock does not re-run N times: it is deterministic by
-                    # construction, so mismatches = 0; it reports the ticks the
-                    # fabric would plausibly take, so the client's arithmetic
-                    # and checks are exercised end to end
+                    # deterministic by construction -> mismatches = 0; sleeps
+                    # for the time it claims so the wall-clock cross-check is
+                    # exercised. Sweep mode: crc_last is the LAST iteration's
+                    # sample, i.e. sample (n-1) mod len(loaded).
                     n = int(words[0])
+                    sweep = words.size == 2 and int(words[1]) == 1
                     import time
-                    time.sleep(n * self.MOCK_LATENCY_S)   # take the time it claims
+                    time.sleep(n * self.MOCK_LATENCY_S)
                     ticks = int(n * self.MOCK_LATENCY_S * self.MOCK_TICKS_PER_S)
+                    if sweep and self.loaded:
+                        out = self.loaded[(n - 1) % len(self.loaded)]
+                    else:
+                        out = self.last_out
                     rep = np.array([n, ticks & 0xFFFFFFFF, ticks >> 32,
                                     self.MOCK_TICKS_PER_S, 0,
-                                    crc_words(self.last_out)], "<u4")
+                                    crc_words(out)], "<u4")
                     link.send(CMD_BURST | RSP_OK, rep)
             else:
                 link.send(RSP_ERR, np.array([1], "<u4"))
@@ -133,6 +141,7 @@ def selftest() -> int:
     link = Link(client_end)
     ok = run_samples(link, label="mock (golden model)")
     ok = run_burst(link, n=400, sample=0, label="mock") and ok
+    ok = run_burst(link, n=100, label="mock", sweep=True, preload=list(range(16))) and ok
     return 0 if ok else 1
 
 

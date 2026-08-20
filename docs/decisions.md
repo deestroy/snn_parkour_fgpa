@@ -2255,3 +2255,18 @@ of 81 % for the built network is corrected by this entry.
 | FC | 768->128 | 256->128 | 1024->34 |
 | params | 121,632 | ~56,096 | 58,178 |
 | weights+membranes | 161 KB | ~73 KB dense / ~91 KB ED | ~114 KB / ~172 KB |
+
+### C0018 resolved (2026-08-20 16:15) — BURST sweep mode
+
+conv_server BUILD_ID 3: the server keeps up to 16 loaded samples (each
+RUN_CONV appends); BURST accepts [N] (classic single-sample replay, kept
+for latency work) or [N, 1] (SWEEP: iteration i runs sample i mod
+n_loaded, so the metered window covers the input distribution and the DMA
+sees varying data). Determinism check is now per-sample CRC against that
+sample's first iteration. State between iterations documented in
+host/protocol.md: membranes are cleared at each sample start by the
+wrapper's own S_CLR, identical for both engines. Client: --burst-sweep
+preloads all 16 and verifies the last iteration's CRC; mock exercises the
+whole path (selftest green). The meter session's energy figure is now a
+distribution over samples by construction. Untested on the board until
+the next Vitis rebuild (BUILD_ID must read 3).

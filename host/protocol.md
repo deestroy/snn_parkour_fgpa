@@ -34,9 +34,19 @@ sending anything.
 
 ## BURST (0x03) — M5/M7 measurement mode
 
-Request payload: 1 word, N (iterations, 1..2^32-1). Precondition: a
-RUN_CONV has completed, so the board's input buffer already holds a
-sample. The board runs THAT sample through DMA + engine N times back to
+Request payload: 1 word [N] (classic: replay the LAST sample N times) or
+2 words [N, 1] (SWEEP, C0018: cycle through ALL loaded samples,
+iteration i runs sample i mod n_loaded — the measured power is then the
+input distribution's, not one sample's). The server holds up to 16
+samples, appended by each RUN_CONV. Precondition: at least one RUN_CONV
+has completed.
+
+State between iterations: the engine's membranes are NOT cleared between
+burst iterations (the wrapper's per-sample S_CLR runs at each sample
+START inside the engine stream: every iteration begins with the same
+clear the golden model performs per sample). `mismatches` counts
+iterations whose output CRC differed from the FIRST iteration of the
+same sample — determinism per sample, identical for both engines. The board runs THAT sample through DMA + engine N times back to
 back with no UART traffic, timing the whole loop with the Cortex-A9 global
 timer, then replies (0x83) with 6 words:
 
@@ -46,7 +56,7 @@ timer, then replies (0x83) with 6 words:
 | 1 | ticks_lo | elapsed timer ticks, low 32 |
 | 2 | ticks_hi | elapsed timer ticks, high 32 |
 | 3 | ticks_per_s | timer frequency (COUNTS_PER_SECOND; 333,333,333 on the ZedBoard) |
-| 4 | mismatches | iterations whose output words differed from iteration 1 |
+| 4 | mismatches | iterations whose output CRC differed from that sample's first iteration |
 | 5 | crc32_last | CRC-32 (zlib) of the last iteration's output words |
 
 Why it exists. During RUN_CONV the engine is busy for microseconds per

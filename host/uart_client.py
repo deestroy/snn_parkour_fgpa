@@ -62,7 +62,8 @@ def run_samples(link: Link, label: str = "board") -> bool:
     return False
 
 
-def run_burst(link: Link, n: int, sample: int = 0, label: str = "board") -> bool:
+def run_burst(link: Link, n: int, sample: int = 0, label: str = "board",
+              sweep: bool = False, preload=None) -> bool:
     """M5/M7 measurement mode: load ONE golden sample, then have the board
     replay it n times back to back (protocol.md BURST). Verifies the last
     output's CRC against golden and that every iteration matched the first,
@@ -70,22 +71,26 @@ def run_burst(link: Link, n: int, sample: int = 0, label: str = "board") -> bool
     burst runs -- choose n for the duration the meter needs."""
     d = np.load(DATA)
     tx, rx = d["tx_words"], d["rx_words"]
-    got = link.call(CMD_RUN_CONV, tx[sample])
-    if got.size != rx.shape[1] or int((got != rx[sample]).sum()):
-        print("[%s] burst: sample %d did not match golden on load" % (label, sample))
-        return False
+    load = preload if preload is not None else [sample]
+    for s_i in load:
+        got = link.call(CMD_RUN_CONV, tx[s_i])
+        if got.size != rx.shape[1] or int((got != rx[s_i]).sum()):
+            print("[%s] burst: sample %d did not match golden on load" % (label, s_i))
+            return False
     est = 5e-3 * n                       # generous timeout: 5 ms/inference
     old = getattr(link.s, "timeout", None)
     if old is not None:
         link.s.timeout = max(old, est + 5.0)
     try:
         t0 = time.time()
-        r = BurstResult(link.call(CMD_BURST, np.array([n], "<u4")))
+        payload = np.array([n, 1], "<u4") if sweep else np.array([n], "<u4")
+        r = BurstResult(link.call(CMD_BURST, payload))
         wall = time.time() - t0
     finally:
         if old is not None:
             link.s.timeout = old
-    ok = (r.n == n and r.mismatches == 0 and r.crc_last == crc_words(rx[sample]))
+    exp_last = rx[load[(n - 1) % len(load)]] if sweep else rx[sample]
+    ok = (r.n == n and r.mismatches == 0 and r.crc_last == crc_words(exp_last))
     print("[%s] BURST sample %d: %s%s" % (label, sample, r,
           "" if ok else "  <-- CHECK FAILED (n/mismatch/crc)"))
     # the board's tick rate is a constant in conv_server.c; wall-clock on
@@ -104,6 +109,8 @@ def main() -> int:
     ap.add_argument("--burst", type=int, default=0,
                     help="after the 16-sample check, replay sample --sample N times and report latency")
     ap.add_argument("--sample", type=int, default=0)
+    ap.add_argument("--burst-sweep", action="store_true",
+                    help="cycle ALL 16 samples during the burst (C0018)")
     ap.add_argument("--burst-only", action="store_true",
                     help="skip the 16-sample check (meter runs)")
     args = ap.parse_args()
@@ -116,7 +123,9 @@ def main() -> int:
         if ok:
             print("M4's done-when is met: correct results back from real hardware.")
     if ok and args.burst:
-        ok = run_burst(link, n=args.burst, sample=args.sample, label="board")
+        ok = run_burst(link, n=args.burst, sample=args.sample, label="board",
+                       sweep=args.burst_sweep,
+                       preload=list(range(16)) if args.burst_sweep else None)
     return 0 if ok else 1
 
 

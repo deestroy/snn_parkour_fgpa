@@ -27,7 +27,7 @@
 #include "xstatus.h"
 
 /* ---------------------------------------------------------------- config */
-#define BUILD_ID       0x00000002u              /* 2: BURST command (2026-08-19) */
+#define BUILD_ID       0x00000003u              /* 3: BURST sweep mode, C0018 (2026-08-20) */
 #define CAP_WORDS      65535u                   /* per direction; DDR-resident. 65535 = max the 16-bit n_words field can carry */
 #define TIMEOUT_LOOP   (50000000u)
 
@@ -123,9 +123,14 @@ static uint32_t crc_word(uint32_t crc, uint32_t w) {
 /* ---------------------------------------------------------------- frames */
 static uint32_t rx_words[CAP_WORDS] __attribute__((aligned(64)));
 static uint32_t tx_words[CAP_WORDS] __attribute__((aligned(64)));
-/* BURST replays the last RUN_CONV sample. Every request's payload lands in
- * rx_words, so the sample lives in its own buffer, copied at RUN_CONV. */
-static uint32_t sample_words[REQ_WORDS] __attribute__((aligned(64)));
+/* BURST replays loaded samples. Every request's payload lands in rx_words,
+ * so samples live in their own store, appended at RUN_CONV (up to 16; a
+ * 17th RUN_CONV wraps to slot 0). C0018: sweep mode cycles the whole set
+ * so the measured power is the input distribution's, not one sample's. */
+#define MAX_SAMPLES 16u
+static uint32_t sample_words[MAX_SAMPLES][REQ_WORDS] __attribute__((aligned(64)));
+static uint32_t n_samples = 0;   /* how many slots hold data */
+static uint32_t s_next = 0;      /* next slot to fill */
 static uint32_t ref_words[RSP_WORDS];
 static int      have_sample = 0;
 static XAxiDma dma;
@@ -191,9 +196,12 @@ static int one_pass(const uint32_t *src) {
 
 static int run_conv(uint32_t n_in) {
     if (n_in != REQ_WORDS) { send_error(ERR_NWORDS); return -1; }
-    for (uint32_t k = 0; k < REQ_WORDS; k++) sample_words[k] = rx_words[k];
-    Xil_DCacheFlushRange((UINTPTR)sample_words, REQ_WORDS * 4);
-    int e = one_pass(sample_words);
+    uint32_t slot = s_next;
+    for (uint32_t k = 0; k < REQ_WORDS; k++) sample_words[slot][k] = rx_words[k];
+    Xil_DCacheFlushRange((UINTPTR)sample_words[slot], REQ_WORDS * 4);
+    s_next = (s_next + 1) % MAX_SAMPLES;
+    if (n_samples < MAX_SAMPLES) n_samples++;
+    int e = one_pass(sample_words[slot]);
     if (e) { send_error((uint32_t)e); return -1; }
     send_frame(CMD_RUN_CONV | RSP_OK_BIT, tx_words, RSP_WORDS);
     have_sample = 1;
@@ -205,22 +213,31 @@ static int run_conv(uint32_t n_in) {
  * the global timer, check every iteration reproduces iteration 1's output
  * words, and report N, ticks, tick rate, mismatches, CRC of the last output. */
 static int run_burst(uint32_t n_in) {
-    if (n_in != 1) { send_error(ERR_NWORDS); return -1; }
+    /* payload: [N] = classic single-sample replay of the LAST sample;
+     * [N, 1] = SWEEP mode (C0018): cycle through all loaded samples,
+     * i -> sample i mod n_samples. mism then counts iterations whose
+     * output differed from the FIRST iteration of the SAME sample. */
+    if (n_in != 1 && n_in != 2) { send_error(ERR_NWORDS); return -1; }
     if (!have_sample) { send_error(ERR_NO_SAMPLE); return -1; }
     uint32_t iters = rx_words[0];
+    uint32_t sweep = (n_in == 2) ? rx_words[1] : 0;
+    uint32_t nset = sweep ? n_samples : 1;
+    uint32_t last = (s_next + MAX_SAMPLES - 1) % MAX_SAMPLES;
     if (iters == 0) { send_error(ERR_NWORDS); return -1; }
+    static uint32_t ref_crc[MAX_SAMPLES];
+    uint8_t have_ref[MAX_SAMPLES] = {0};
     uint32_t mism = 0, done = 0;
     uint64_t t0 = gt_read(), t1;
     for (uint32_t i = 0; i < iters; i++) {
-        int e = one_pass(sample_words);
+        uint32_t si = sweep ? (i % nset) : last;
+        int e = one_pass(sample_words[si]);
         if (e) { send_error((uint32_t)e); return -1; }
         done++;
-        if (i == 0) {
-            for (uint32_t k = 0; k < RSP_WORDS; k++) ref_words[k] = tx_words[k];
-        } else {
-            for (uint32_t k = 0; k < RSP_WORDS; k++)
-                if (tx_words[k] != ref_words[k]) { mism++; break; }
-        }
+        uint32_t c = 0;
+        for (uint32_t k = 0; k < RSP_WORDS; k++) c = crc_word(c, tx_words[k]);
+        if (!have_ref[si]) { ref_crc[si] = c; have_ref[si] = 1; }
+        else if (c != ref_crc[si]) mism++;
+        (void)ref_words;
     }
     t1 = gt_read();
     uint64_t ticks = t1 - t0;
