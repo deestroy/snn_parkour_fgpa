@@ -26,9 +26,13 @@ module tb_conv_p;
 
     reg clk = 0, rst = 1, clear = 0, start = 0;
     wire busy, done;
-    reg in_we = 0;
-    reg [$clog2(IN_BITS)-1:0] in_addr = 0;
-    reg in_data = 0;
+    localparam WORDS_IN = (IN_BITS + 31) / 32;
+    reg in_w_we = 0;
+    reg [$clog2(WORDS_IN)-1:0] in_w_addr = 0;
+    reg [31:0] in_w_data = 0;
+    reg [$clog2((NEURONS+31)/32)-1:0] out_w_addr = 0;
+    wire [31:0] out_w_data;
+    integer wi, bi, base_w;
     reg [$clog2(NEURONS)-1:0] out_addr = 0;
     wire out_data;
     reg [$clog2(NEURONS)-1:0] v_addr = 0;
@@ -43,7 +47,8 @@ module tb_conv_p;
     ) dut (
         .clk(clk), .rst(rst), .clear(clear), .start(start),
         .busy(busy), .done(done),
-        .in_we(in_we), .in_addr(in_addr), .in_data(in_data),
+        .in_w_we(in_w_we), .in_w_addr(in_w_addr), .in_w_data(in_w_data),
+        .out_w_addr(out_w_addr), .out_w_data(out_w_data),
         .out_addr(out_addr), .out_data(out_data),
         .v_addr(v_addr), .v_data(v_data)
     );
@@ -85,13 +90,16 @@ module tb_conv_p;
             wait_done;
 
             for (t = 0; t < T; t = t + 1) begin
-                // fill the input spike buffer for this timestep
-                for (i = 0; i < IN_BITS; i = i + 1) begin
+                // fill the input buffer, one packed WORD per cycle (C0035)
+                for (wi = 0; wi < WORDS_IN; wi = wi + 1) begin
                     @(negedge clk);
-                    in_we = 1; in_addr = i[$clog2(IN_BITS)-1:0];
-                    in_data = in_bits[(s*T + t)*IN_BITS + i];
+                    in_w_we = 1; in_w_addr = wi[$clog2(WORDS_IN)-1:0];
+                    in_w_data = 32'b0;
+                    for (bi = 0; bi < 32; bi = bi + 1)
+                        if (wi*32 + bi < IN_BITS)
+                            in_w_data[bi] = in_bits[(s*T + t)*IN_BITS + wi*32 + bi];
                 end
-                @(negedge clk) in_we = 0;
+                @(negedge clk) in_w_we = 0;
 
                 @(negedge clk) start = 1;
                 @(negedge clk) start = 0;
@@ -100,7 +108,7 @@ module tb_conv_p;
                 cyc_total = cyc_total + ($time - t0) / 10;
 
                 // compare every neuron's spike and membrane
-                base = (s*T + t)*NEURONS;
+                base = (s*T + t)*NEURONS; base_w = base;
                 for (i = 0; i < NEURONS; i = i + 1) begin
                     // registered read ports (D0012): address at one edge,
                     // data valid after the next
@@ -117,6 +125,23 @@ module tb_conv_p;
                                      s, t, i, out_data, exp_s[base+i],
                                      v_data, $signed(exp_v[base+i]));
                     end
+                end
+
+                // C0035: the WORD output file must agree with golden too
+                for (wi = 0; wi < (NEURONS+31)/32; wi = wi + 1) begin
+                    @(negedge clk);
+                    out_w_addr = wi[$clog2((NEURONS+31)/32)-1:0];
+                    @(posedge clk); #1;
+                    for (bi = 0; bi < 32; bi = bi + 1)
+                        if (wi*32 + bi < NEURONS) begin
+                            checked = checked + 1;
+                            if (out_w_data[bi] !== exp_s[base_w + wi*32 + bi]) begin
+                                fails = fails + 1;
+                                if (fails <= 5)
+                                    $display("MISMATCH word-port s %0d t %0d bit %0d",
+                                             s, t, wi*32 + bi);
+                            end
+                        end
                 end
             end
         end

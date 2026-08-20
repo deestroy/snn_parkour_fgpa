@@ -29,7 +29,8 @@ module axis_conv_top #(
     parameter ENGINE = 0,
     parameter ED_K = 4,
     parameter WT_FILE = "ed_c1_wt.hex",
-    parameter N_ENGINES = 1   // C0003: engine replication for metering
+    parameter N_ENGINES = 1,  // C0003: engine replication for metering
+    parameter DENSE_P = 1     // C0029/C0035: dense lanes (P == ED_K is matched)
 ) (
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 aclk CLK",
        X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF s_axis:m_axis, ASSOCIATED_RESET aresetn" *)
@@ -65,7 +66,7 @@ module axis_conv_top #(
             .C_OUT(16), .H_OUT(17), .W_OUT(17),
             .T(4), .THRESHOLD(64),
             .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(BAKED_WEIGHTS),
-            .ENGINE(ENGINE), .ED_K(ED_K), .WT_FILE(WT_FILE)
+            .ENGINE(ENGINE), .ED_K(ED_K), .WT_FILE(WT_FILE), .DENSE_P(DENSE_P)
         ) core (
             .clk(aclk), .rst(~aresetn),
             .s_axis_tdata(s_axis_tdata), .s_axis_tvalid(s_axis_tvalid),

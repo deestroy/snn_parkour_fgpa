@@ -1,25 +1,28 @@
-// AXI-Stream wrapper around the dense conv engine.
+// AXI-Stream wrapper around the conv engines — WORD-PARALLEL (C0035).
 //
-// Translates between the DMA's dialect (32-bit words, tvalid/tready
-// handshake, tlast framing) and the engine's (1-bit spike writes, clear/
-// start pulses, done). Per sample:
+// The original wrapper unpacked and packed ONE BIT PER CYCLE (~28k bits of
+// serial traffic per sample, 39-48k cycles) and had become the binding
+// constraint on every parallelism sweep. This version moves words:
 //
-//   clear membranes
-//   for t in 0..T-1:
-//       receive WORDS_IN words, unpack LSB-first into the spike buffer
-//       run the engine for one timestep
-//       read NEURONS spike bits, pack LSB-first, send WORDS_OUT words
-//   (tlast on the final word of the final timestep)
+//   dense (ENGINE=0, conv_layer_p with DENSE_P lanes): each accepted input
+//     word is written STRAIGHT into the engine's word-organised input RAM
+//     (one word per cycle); output words are read back through the
+//     engine's word port (one word per ~3 cycles).
+//   event-driven (ENGINE=1, ed_conv_layer): spike pushes are inherently
+//     per-spike, but zero words are skipped in one cycle and each nonzero
+//     word's scan stops at its last set bit; the field counters resync
+//     from a WORD-BASE ROM (elaboration-time constants — no dividers).
+//     Output words come from the same word port as dense.
 //
-// Word <-> bit mapping, both directions: flat index = word*32 + bit, i.e.
-// bit 0 of the first word is flat address 0. The host packs with
-// numpy packbits(bitorder='little') -- host/conv_test.py and the testbench
-// exporter must agree with this line, and the testbench checks they do.
+// Per sample: clear; for t in 0..T-1: receive WORDS_IN words, run, send
+// WORDS_OUT words; tlast on the final word of the final timestep. Word <->
+// bit mapping unchanged: flat = word*32 + bit (numpy packbits little).
 //
-// Streaming the spike map after EVERY timestep is deliberate: hardware
-// verification keeps the same per-timestep granularity as the golden model.
+// BAKED_WEIGHTS: honoured on the ED path (ed_scatter_c1). The dense path
+// now instantiates conv_layer_p, which has NO baked variant yet — board
+// builds of ENGINE=0 need one generated first (recorded in decisions.md).
 //
-// UNVERIFIED until sim/run_axis_tb.sh passes. Never synthesised.
+// UNVERIFIED until sim/run_axis_tb.sh passes for dense, ED K=1 and ED K=4.
 
 `default_nettype none
 
@@ -30,11 +33,8 @@ module axis_conv #(
     parameter signed [15:0] THRESHOLD = 64,
     parameter WEIGHT_FILE = "sim/vectors/conv_c1_w.hex",
     parameter BAKED_WEIGHTS = 0,
-    // ENGINE: 0 = dense conv_layer (M3/M4);  1 = event-driven ed_conv_layer
-    // (M6). Same framing, same words in and out -- the two designs are
-    // interchangeable behind this wrapper, which is what makes M7's
-    // comparison honest. ED_K = banks for the event-driven engine.
-    parameter ENGINE = 0,
+    parameter ENGINE = 0,          // 0 dense (conv_layer_p), 1 event-driven
+    parameter DENSE_P = 1,         // dense lanes; P == ED_K is matched parallelism
     parameter ED_K = 1,
     parameter WT_FILE = "sim/vectors/ed_c1_wt.hex",
     parameter IN_BITS    = C_IN * H_IN * W_IN,
@@ -45,42 +45,45 @@ module axis_conv #(
     input  wire        clk,
     input  wire        rst,
 
-    // slave stream: packed input spikes from the DMA (MM2S)
     input  wire [31:0] s_axis_tdata,
     input  wire        s_axis_tvalid,
     output wire        s_axis_tready,
     input  wire        s_axis_tlast,   // accepted but not required
 
-    // master stream: packed output spikes to the DMA (S2MM)
     output reg  [31:0] m_axis_tdata,
     output reg         m_axis_tvalid,
     input  wire        m_axis_tready,
     output reg         m_axis_tlast
 );
 
-    // --- the verified engine ---------------------------------------------
+    // --- engine ----------------------------------------------------------
     reg                          eng_clear, eng_start;
     wire                         eng_busy, eng_done;
-    reg                          in_we;
-    reg  [$clog2(IN_BITS)-1:0]   in_addr;
-    reg                          in_bit;
-    wire [$clog2(NEURONS)-1:0]   out_addr;
-    wire                         out_bit;
-    wire signed [15:0]           v_unused;
-    // Vivado's block-design RTL importer dislikes {$clog2(N){1'b0}} in a
-    // port connection; a plainly-typed zero wire is the same thing.
-    wire [$clog2(NEURONS)-1:0]   v_addr_zero = 0;
+    wire [31:0]                  out_w_data;
+    reg  [$clog2(WORDS_OUT)-1:0] tx_words;
+    wire [$clog2(WORDS_OUT)-1:0] out_w_addr = tx_words;
 
-    // event-driven engine takes spike ADDRESS pushes, not bit writes -- and
-    // the address is FIELDS {ic, iy, ix} (D0020 rev 2), which the unpacker
-    // keeps as three counters walking in lockstep with the flat bit index.
+    // dense word-load port
+    reg                          in_w_we;
+    reg  [$clog2(WORDS_IN)-1:0]  in_w_addr;
+    reg  [31:0]                  in_w_data;
+
+    // event-driven spike push (fields, D0020 rev 2)
     localparam IC_W = (C_IN > 1) ? $clog2(C_IN) : 1;
     localparam IY_W = $clog2(H_IN), IX_W = $clog2(W_IN);
     reg                          spk_we;
     reg  [IC_W-1:0]              u_ic;
     reg  [IY_W-1:0]              u_iy;
     reg  [IX_W-1:0]              u_ix;
-    reg  [IC_W+IY_W+IX_W-1:0]    spk_addr_f;
+    reg  [IC_W+IY_W+IX_W-1:0]    spk_addr_f;   // registered WITH spk_we: the
+                                               // fields must belong to the bit
+                                               // being pushed, not the advanced
+                                               // counters (off-by-one otherwise)
+
+    wire [$clog2(NEURONS)-1:0]   out_addr_zero = 0;
+    wire                         out_unused;
+    wire signed [15:0]           v_unused;
+    wire [$clog2(NEURONS)-1:0]   v_addr_zero = 0;
 
     generate if (ENGINE == 1) begin : g_ed
         ed_conv_layer #(
@@ -92,67 +95,59 @@ module axis_conv #(
             .clk(clk), .rst(rst),
             .clear(eng_clear), .spk_we(spk_we), .spk_addr(spk_addr_f),
             .start(eng_start), .busy(eng_busy), .done(eng_done),
-            .out_addr(out_addr), .out_data(out_bit),
+            .out_addr(out_addr_zero), .out_data(out_unused),
+            .out_w_addr(out_w_addr), .out_w_data(out_w_data),
             .v_addr(v_addr_zero), .v_data(v_unused)
         );
-    end else
-    // BAKED_WEIGHTS=1 (synthesis): conv_layer_c1, the generated variant with
-    // the conv1 table inlined -- no include, no $readmemh, nothing for Vivado
-    // to lose. BAKED_WEIGHTS=0 (simulation of any layer): conv_layer + hex.
-    if (BAKED_WEIGHTS) begin : g_baked
-        conv_layer_c1 #(
+    end else begin : g_dn
+        conv_layer_p #(
             .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
             .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
-            .THRESHOLD(THRESHOLD)
+            .P(DENSE_P), .THRESHOLD(THRESHOLD), .WEIGHT_FILE(WEIGHT_FILE)
         ) engine (
             .clk(clk), .rst(rst),
             .clear(eng_clear), .start(eng_start),
             .busy(eng_busy), .done(eng_done),
-            .in_we(in_we), .in_addr(in_addr), .in_data(in_bit),
-            .out_addr(out_addr), .out_data(out_bit),
-            .v_addr(v_addr_zero), .v_data(v_unused)
-        );
-    end else begin : g_file
-        conv_layer #(
-            .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
-            .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
-            .THRESHOLD(THRESHOLD), .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(0)
-        ) engine (
-            .clk(clk), .rst(rst),
-            .clear(eng_clear), .start(eng_start),
-            .busy(eng_busy), .done(eng_done),
-            .in_we(in_we), .in_addr(in_addr), .in_data(in_bit),
-            .out_addr(out_addr), .out_data(out_bit),
+            .in_w_we(in_w_we), .in_w_addr(in_w_addr), .in_w_data(in_w_data),
+            .out_addr(out_addr_zero), .out_data(out_unused),
+            .out_w_addr(out_w_addr), .out_w_data(out_w_data),
             .v_addr(v_addr_zero), .v_data(v_unused)
         );
     end endgenerate
+
+    // --- word-base field ROM (ED): fields of flat bit w*32, computed at
+    //     elaboration (the / and % below run once at time zero, never in
+    //     hardware) -----------------------------------------------------
+    reg [IC_W-1:0] wb_ic [0:WORDS_IN-1];
+    reg [IY_W-1:0] wb_iy [0:WORDS_IN-1];
+    reg [IX_W-1:0] wb_ix [0:WORDS_IN-1];
+    integer wi_, base_;
+    initial begin
+        for (wi_ = 0; wi_ < WORDS_IN; wi_ = wi_ + 1) begin
+            base_ = wi_ * 32;
+            wb_ic[wi_] = base_ / (H_IN * W_IN);
+            wb_iy[wi_] = (base_ % (H_IN * W_IN)) / W_IN;
+            wb_ix[wi_] = base_ % W_IN;
+        end
+    end
 
     // --- wrapper FSM ------------------------------------------------------
     localparam S_CLR = 0, S_CLRW = 1, S_RX = 2, S_UNPACK = 3,
                S_GO = 4, S_RUNW = 5, S_TXRD = 6, S_TXCAP = 7, S_TXSEND = 8;
     reg [3:0] state;
 
-    reg [31:0] shift;                       // rx unpack register
-    reg [31:0] word_acc;                    // tx pack register
-    reg [5:0]  bit_cnt;                     // 0..32 within a word
-    reg [$clog2(IN_BITS+1)-1:0]  rx_bits;   // flat input bit index
-    reg [$clog2(NEURONS+1)-1:0]  tx_bits;   // flat output bit index
-    reg [$clog2(WORDS_OUT+1)-1:0] tx_words;
+    reg [31:0] shift;                       // ED scan register
+    reg [5:0]  bit_cnt;
+    reg [$clog2(WORDS_IN+1)-1:0]  rx_words;
     reg [$clog2(T+1)-1:0] t_step;
 
     assign s_axis_tready = (state == S_RX);
 
-    // Address the engine's registered read port combinationally from the
-    // bit counter: the engine captures out_mem[tx_bits] during S_TXRD and
-    // out_bit is valid in S_TXCAP -- exactly one cycle of latency. (A
-    // registered address here would make it two and skew every bit.)
-    assign out_addr = tx_bits[$clog2(NEURONS)-1:0];
-
     always @(posedge clk) begin
         eng_clear <= 1'b0;
         eng_start <= 1'b0;
-        in_we     <= 1'b0;
         spk_we    <= 1'b0;
+        in_w_we   <= 1'b0;
 
         if (rst) begin
             state <= S_CLR;
@@ -160,44 +155,57 @@ module axis_conv #(
             m_axis_tlast  <= 1'b0;
         end else case (state)
 
-        S_CLR: begin                       // new sample: zero the membranes
+        S_CLR: begin
             eng_clear <= 1'b1;
             t_step <= 0;
-            rx_bits <= 0; u_ic <= 0; u_iy <= 0; u_ix <= 0;
+            rx_words <= 0;
             state <= S_CLRW;
         end
 
         S_CLRW: if (eng_done) state <= S_RX;
 
-        S_RX: if (s_axis_tvalid) begin     // one word accepted this cycle
-            shift <= s_axis_tdata;
-            bit_cnt <= 0;
-            state <= S_UNPACK;
+        S_RX: if (s_axis_tvalid) begin      // one word accepted this cycle
+            if (ENGINE == 0) begin
+                // dense: the word goes straight into the engine's input RAM
+                in_w_we   <= 1'b1;
+                in_w_addr <= rx_words[$clog2(WORDS_IN)-1:0];
+                in_w_data <= s_axis_tdata;
+                if (rx_words == WORDS_IN-1) state <= S_GO;
+                else rx_words <= rx_words + 1;
+            end else begin
+                // event-driven: scan only nonzero words; zero words cost
+                // this single accept cycle
+                if (s_axis_tdata == 32'b0) begin
+                    if (rx_words == WORDS_IN-1) state <= S_GO;
+                    else rx_words <= rx_words + 1;
+                end else begin
+                    shift  <= s_axis_tdata;
+                    u_ic <= wb_ic[rx_words[$clog2(WORDS_IN)-1:0]];
+                    u_iy <= wb_iy[rx_words[$clog2(WORDS_IN)-1:0]];
+                    u_ix <= wb_ix[rx_words[$clog2(WORDS_IN)-1:0]];
+                    bit_cnt <= 0;
+                    state <= S_UNPACK;
+                end
+            end
         end
 
-        S_UNPACK: begin                    // 1 bit -> spike buffer per cycle
-            if (rx_bits < IN_BITS) begin
-                in_we   <= 1'b1;                    // dense: write every bit
-                spk_we  <= shift[0];                // event-driven: push only the 1s
-                in_addr <= rx_bits[$clog2(IN_BITS)-1:0];
-                spk_addr_f <= {u_ic, u_iy, u_ix};   // same bit, as fields
-                in_bit  <= shift[0];
-                rx_bits <= rx_bits + 1;
-                if (u_ix == W_IN-1) begin
-                    u_ix <= 0;
-                    if (u_iy == H_IN-1) begin u_iy <= 0; u_ic <= u_ic + 1; end
-                    else u_iy <= u_iy + 1;
-                end else u_ix <= u_ix + 1;
-            end
+        S_UNPACK: begin                     // ED only: push set bits; stop at
+                                            // the word's last set bit
+            spk_we <= shift[0];
+            spk_addr_f <= {u_ic, u_iy, u_ix};   // capture with the bit
             shift <= {1'b0, shift[31:1]};
             bit_cnt <= bit_cnt + 1;
-            if (bit_cnt == 31 || rx_bits >= IN_BITS - 1) begin
-                if (rx_bits >= IN_BITS - 1 && !(rx_bits < IN_BITS))
-                    state <= S_GO;                    // padding word done
-                else if (rx_bits == IN_BITS - 1)
-                    state <= S_GO;                    // last real bit now
-                else
-                    state <= S_RX;                    // next word please
+            // advance fields (the flat index may run past IN_BITS inside the
+            // final word's padding; those bits are always 0, so the counters'
+            // wrap value is never pushed)
+            if (u_ix == W_IN-1) begin
+                u_ix <= 0;
+                if (u_iy == H_IN-1) begin u_iy <= 0; u_ic <= u_ic + 1; end
+                else u_iy <= u_iy + 1;
+            end else u_ix <= u_ix + 1;
+            if (shift[31:1] == 31'b0 || bit_cnt == 31) begin
+                if (rx_words == WORDS_IN-1) state <= S_GO;
+                else begin rx_words <= rx_words + 1; state <= S_RX; end
             end
         end
 
@@ -207,51 +215,35 @@ module axis_conv #(
         end
 
         S_RUNW: if (eng_done) begin
-            tx_bits <= 0;
             tx_words <= 0;
-            word_acc <= 32'b0;
-            bit_cnt <= 0;
             state <= S_TXRD;
         end
 
-        S_TXRD: begin                      // engine captures out_mem[out_addr]
-            state <= S_TXCAP;
-        end
+        S_TXRD: state <= S_TXCAP;           // engine registers out_words[tx_words]
 
-        S_TXCAP: begin                     // consume the bit read last cycle
-            if (tx_bits < NEURONS)
-                word_acc[bit_cnt[4:0]] <= out_bit;
-            tx_bits <= tx_bits + 1;
-            bit_cnt <= bit_cnt + 1;
-            if (bit_cnt == 31)
-                state <= S_TXSEND;
-            else
-                state <= S_TXRD;
-        end
-
-        S_TXSEND: begin
+        S_TXCAP: begin
             if (!m_axis_tvalid) begin
-                m_axis_tdata  <= word_acc;
+                m_axis_tdata  <= out_w_data;
                 m_axis_tvalid <= 1'b1;
-                m_axis_tlast  <= (tx_words == WORDS_OUT-1) &&
-                                 (t_step == T-1);
-            end else if (m_axis_tready) begin
-                m_axis_tvalid <= 1'b0;
-                m_axis_tlast  <= 1'b0;
-                word_acc <= 32'b0;
-                bit_cnt <= 0;
-                if (tx_words == WORDS_OUT-1) begin
-                    if (t_step == T-1)
-                        state <= S_CLR;    // sample finished
-                    else begin
-                        t_step <= t_step + 1;
-                        rx_bits <= 0; u_ic <= 0; u_iy <= 0; u_ix <= 0;
-                        state <= S_RX;     // next timestep's input
-                    end
-                end else begin
-                    tx_words <= tx_words + 1;
-                    state <= S_TXRD;
+                m_axis_tlast  <= (tx_words == WORDS_OUT-1) && (t_step == T-1);
+                state <= S_TXSEND;
+            end
+        end
+
+        S_TXSEND: if (m_axis_tready) begin
+            m_axis_tvalid <= 1'b0;
+            m_axis_tlast  <= 1'b0;
+            if (tx_words == WORDS_OUT-1) begin
+                if (t_step == T-1)
+                    state <= S_CLR;         // sample finished
+                else begin
+                    t_step <= t_step + 1;
+                    rx_words <= 0;
+                    state <= S_RX;
                 end
+            end else begin
+                tx_words <= tx_words + 1;
+                state <= S_TXRD;
             end
         end
 

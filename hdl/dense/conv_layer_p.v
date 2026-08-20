@@ -35,19 +35,30 @@ module conv_layer_p #(
     output reg         busy,
     output reg         done,
 
-    input  wire                        in_we,
-    input  wire [$clog2(IN_BITS)-1:0]  in_addr,
-    input  wire                        in_data,
+    // word-parallel input load (C0035): one 32-bit word per cycle
+    input  wire                        in_w_we,
+    input  wire [$clog2((IN_BITS+31)/32)-1:0] in_w_addr,
+    input  wire [31:0]                 in_w_data,
 
-    input  wire [$clog2(NEURONS)-1:0]  out_addr, // golden flat order
+    input  wire [$clog2(NEURONS)-1:0]  out_addr, // golden flat order (legacy bit port)
     output wire                        out_data,
+    // word-parallel output read (C0035)
+    input  wire [$clog2((NEURONS+31)/32)-1:0] out_w_addr,
+    output reg  [31:0]                 out_w_data,
     input  wire [$clog2(NEURONS)-1:0]  v_addr,
     output wire signed [WIDTH-1:0]     v_data
 );
 
-    // --- input spike buffer (shared; one read per cycle, as before) -------
-    reg in_mem [0:IN_BITS-1];
-    always @(posedge clk) if (in_we) in_mem[in_addr] <= in_data;
+    // --- input spike buffer: WORD-organised (C0035). The wrapper writes a
+    //     whole word per accepted beat; the engine reads one bit per cycle
+    //     through a word latch + registered bit select (same one-cycle
+    //     contract as the old bit RAM: issue address, consume next cycle).
+    localparam WORDS_IN = (IN_BITS + 31) / 32;
+    reg [31:0] in_words [0:WORDS_IN-1];
+    always @(posedge clk) if (in_w_we) in_words[in_w_addr] <= in_w_data;
+    reg [31:0] in_word_q;
+    reg [4:0]  in_bit_sel;
+    reg        in_bounds_q;
 
     // --- weight banks: bank p holds channels oc == p (mod P), consecutive
     //     within the bank at offset ((oc/P)*C_IN + ic)*9 + (ky*3 + kx).
@@ -79,9 +90,14 @@ module conv_layer_p #(
     wire signed [31:0] ix = 2*ox + kx - 1;
     wire in_bounds = (iy >= 0) && (iy < H_IN) && (ix >= 0) && (ix < W_IN);
 
-    reg                    in_bit_r;
+    wire in_bit_r = in_bounds_q ? in_word_q[in_bit_sel] : 1'b0;
     reg signed [7:0]       w_r [0:P-1];
     reg signed [WIDTH-1:0] acc [0:P-1];
+    // stepped word/bit indices of each bank's current neuron in out_words:
+    // flat_j = (og*P + j)*HW + oy*W_OUT + ox; +1 per neuron step (bit carry),
+    // += P*HW at each og wrap (constant word/bit increments)
+    reg [$clog2((NEURONS+31)/32)-1:0] ow_w [0:P-1];
+    reg [4:0]                          ow_b [0:P-1];
 
     // banked memories: ONE write + ONE read port each ----------------------
     wire we_upd = (state == S_UPDATE);
@@ -104,6 +120,12 @@ module conv_layer_p #(
     wire                    spike_next [0:P-1];
     wire [P*WIDTH-1:0] v_flat;
     wire [P-1:0]       s_flat;
+    // C0035: spikes ALSO land in a word-organised register file, bit-set as
+    // each neuron group updates (P independent bit writes per cycle -- a
+    // flop array, not BRAM; ~NEURONS bits of flops, the price of word reads)
+    localparam WORDS_OUT = (NEURONS + 31) / 32;
+    reg [31:0] out_words [0:WORDS_OUT-1];
+    always @(posedge clk) out_w_data <= out_words[out_w_addr];
 
     genvar g;
     generate for (g = 0; g < P; g = g + 1) begin : g_bank
@@ -160,7 +182,11 @@ module conv_layer_p #(
             end else if (start) begin
                 og <= 0; oy <= 0; ox <= 0;
                 ic <= 0; ky <= 0; kx <= 0;
-                for (j = 0; j < P; j = j + 1) acc[j] <= 0;
+                for (j = 0; j < P; j = j + 1) begin
+                    acc[j] <= 0;
+                    ow_w[j] <= (j * HW) >> 5;       // constants per j
+                    ow_b[j] <= (j * HW) & 31;
+                end
                 prime <= 1'b1;
                 n_off <= 0; wb_a <= 0; wb <= -(W_IN + 1); in_a <= -(W_IN + 1);
                 busy <= 1'b1; state <= S_MAC;
@@ -168,12 +194,15 @@ module conv_layer_p #(
         end
 
         S_CLEAR: begin
+            if (clr < WORDS_OUT) out_words[clr[$clog2(WORDS_OUT)-1:0]] <= 32'b0;
             if (clr == BN-1) begin state <= S_IDLE; done <= 1'b1; end
             else clr <= clr + 1;
         end
 
         S_MAC: begin  // one input bit + P weights per cycle
-            in_bit_r <= in_bounds ? in_mem[in_a] : 1'b0;
+            in_word_q  <= in_words[in_a[31:5]];
+            in_bit_sel <= in_a[4:0];
+            in_bounds_q <= in_bounds;
             if (!prime && in_bit_r)
                 for (j = 0; j < P; j = j + 1)
                     acc[j] <= acc[j] + {{(WIDTH-8){w_r[j][7]}}, w_r[j]};
@@ -201,24 +230,46 @@ module conv_layer_p #(
         S_VREG: state <= S_UPDATE; // v_r2 valid (fabric FF feeds the LIF)
 
         S_UPDATE: begin            // P banks each write their neuron (we_upd)
-            for (j = 0; j < P; j = j + 1) acc[j] <= 0;
+            for (j = 0; j < P; j = j + 1) begin
+                acc[j] <= 0;
+                out_words[ow_w[j]][ow_b[j]] <= spike_next[j];  // word file (C0035)
+            end
             prime <= 1'b1;
             if (ox != W_OUT-1) begin
                 ox <= ox + 1; wb <= wb + 2; in_a <= wb + 2;
                 n_off <= n_off + 1;
                 wb_a <= og * TAPS;
+                for (j = 0; j < P; j = j + 1) begin      // flat_j += 1
+                    if (ow_b[j] == 31) begin ow_b[j] <= 0; ow_w[j] <= ow_w[j] + 1; end
+                    else ow_b[j] <= ow_b[j] + 1;
+                end
             end else begin ox <= 0;
                 if (oy != H_OUT-1) begin
                     oy <= oy + 1;
                     wb <= wb + (2*W_IN - 2*(W_OUT-1)); in_a <= wb + (2*W_IN - 2*(W_OUT-1));
                     n_off <= n_off + 1;
                     wb_a <= og * TAPS;
+                    for (j = 0; j < P; j = j + 1) begin  // flat_j += 1
+                        if (ow_b[j] == 31) begin ow_b[j] <= 0; ow_w[j] <= ow_w[j] + 1; end
+                        else ow_b[j] <= ow_b[j] + 1;
+                    end
                 end else begin oy <= 0;
                     if (og != GB-1) begin
                         og <= og + 1;
                         wb <= -(W_IN + 1); in_a <= -(W_IN + 1);
                         n_off <= n_off + 1;
                         wb_a <= (og + 1) * TAPS;
+                        for (j = 0; j < P; j = j + 1) begin
+                            // flat_j += P*HW - HW + 1 (constant): split into
+                            // word/bit increments with carry
+                            if (ow_b[j] + ((P*HW - HW + 1) & 31) > 31) begin
+                                ow_b[j] <= ow_b[j] + ((P*HW - HW + 1) & 31) - 32;
+                                ow_w[j] <= ow_w[j] + ((P*HW - HW + 1) >> 5) + 1;
+                            end else begin
+                                ow_b[j] <= ow_b[j] + ((P*HW - HW + 1) & 31);
+                                ow_w[j] <= ow_w[j] + ((P*HW - HW + 1) >> 5);
+                            end
+                        end
                     end else begin state <= S_IDLE; done <= 1'b1; end
                 end
             end

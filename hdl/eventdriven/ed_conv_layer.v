@@ -62,6 +62,9 @@ module ed_conv_layer #(
     output reg                         done,
     input  wire [$clog2(NEURONS)-1:0]  out_addr,
     output wire                        out_data,
+    // word-parallel output read (C0035)
+    input  wire [$clog2((NEURONS+31)/32)-1:0] out_w_addr,
+    output reg  [31:0]                 out_w_data,
     input  wire [$clog2(NEURONS)-1:0]  v_addr,
     output wire signed [WIDTH-1:0]     v_data
 );
@@ -111,6 +114,14 @@ module ed_conv_layer #(
     // --- membrane memory + output spikes ---------------------------------
     reg signed [WIDTH-1:0] vmem [0:NEURONS-1];
     reg                    out_mem [0:NEURONS-1];
+    // C0035: spikes also land in a word-organised flop file; the sweep
+    // updates neurons in FLAT order, so the word/bit index is one stepped
+    // counter pair (+1 with carry)
+    localparam WORDS_OUT = (NEURONS + 31) / 32;
+    reg [31:0] out_words [0:WORDS_OUT-1];
+    reg [$clog2(WORDS_OUT)-1:0] ow_w;
+    reg [4:0]                   ow_b;
+    always @(posedge clk) out_w_data <= out_words[out_w_addr];
     reg                    out_data_r;
     reg signed [WIDTH-1:0] v_data_r;
     always @(posedge clk) begin
@@ -167,6 +178,7 @@ module ed_conv_layer #(
                     start_pend <= 1'b0; n <= 0; sw_oc <= 0; sw_pos <= 0;
                     i_addr <= 0;                      // neuron 0's I read starts now
                     up_valid <= 1'b0;
+                    ow_w <= 0; ow_b <= 0;
                     state <= S_SW_RD;
                 end
             end
@@ -175,6 +187,7 @@ module ed_conv_layer #(
 
             S_CLR: begin                 // zero V and out; scatter zeroes I itself
                 vmem[n] <= 0; out_mem[n] <= 1'b0;
+                if (n < WORDS_OUT) out_words[n[$clog2(WORDS_OUT)-1:0]] <= 32'b0;
                 if (n == NEURONS-1) state <= S_CLRW; else n <= n + 1;
             end
             S_CLRW: if (!sc_busy) begin state <= S_IDLE; done <= 1'b1; end
@@ -192,6 +205,9 @@ module ed_conv_layer #(
                 if (up_valid) begin
                     vmem[n_up]    <= v_next;        // update neuron n_rd-1
                     out_mem[n_up] <= spike_next;
+                    out_words[ow_w][ow_b] <= spike_next;   // word file (C0035)
+                    if (ow_b == 31) begin ow_b <= 0; ow_w <= ow_w + 1; end
+                    else ow_b <= ow_b + 1;
                     i_we <= 1'b1; i_wdata <= 0;     // zero I[n_rd] AT THE READ
                     // edge: the bank is read-first, so the latch captures
                     // I[n_rd] and the same edge clears it -- each neuron's I
@@ -220,6 +236,7 @@ module ed_conv_layer #(
             S_SW_UPD: begin                         // epilogue beat A (no new read)
                 vmem[n_up]    <= v_next;
                 out_mem[n_up] <= spike_next;
+                out_words[ow_w][ow_b] <= spike_next;
                 i_we <= 1'b1; i_wdata <= 0;
                 up_valid <= 1'b0;
                 state <= S_SW_ZERO;

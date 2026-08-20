@@ -2350,3 +2350,45 @@ whose activity is lower than the old digit-0 set (20,093 vs 25,078 C1
 input spikes/16 samples). Numbers from before 2026-08-20 16:00 are on
 the old set; every comparison table gets rebuilt on the new set after
 C0035 lands, in one pass.
+
+## C0035 resolved + C0037 recomputed (2026-08-20 16:50) — the word-parallel wrapper, and the verdict it flips
+
+**The wrapper.** axis_conv.v rewritten word-parallel: dense input words go
+straight into conv_layer_p's word-organised input RAM (one word/cycle, no
+unpack state); ED zero words are skipped in one accept cycle and nonzero
+words scan only to their last set bit, with the field counters resynced
+from a word-base ROM (elaboration-time constants — no dividers); output
+words come from both engines' new word ports (word-organised flop file
+written as neurons update; legacy bit ports retained so every old bench
+still runs). The wrapper's own registered-fields bug (pushing a bit with
+the NEXT bit's coordinates) was caught by the hostile bench on the first
+ED run and fixed. Verified: dense P=1/P=4, ED K=1/K=4, N_ENGINES=2, all
+hostile-handshake bit-identical; conv_layer_p's word file checked against
+golden directly (887,808 comparisons incl. the word port); ED across
+K/layers/robot geometry re-passed.
+
+**Wrapper cost: 39-48k -> ~1.9-2.3k cycles/sample (2-3 % of totals).**
+C0041's attribution inconsistency dissolves with it.
+
+**The re-baseline (unbiased set + pipelined sweep + word wrapper), C1
+cycles/sample end-to-end:**
+
+| config | total | ms | vs before today |
+|---|---|---|---|
+| dense P=1 (naive) | 409,243 | 4.092 | was 436,247 |
+| dense P=4 (fair) | 104,059 | 1.041 | new |
+| ED K=1 | 135,520 | 1.355 | was 234,009 |
+| **ED K=4** | **67,756** | **0.678** | was 149,273 |
+
+**C0037 recomputed: the D0026 verdict flips, as C0037 predicted it could.**
+At matched parallelism on C1, event-driven now WINS 1.54x at the
+operating point (13.6 % input activity on the unbiased set); the
+crossover moves out to ~31 % activity (fit: ED ~= 40.1k + 22/spike vs
+dense P=4 flat 104.1k; exact slope from the re-run density sweep to
+follow). The mechanism statement stands and sharpens: the C1 verdict is
+SENSITIVE to the sweep pipeline and wrapper honesty — which is itself the
+thesis point that implementation details the tools never see decide the
+comparison — while C2/C3's multiples were never in doubt. Board note: the
+new dense path (conv_layer_p) needs a baked-weight variant before an
+ENGINE=0 board build; all cycle history from before today is superseded
+by this table.
