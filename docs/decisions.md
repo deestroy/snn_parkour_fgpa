@@ -33,6 +33,11 @@ them. Newest at the bottom. Status is one of: OPEN, DECIDED, REVISITED.
 Board-day logs (D0015 parts 1–5, DDR notes) follow D0015. Milestone results (M1–M3, M6 step 1) are inline after the decisions that produced them.
 
 ---
+- D0021 one AXIS wrapper, ENGINE parameter (divider caveat superseded)
+- D0022 BURST measurement mode
+- D0023 event-driven FC layer
+- D0024 year-two platform: ES-Parkour recreation; robot geometry; P1
+- RETRACTION C0028: M6 K=4 dense column (2026-08-20)
 
 
 ## D0001 — Start the golden model at one neuron, not at the network
@@ -1313,7 +1318,11 @@ crossover lives where scatter shrinks below it.
 
 ---
 
-## M6 RESULT, K=4 (2026-08-18) — banking verified; the crossover is visible in cycles
+## M6 RESULT, K=4 (2026-08-18) — banking verified; ~~the crossover is visible in cycles~~
+
+**[RETRACTED IN PART, 2026-08-20 — see the C0028 retraction below. The
+K-sweep verification and scatter measurements stand; the dense column of
+the cycle table and the "K=1 loses on C2/C3" finding do not.]**
 
 ed_scatter.v is now parameterised by K (bank = oc mod K, offset per D0017);
 the K RMWs of one inner-loop step target K distinct banks and issue in one
@@ -1374,9 +1383,9 @@ ed_scatter_c1.v (W_T inlined). Board default: ENGINE=1, ED_K=4.
 
 Known-and-accepted for this first board run: ed_scatter decodes the spike
 address with `/` and `%` by constants and translates i_addr with `/ %`;
-Vivado will build small constant dividers. Fine for correctness and 100 MHz
-on a 12-bit operand; a final design keeps the address as separate fields.
-Recorded alongside the sweep-skip as post-M7 optimisations.
+Vivado will build small constant dividers. **[SUPERSEDED 2026-08-19:
+D0020 rev 2 removed every divider from the address paths after they
+failed timing; do not act on this caveat.]**
 
 ### D0021 board attempt 1 (2026-08-18 21:40) — LUT overrun, cause and fix
 
@@ -2113,3 +2122,43 @@ to its size under this training. Lifting absolute success (longer
 DAgger, recipe tuning) is year-two work, listed in the outline's future
 work. Artifacts: experiments/p1_distill/ (L3, L6, mid-training tables);
 checkpoints and logs on the GPU box under runs/fpga_student/.
+
+## RETRACTION (C0028, 2026-08-20 15:35) — the M6 K=4 table's dense column was wrong for C2 and C3
+
+The 2026-08-18 M6 K=4 entry applied "dense = 21 cycles/neuron" to all
+three layers. 21 is C1-ONLY: cycles/neuron = taps + 3, and taps =
+C_IN x 9, so C2 is 147 and C3 is 291. Verified independently today from
+the MEASURED per-layer simulation (experiments/latency_sim raw counts):
+97,499 / 381,434 / 465,865 cycles per timestep = 21.1 / 147.2 / 291.2 per
+neuron — exactly taps + 3. The log briefly held two inconsistent dense
+figures (the layers.md measurement was already correct); the wrong one
+was attached to a highlighted finding.
+
+**Retracted finding:** "at K=1 the event-driven engine LOSES to dense on
+C2 and C3 — this is the crossover the thesis is about, visible in RTL
+cycle counts." With the corrected dense column:
+
+| per timestep | dense (measured) | ED K=1 | ED K=4 | dense/K1 | dense/K4 |
+|---|---|---|---|---|---|
+| C1 |  97,499 | 48,276 | 27,116 | 2.0x |  3.6x |
+| C2 | 381,434 | 70,532 | 26,628 | 5.4x | 14.3x |
+| C3 | 465,865 | 83,993 | 26,584 | 5.5x | 17.5x |
+
+Event-driven wins every layer at every K; there is no cycle-level
+crossover in the layer dimension. What DOES survive: the K-sweep
+bit-identity results, the scatter cycles/spike measurements, and the C1
+activity-sweep crossover for K=1 at ~45 % input rate (measured against
+the real dense engine, not the model). Downstream check: the D0017 note's
+"K=4 wins everywhere" framing was accidentally right for the wrong
+reason; the day summaries citing "K=1 loses on C2/C3" are wrong and this
+entry supersedes them. Cause: every later figure was checked against the
+same hand model instead of an independent derivation — the fix (measured
+per-layer counts) is now the source of record for dense costs.
+
+### C0017 housekeeping (same pass)
+- Index brought current to D0024 + retractions (below).
+- D0021's divider caveat marked superseded in place.
+- The 22:56 resource table's "DSP = 1 (ED)" note: use_dsp="no" landed
+  after that build; the property is CONFIRMED MEASURED for dense (DSP 0,
+  22:56 build) and remains expected-unconfirmed for ED until its next
+  build — the table note now says exactly that.
