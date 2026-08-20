@@ -104,15 +104,31 @@ module conv_layer #(
     // registered memory outputs (the "one cycle later" data)
     reg                    in_bit_r;
     reg signed [7:0]       w_r;
-    reg signed [WIDTH-1:0] v_r;
+    reg signed [WIDTH-1:0] v_r, v_r2;
 
-    // input coordinate for the CURRENT counter values (combinational
-    // address math feeding the registered reads)
+    // input coordinate for the CURRENT counter values: small adder + compare,
+    // used only for the bounds mask (cheap). The ADDRESSES are not computed
+    // from the counters: on the first dense build checked for timing
+    // (2026-08-19) the formulas (ic*H_IN+iy)*W_IN+ix and (oc*H_OUT+oy)*W_OUT+ox
+    // became chained DSP multipliers feeding RAM address ports -- 13.7 ns on a
+    // 10 ns clock, WNS -3.9 -- the same disease fixed in ed_scatter the night
+    // before. All three addresses are now REGISTERS stepped by constants as
+    // the loops advance (values identical; the testbench proves it).
     wire signed [31:0] iy = 2*oy + ky - 1;
     wire signed [31:0] ix = 2*ox + kx - 1;
     wire in_bounds = (iy >= 0) && (iy < H_IN) && (ix >= 0) && (ix < W_IN);
 
-    wire [31:0] neuron_addr = (oc*H_OUT + oy)*W_OUT + ox;
+    // stepped address registers (see the walk in the FSM):
+    //   n_a  = (oc*H_OUT + oy)*W_OUT + ox   raster order -> +1 per neuron
+    //   w_a  = ((oc*C_IN + ic)*3 + ky)*3+kx consecutive within a window;
+    //          per neuron it restarts at w_base = oc*C_IN*9
+    //   in_a = (ic*H_IN + iy)*W_IN + ix     steps: kx +1 | ky +W_IN-2 |
+    //          ic +H_IN*W_IN-2*W_IN-2; per neuron it restarts at the window
+    //          base wb = (2*oy-1)*W_IN + (2*ox-1), itself stepped by the
+    //          outer loops. Out-of-window values may be negative/garbage --
+    //          harmless, the in_bounds mask zeroes the DATA, exactly as the
+    //          old ternary did.
+    integer n_a, w_a, w_base, in_a, wb;
 
     // the one shared LIF update -- same module the M2 testbench verified
     wire signed [WIDTH-1:0] v_next;
@@ -120,7 +136,7 @@ module conv_layer #(
     lif_update #(
         .WIDTH(WIDTH), .LEAK_SHIFT(LEAK_SHIFT), .THRESHOLD(THRESHOLD)
     ) update (
-        .v_in(v_r), .current_in(acc),
+        .v_in(v_r2), .current_in(acc),
         .v_out(v_next), .spike(spike_next)
     );
 
@@ -138,6 +154,8 @@ module conv_layer #(
                 oc <= 0; oy <= 0; ox <= 0;
                 ic <= 0; ky <= 0; kx <= 0;
                 acc <= 0; prime <= 1'b1;
+                n_a <= 0; w_a <= 0; w_base <= 0;
+                wb <= -(W_IN + 1); in_a <= -(W_IN + 1);
                 busy <= 1'b1; state <= S_MAC;
             end
         end
@@ -150,41 +168,53 @@ module conv_layer #(
         end
 
         S_MAC: begin  // issue read for position k, consume position k-1
-            in_bit_r <= in_bounds ? in_mem[(ic*H_IN + iy)*W_IN + ix] : 1'b0;
-            w_r      <= wrom[((oc*C_IN + ic)*3 + ky)*3 + kx];
+            in_bit_r <= in_bounds ? in_mem[in_a] : 1'b0;
+            w_r      <= wrom[w_a];
             if (!prime && in_bit_r) acc <= acc + {{(WIDTH-8){w_r[7]}}, w_r};  // explicit sign-extend
             prime <= 1'b0;
-            if (kx != 2)      kx <= kx + 1;
+            w_a <= w_a + 1;
+            if (kx != 2) begin kx <= kx + 1; in_a <= in_a + 1; end
             else begin kx <= 0;
-                if (ky != 2)  ky <= ky + 1;
+                if (ky != 2) begin ky <= ky + 1; in_a <= in_a + (W_IN - 2); end
                 else begin ky <= 0;
-                    if (ic != C_IN-1) ic <= ic + 1;
-                    else begin ic <= 0; state <= S_TAIL; end
+                    if (ic != C_IN-1) begin
+                        ic <= ic + 1; in_a <= in_a + (H_IN*W_IN - 2*W_IN - 2);
+                    end else begin ic <= 0; state <= S_TAIL; end
                 end
             end
         end
 
-        S_TAIL: begin  // consume the final read of this neuron's window
+        S_TAIL: begin  // consume the final read; issue the membrane read early
             if (in_bit_r) acc <= acc + {{(WIDTH-8){w_r[7]}}, w_r};  // explicit sign-extend
+            v_r   <= vmem[n_a];
             state <= S_VRD;
         end
 
-        S_VRD: begin  // issue the membrane read for this neuron
-            v_r   <= vmem[neuron_addr];
+        S_VRD: begin  // re-register: BRAM output latch -> fabric FF, so the
+                      // LIF chain in S_UPDATE starts from a fast source
+                      // (0.5 ns) instead of the RAM latch (2.5 ns)
+            v_r2  <= v_r;
             state <= S_UPDATE;
         end
 
         S_UPDATE: begin
-            vmem[neuron_addr]    <= v_next;
-            out_mem[neuron_addr] <= spike_next;
+            vmem[n_a]    <= v_next;
+            out_mem[n_a] <= spike_next;
             acc <= 0;
             prime <= 1'b1;
-            if (ox != W_OUT-1) ox <= ox + 1;
+            n_a <= n_a + 1;
+            if (ox != W_OUT-1) begin ox <= ox + 1; wb <= wb + 2; in_a <= wb + 2; w_a <= w_base; end
             else begin ox <= 0;
-                if (oy != H_OUT-1) oy <= oy + 1;
-                else begin oy <= 0;
-                    if (oc != C_OUT-1) oc <= oc + 1;
-                    else begin state <= S_IDLE; done <= 1'b1; end
+                if (oy != H_OUT-1) begin
+                    oy <= oy + 1;
+                    wb <= wb + (2*W_IN - 2*(W_OUT-1)); in_a <= wb + (2*W_IN - 2*(W_OUT-1));
+                    w_a <= w_base;
+                end else begin oy <= 0;
+                    if (oc != C_OUT-1) begin
+                        oc <= oc + 1;
+                        wb <= -(W_IN + 1); in_a <= -(W_IN + 1);
+                        w_base <= w_base + C_IN*9; w_a <= w_base + C_IN*9;
+                    end else begin state <= S_IDLE; done <= 1'b1; end
                 end
             end
             if (!(ox == W_OUT-1 && oy == H_OUT-1 && oc == C_OUT-1))

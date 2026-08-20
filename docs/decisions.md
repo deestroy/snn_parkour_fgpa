@@ -1793,3 +1793,38 @@ judge. Therefore: K in {1,2,4,8,16} is an experiment axis for M7
 (latency already known from simulation; energy and area per K measured),
 listed in README "Next steps / later". K=4 stays the baseline the meter
 sees first.
+
+### 2026-08-19 21:50 — the dense engine failed timing too (WNS −3.934); fixed the same way
+
+The ENGINE=0 rebuild for the meter session was the FIRST dense build whose
+WNS was ever read: −3.934 ns, 119 failing endpoints. The 2026-08-18 dense
+BOARD PASS therefore gets the same caveat the first ED pass got — it was a
+functional result on a bitstream that did not meet timing, and its
+"engine is far faster than the UART" observation stands, but no timing or
+energy figure may be taken from that bitstream. Timing was simply never
+checked before the ED work made it a standing rule. Honest bookkeeping
+cuts both ways.
+
+The paths were the dense engine's own copies of the same two diseases:
+(1) input-buffer address (ic*H_IN+iy)*W_IN+ix rebuilt from loop counters
+each cycle — two chained DSP48s into the distributed-RAM read (13.7 ns);
+(2) neuron_addr (oc*H_OUT+oy)*W_OUT+ox — two DSP48s into the vmem/out_mem
+BRAM address ports (−1.5 ns); and, waiting behind them, the vmem output
+latch feeding lif_update in one cycle.
+
+Fix in conv_layer.v, mirroring ed_scatter's: all three addresses are now
+registers stepped by constants as the loops advance (n_a raster +1; w_a
+consecutive within a window, restarting at w_base = oc*C_IN*9; in_a
+stepped kx +1 / ky +W_IN−2 / ic +H_IN*W_IN−2*W_IN−2 from a window base wb,
+with the in_bounds mask still zeroing out-of-window DATA exactly as the old
+ternary did). The membrane read is issued one state early (S_TAIL) and
+re-registered in S_VRD (v_r2), so the LIF chain starts from a fabric FF —
+zero added cycles. Address DSPs on the dense side should now be 0, which
+also matches the design intent (the datapath itself has no multiplies:
+spikes are binary, the leak is a shift).
+
+Verified: conv c1/c2/c3 bit-identical (1.13 M comparisons), FC regression,
+AXIS dense hostile + ED K=4 hostile, lint clean, and the per-sample cycle
+count asserted EXACTLY 436,247 on all 16 samples — the fix changes wiring,
+not behaviour or latency. conv_layer_c1.v regenerated. Board rebuild
+pending; the pre-write rule (WNS >= 0) now applies to both engines.
