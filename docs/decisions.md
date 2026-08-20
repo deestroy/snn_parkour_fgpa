@@ -2162,3 +2162,30 @@ per-layer counts) is now the source of record for dense costs.
   after that build; the property is CONFIRMED MEASURED for dense (DSP 0,
   22:56 build) and remains expected-unconfirmed for ED until its next
   build — the table note now says exactly that.
+
+## C0031 result + D0025 — the sweep-skip decision, made with data (resolves C0006)
+
+**Date:** 2026-08-20 15:55 · full test split, 10,000 samples x T=4
+(experiments/touched_fraction.md, run on the GPU box):
+
+| layer | touched (I!=0) | alive (V!=0) | skippable ceiling |
+|---|---|---|---|
+| c1 | 31.3 % | 39.9 % | 60.1 % |
+| c2 | 45.6 % | 49.1 % | 50.9 % |
+| c3 | 66.1 % | 69.0 % | 31.0 % |
+| fc | 99.8 % | 99.9 % | 0.1 % |
+
+**Decision (D0025).** Two-part, both recorded now:
+(1) For the CURRENT builds and any near-term measurement, take option (b):
+state plainly that this architecture is event-driven SYNAPTIC processing
+with a dense NEURON update — as most accelerators in this family are —
+and report the sweep floor's share of engine time (68 % at K=4 on C1)
+with the measured skippable ceilings above. The defence question is
+pre-empted with numbers, not silence.
+(2) The skip (option a) IS worth building for the conv layers — a 60 %
+ceiling on C1 against a floor that is 68 % of engine time is too large to
+leave — but it lands AFTER the pipelined sweep (C0030), which halves the
+same floor for every layer including FC with far less bookkeeping, and
+after the first meter session, so its benefit is measured against a
+stable baseline. For FC the skip is provably worthless (99.8 % touched)
+and will not be built.
