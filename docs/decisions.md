@@ -2019,3 +2019,21 @@ either the pipelined sweep or a K=8/16 build (both on the later list);
 dense C1 alone misses even 20 ms. The engines are geometry-clean: no RTL
 changes were needed, only parameters and vectors — the retarget risk for
 P1 is retired on the conv side.
+
+### S0 + S1 done (2026-08-20 02:00) — sim reproducibility proven; the stale-latent loop built and tested
+
+S0: scripts/s0_repro_check.py (additive, on the GPU box): two rollouts at
+seed 7 hash bit-identical over 300 steps incl. event frames; seed 8
+diverges. PASS beside the running training job.
+
+S1: robot/host/perception_loop.py — lockstep control loop with the
+perception path's WALL-CLOCK time charged against an explicit budget;
+misses deliver the stale latent (never wait, never crash — a first-tick
+miss yields a zero latent), overruns logged in ms with the stage, and the
+trial is flagged after N consecutive misses. Pluggable perceive/sim/policy
+so it runs against the golden model, the FPGA link, or a test fake.
+test_perception_loop.py drives it with a FAKE CLOCK and scripted delays:
+exactly 5 predicted misses at the predicted ticks, stale-latent identity
+verified through a 3-tick miss run, escalation at exactly cycle 25,
+t_command_sent strictly increasing (no silent waits). The physical-robot
+groundwork (cycle_log) carried over unchanged.
