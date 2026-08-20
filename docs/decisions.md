@@ -1843,3 +1843,27 @@ logic). Expected utilization after the next builds: DSP = 0 for BOTH
 engines; anything else in the report is a flag. Harness re-run after the
 attribute: scatter K=1/K=4, engine K=4, dense c1, AXIS both, lint -- all
 bit-identical/clean, cycle counts unchanged (76/22 per spike).
+
+### 2026-08-19 22:56 — dense build, sign-off clean: WNS +0.787, DSP = 0; the real dense resource row
+
+Post-implementation, whole design incl. DMA/interconnects: LUT 3,167
+(6.0 %), LUTRAM 218, FF 4,059, BRAM 7.5 tiles (5.4 %), DSP **0**, Vivado
+total on-chip power estimate 1.706 W. Replaces the provisional row (from
+the stale, timing-failing build: ~1,860 LUT / 3 BRAM / 0 DSP) — meeting
+timing honestly cost the dense engine ~1.3k LUTs and 4.5 BRAM tiles of
+address registers and re-registering, which narrows the dense-vs-ED gap:
+
+| post-impl, timing-clean | dense | event-driven K=4 |
+|---|---|---|
+| LUT | 3,167 | 3,383 |
+| FF | 4,059 | 4,036 |
+| BRAM tiles | 7.5 | 13 |
+| DSP | 0 | 1 (sweep-port translation; use_dsp now forbids it — expect 0 next ED build) |
+| Vivado power est. | 1.706 W | 1.731 W |
+
+The area asymmetry that remains is the honest one: the ED design's extra
+5.5 BRAM tiles ARE the event-driven machinery (address list + I banks).
+Vivado's own estimates now differ by only 25 mW — at or below its
+resolution, which is itself an argument for the meter. BOOT.bin verified
+byte-exact against this .xsa; ENGINE=0 confirmed; ED image kept at
+host/mac/ed_k4_BOOT.bin.bak. Board run next: prediction 4.36 ms/inference.
