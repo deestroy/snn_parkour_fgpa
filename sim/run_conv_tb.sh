@@ -14,9 +14,16 @@ for layer in "$@"; do
         c1) ci=2;  hi=34; wi=34; co=16; ho=17; wo=17 ;;
         c2) ci=16; hi=17; wi=17; co=32; ho=9;  wo=9  ;;
         c3) ci=32; hi=9;  wi=9;  co=64; ho=5;  wo=5  ;;
+        r1) ci=2;  hi=64; wi=64; co=16; ho=32; wo=32 ;;   # robot-era geometry (D0024)
         *) echo "unknown layer $layer"; exit 2 ;;
     esac
-    python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null
+    if [ "$layer" = r1 ]; then
+        python3 sim/export_robot_vectors.py > /dev/null
+        ns=8
+    else
+        python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null
+        ns=16
+    fi
 
     iverilog -g2012 -I hdl/dense -o "sim/work/tb_conv_${layer}.vvp" \
         -Ptb_conv_layer.C_IN="$ci"  -Ptb_conv_layer.H_IN="$hi"  -Ptb_conv_layer.W_IN="$wi" \
@@ -28,7 +35,7 @@ for layer in "$@"; do
         +in="sim/vectors/conv_${layer}_in.bin" \
         +s="sim/vectors/conv_${layer}_s.bin" \
         +v="sim/vectors/conv_${layer}_v.hex" \
-        +nsamples=16 | grep -E "TB_|MISMATCH" | head -8)
+        +nsamples=$ns | grep -E "TB_|MISMATCH" | head -8)
     echo "[$layer] $out"
     echo "$out" | grep -q TB_PASS || overall=1
 done

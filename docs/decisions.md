@@ -2004,3 +2004,18 @@ result: a working 58k student, or evidence on what this task needs.
 Also: DVS-Gesture training DEFERRED — the shared GPU box is at 95 % disk
 (9.9 GB free); the dataset+extraction would risk filling a machine other
 people use. Revisit when disk is cleared or with a streamed pipeline.
+
+### D0024 addendum (2026-08-20 01:40) — engines verified at robot geometry; C1 budget numbers
+
+sim/export_robot_vectors.py: synthetic golden at the year-two shape
+(2x64x64 -> 16x32x32, "r1"), seeded random int8 weights, Bernoulli inputs
+at 8 %, LIF rule IMPORTED from golden/network.py so it cannot drift. Both
+engines bit-identical: 1,048,576 comparisons each (dense and ED K=4).
+Cycles/sample at 100 MHz: dense 1,378,872 (13.79 ms — 3.2x C1-N-MNIST,
+matching the 2.65x pixels x deeper windows); ED K=4 321,104 (3.21 ms,
+data-dependent). Against the perception budgets in the link-budget doc:
+ED K=4 C1 alone fits 10 Hz easily and 25 Hz comfortably; 50 Hz needs
+either the pipelined sweep or a K=8/16 build (both on the later list);
+dense C1 alone misses even 20 ms. The engines are geometry-clean: no RTL
+changes were needed, only parameters and vectors — the retarget risk for
+P1 is retired on the conv side.
