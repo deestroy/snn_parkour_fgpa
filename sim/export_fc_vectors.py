@@ -37,6 +37,24 @@ def main() -> int:
         for bit in (z["fc_S"] != 0).astype(np.uint8).ravel():
             fh.write("%d\n" % bit)
 
+    # event-driven FC vectors (D0023): transposed weights W_T[j][n] and the
+    # per-timestep spike ADDRESS lists (count then {c,y,x}-packed fields as
+    # flat ints; the testbench packs the fields)
+    wt = np.load(os.path.join(REPO, "golden", "m1_weights_int8.npz"))["fc"].astype(np.int64)  # (N_OUT, N_POOL)
+    with open(os.path.join(OUT, "ed_fc_wt.hex"), "w") as fh:
+        for j in range(wt.shape[1]):
+            for n in range(wt.shape[0]):
+                fh.write("%02x\n" % (int(wt[n, j]) & 0xFF))
+    bits = (z["c3_S"] != 0).astype(np.uint8)       # (B, T, C, H, W)
+    B, T = bits.shape[:2]
+    with open(os.path.join(OUT, "ed_fc_spk.txt"), "w") as fh:
+        for s_i in range(B):
+            for t in range(T):
+                idx = np.flatnonzero(bits[s_i, t].ravel())
+                fh.write("%d\n" % len(idx))
+                for a in idx:
+                    fh.write("%d\n" % a)
+
     with open(os.path.join(OUT, "fc_v.hex"), "w") as fh:
         for v in z["fc_V"].astype(np.int64).ravel():
             assert -32768 <= v <= 32767

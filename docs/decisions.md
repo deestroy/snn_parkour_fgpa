@@ -1915,3 +1915,58 @@ every K. C1 totals: 234.0k / 177.5k / 149.3k / 135.2k / 128.2k cycles
 13 / 8. Diminishing returns as D0017 predicted — the fixed sweep floor
 dominates from K=4 up. Latency half of M7's K axis done; energy per K is
 the meter's question. Table in experiments/latency_sim/README.md.
+
+## D0023 — Event-driven FC layer (simulation): design choices
+
+**Date:** 2026-08-20 (overnight) · **Status:** DECIDED overnight, flagged
+for morning review — implemented and verified in simulation only.
+
+The FC layer is where 81 % of the weights live, so an event-driven variant
+matters for any whole-network event-driven claim. The dense engine costs
+128 neurons x 256 windows x 4 positions ~= 131k cycles/timestep regardless
+of activity; FC input activity (pooled C3) is the highest in the network
+(~30 %), so this is also where event-driven has the least headroom — worth
+having in simulation before the meter decides anything.
+
+Judgement calls, options, and what was chosen:
+
+1. **Fan-out structure.** A C1 spike touches a 2x2 window x C_OUT; an FC
+   spike touches ALL 128 outputs through one weight column W[., j] (pool
+   window j from the spike's coordinates by bit-slices — the pool's /4 is
+   already folded into THRESHOLD=256, D0004/D0013). No window arithmetic,
+   no bounds logic. Chose a SINGLE module (ed_fc_layer.v) holding queue +
+   scatter + sweep rather than reusing ed_scatter, whose decode is conv-
+   window-specific; the shared pieces (lif_update, the D0020 interface,
+   the bank discipline) are reused unchanged.
+2. **Cropping.** Spikes at y==4 or x==4 fall outside the floor-cropped
+   pool and contribute nothing (fc_layer.v never addresses them). Options:
+   filter at enqueue vs in the scatter. Chose ENQUEUE (cheaper: one
+   compare on the fields; the queue then holds only work).
+3. **Queue sizing.** Worst case 64x5x5 = 1,600 spikes/timestep -> depth
+   2,048 (power-of-two ring, D0016 rule). 13-bit entries {c,y,x}.
+4. **Banking.** Neuron n -> bank n mod K, offset n / K (bit-slices, K a
+   power of two); every spike walks n in steps of K, so K banks are
+   conflict-free by construction, same as D0017. K=4 default for symmetry
+   with the conv engine; 128/K cycles per spike.
+5. **Weights.** Transposed table W_T[j][n] (32,768 bytes) via $readmemh
+   only — NO baked variant, because this layer is simulation-only until a
+   board target needs it (the baked generators exist when it does).
+6. **Timing discipline inherited, not rediscovered:** one write + one read
+   port per bank, addresses stepped/sliced (never formulas), v_r2
+   re-registration in the sweep, use_dsp="no".
+
+### D0023 result (2026-08-20 00:20) — event-driven FC bit-identical, all K
+
+ed_fc_layer.v + sim/run_ed_fc_tb.sh: 16,384 comparisons (every fc spike
+and membrane, 16 samples x 4 timesteps, 13,273 c3 input spikes)
+bit-identical to the golden traces at K = 2, 4, 8 and 16 on the FIRST
+simulation run — the sign-off rules learned on the conv engine (one
+write/one read port per bank, sliced/stepped addresses, v_r2/i_r2
+re-registration, enqueue-side cropping, use_dsp="no") were applied at
+design time instead of discovered on silicon. Lint clean. Note: K=1 and
+K=N_OUT are not supported (zero-width slices); K in {2,4,8,...,64}.
+Added to check_all.sh (18 checks). Every layer of the network now has a
+verified event-driven implementation in simulation; the conv layers
+additionally have C1 on silicon. Cost per spike: N_OUT/K cycles + 2
+(128/4 = 34 at the default) — FC event-driven latency for M7's model can
+now be computed rather than assumed.

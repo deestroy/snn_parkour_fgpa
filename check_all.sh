@@ -23,6 +23,7 @@ run "M4 AXIS wrapper, dense (hostile handshake)"  bash sim/run_axis_tb.sh c1
 run "M6 AXIS wrapper, event-driven K=4"          env ENGINE=1 K=4 bash sim/run_axis_tb.sh c1
 run "M6 event-driven engine vs golden, K=1"   bash sim/run_ed_tb.sh c1 ed_conv_layer
 run "M6 event-driven engine vs golden, K=4"   env K=4 bash sim/run_ed_tb.sh c1 ed_conv_layer
+run "M6 event-driven FC vs golden (D0023)"     bash sim/run_ed_fc_tb.sh
 run "M6 scatter unit vs Python I-dump, K=1"   bash sim/run_ed_scatter_tb.sh c1
 run "M6 scatter unit vs Python I-dump, K=4"   env K=4 bash sim/run_ed_scatter_tb.sh c1
 run "M6 python engine K=1/K=4"                python3 -c "
