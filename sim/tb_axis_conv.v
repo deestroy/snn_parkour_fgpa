@@ -22,6 +22,7 @@ module tb_axis_conv;
     parameter WT_FILE = "sim/vectors/ed_c1_wt.hex";
     parameter ENGINE = 0;
     parameter ED_K = 1;
+    parameter N_ENGINES = 1;
     localparam T = 4;
     localparam MAXW = 65536;
 
@@ -39,7 +40,7 @@ module tb_axis_conv;
     // table), so a hex-vs-baked mismatch would show up here, not on silicon.
     axis_conv_top #(
         .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(1),
-        .ENGINE(ENGINE), .ED_K(ED_K), .WT_FILE(WT_FILE)
+        .ENGINE(ENGINE), .ED_K(ED_K), .WT_FILE(WT_FILE), .N_ENGINES(N_ENGINES)
     ) dut (
         .aclk(clk), .aresetn(~rst),
         .s_axis_tdata(s_tdata), .s_axis_tvalid(s_tvalid),
@@ -62,7 +63,7 @@ module tb_axis_conv;
     // wrapper's eng_busy: engine-only cycles vs wrapper+engine cycles)
     always @(posedge clk) begin
         cyc_now <= cyc_now + 1;
-        if (dut.core.eng_busy) cyc_busy <= cyc_busy + 1;
+        if (dut.g_rep[0].core.eng_busy) cyc_busy <= cyc_busy + 1;
     end
 
     // watchdog: a stalled stream must fail loudly, not hang the sim

@@ -28,7 +28,8 @@ module axis_conv_top #(
     // what makes the M7 dense-vs-event-driven comparison apples to apples.
     parameter ENGINE = 0,
     parameter ED_K = 4,
-    parameter WT_FILE = "ed_c1_wt.hex"
+    parameter WT_FILE = "ed_c1_wt.hex",
+    parameter N_ENGINES = 1   // C0003: engine replication for metering
 ) (
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 aclk CLK",
        X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF s_axis:m_axis, ASSOCIATED_RESET aresetn" *)
@@ -48,19 +49,36 @@ module axis_conv_top #(
     output wire        m_axis_tlast
 );
 
-    axis_conv #(
-        .C_IN(2), .H_IN(34), .W_IN(34),
-        .C_OUT(16), .H_OUT(17), .W_OUT(17),
-        .T(4), .THRESHOLD(64),
-        .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(BAKED_WEIGHTS),
-        .ENGINE(ENGINE), .ED_K(ED_K), .WT_FILE(WT_FILE)
-    ) core (
-        .clk(aclk), .rst(~aresetn),
-        .s_axis_tdata(s_axis_tdata), .s_axis_tvalid(s_axis_tvalid),
-        .s_axis_tready(s_axis_tready), .s_axis_tlast(s_axis_tlast),
-        .m_axis_tdata(m_axis_tdata), .m_axis_tvalid(m_axis_tvalid),
-        .m_axis_tready(m_axis_tready), .m_axis_tlast(m_axis_tlast)
-    );
+    // N_ENGINES (C0003): replicate the engine so the metered delta rises
+    // above baseline drift. Instance 0 talks to the DMA; replicas receive
+    // the SAME input stream (identical FSMs from the same reset advance in
+    // lockstep, so instance 0's tready speaks for all) and their outputs
+    // are consumed unconditionally. DONT_TOUCH keeps synthesis from
+    // pruning them. Per-engine energy is then delta-P / N_ENGINES, with N
+    // stated (and checked in the .hwh) alongside every number.
+    genvar gi;
+    generate for (gi = 0; gi < N_ENGINES; gi = gi + 1) begin : g_rep
+        wire [31:0] rep_tdata;
+        wire rep_tvalid, rep_tready, rep_tlast;
+        (* DONT_TOUCH = "true" *) axis_conv #(
+            .C_IN(2), .H_IN(34), .W_IN(34),
+            .C_OUT(16), .H_OUT(17), .W_OUT(17),
+            .T(4), .THRESHOLD(64),
+            .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(BAKED_WEIGHTS),
+            .ENGINE(ENGINE), .ED_K(ED_K), .WT_FILE(WT_FILE)
+        ) core (
+            .clk(aclk), .rst(~aresetn),
+            .s_axis_tdata(s_axis_tdata), .s_axis_tvalid(s_axis_tvalid),
+            .s_axis_tready(rep_tready), .s_axis_tlast(s_axis_tlast),
+            .m_axis_tdata(rep_tdata), .m_axis_tvalid(rep_tvalid),
+            .m_axis_tready((gi == 0) ? m_axis_tready : 1'b1),
+            .m_axis_tlast(rep_tlast)
+        );
+    end endgenerate
+    assign s_axis_tready = g_rep[0].rep_tready;
+    assign m_axis_tdata  = g_rep[0].rep_tdata;
+    assign m_axis_tvalid = g_rep[0].rep_tvalid;
+    assign m_axis_tlast  = g_rep[0].rep_tlast;
 
 endmodule
 

@@ -2282,3 +2282,35 @@ For scale, the meter's fabric-dynamic term alone is expected around
 number, before static power and the host. The measured-vs-analytical
 ratio, when the meter lands, is the audit the thesis promised (C0022's
 option (b), a measured ANN engine, remains open and optional).
+
+## Corrections worklist status (2026-08-20 16:05) — what landed today, what remains
+
+Resolved today (each has its own entry above): **C0028** retraction (with
+D0026 replacing the finding), **C0029/D0026** P-wide dense baseline —
+bit-identical at P=1..8, matched-parallelism table, crossover located in
+layer fan-in, **C0031/D0025** touched-fraction measured on the full split
+and the sweep-skip decision made (resolves **C0006**), **C0018** BURST
+sweep mode (mock-verified; board pending BUILD_ID 3), **C0022(a)**
+analytical audit number (0.36 uJ/inference), **C0038/C0004/C0001/C0002/
+C0013/C0019/C0020** metering-protocol upgrades written, **C0009** XADC
+in the BURST reply (code; board pending), **C0036** geometry table +
+81 %-figure correction, **C0039** (sim half) seeded cross-class trace
+set — full ladder 21/21 green re-baselined on it; full-split membrane
+ranges re-confirmed (11-13 bits); board re-pass with the unbiased
+conv_test_data at the next session. **C0003** N_ENGINES generate in the
+top with DONT_TOUCH replicas, sim-verified at N=2 (both engines);
+Vivado N=8 build + scaling ratio pending. **C0017** housekeeping done.
+
+Open — needs Vivado (next session, in one rebuild round where possible):
+C0003 N=8 builds + .hwh check, C0015 ED FC on silicon, C0019 seed builds
+x3-5, C0007 SAIF runs, C0021 iso-latency ED build, C0025 K-energy builds,
+C0018/C0009 server rebuild (BUILD_ID 3), C0039 board re-pass.
+Open — needs the meter: C0001/C0002/C0005/C0013/C0020/C0024/C0026/C0027/
+C0038 measurements (all now specified in measure/dmm_protocol.md).
+Open — design work queued next: **C0035 word-parallel wrapper** (the
+binding constraint; engine memory reorganisation, do first), **C0030
+pipelined sweep**, then C0037 recompute, C0033 one-page analysis, C0032
+statement, C0034 chained C1->C2 sim, C0010 scope sentence, C0011
+baseline table, C0012 DVS-Gesture (disk), C0023 T/bit-width sweeps,
+C0040 real-data energy sweep, C0041 wrapper attribution, C0042 metric
+mapping (S3+ wiring exists in perception_loop).
