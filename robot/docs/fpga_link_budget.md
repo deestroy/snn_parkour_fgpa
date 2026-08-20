@@ -16,7 +16,7 @@ ambitious (the "exploit the camera's 90 fps" result the plan wants).
 ## What the robot must ship to the FPGA per perception tick
 
 The robot-era network input is 48x64x2 binary spikes x T=4 timesteps
-(CLAUDE.md target table) = 49,152 bits = 1,536 32-bit words in;
+(the project's target-network table) = 49,152 bits = 1,536 32-bit words in;
 C1-equivalent output back. NOTE: today's engines are built/verified at
 N-MNIST geometry (34x34x2); the engines are fully parameterised, so the
 retarget is a re-synthesis with new parameters + a retrained network —
