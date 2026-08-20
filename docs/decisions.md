@@ -2073,3 +2073,17 @@ it — no churn of verified RTL for a build that is not imminent. Vivado
 customization for the 64x64 build, when it comes: C_IN=2 H_IN=64 W_IN=64
 C_OUT=16 H_OUT=32 W_OUT=32 THRESHOLD=16(=2^k from the final checkpoint's
 export), WORDS_IN 256/timestep, WORDS_OUT 512/timestep.
+
+## P1 RESULT, hardware side (2026-08-20 09:45) — the year-two network runs bit-identical on both engines
+
+Distillation finished: 96,000 iterations, 9.2 h, checkpoints kept. The
+FINAL checkpoint's c1, quantised per D0008 (k=4, threshold 16, rms
+rounding err 0.018), verified BIT-IDENTICAL on the dense and event-driven
+engines at the robot geometry on real simulated event frames: 1,048,576
+comparisons each. ED K=4: 306,480 cycles = 3.065 ms/sample at the real
+6.2 % input activity. conv_layer_r1.v / ed_scatter_r1.v regenerated from
+the final weights. Behavioural evaluation (L3/L6, 32 episodes) running;
+mid-training signal (54 % trained): step 12 % / others 0 % with waypoint
+fractions 0.29-0.39 — already at the 11.19M ResNet student's FINAL level
+with 1/200th the parameters; theoretical encoder energy 0.0059 mJ vs the
+ResNet's 0.184 mJ (31x). Success rates from the full run to follow.
