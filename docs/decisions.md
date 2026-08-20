@@ -2270,3 +2270,15 @@ preloads all 16 and verifies the last iteration's CRC; mock exercises the
 whole path (selftest green). The meter session's energy figure is now a
 distribution over samples by construction. Untested on the board until
 the next Vitis rebuild (BUILD_ID must read 3).
+
+### C0022(a) resolved (2026-08-20 16:20) — the analytical audit number exists
+
+experiments/analytical_energy.py computes ES-Parkour's method (op counts
+x 45 nm constants, MAC 4.6 pJ / AC 0.9 pJ) for THIS network from the
+golden traces: 402,764 ACs/inference = **0.3625 uJ/inference**, vs 17.48
+uJ ANN-equivalent — a "97.9 % saving" by the published methodology.
+For scale, the meter's fabric-dynamic term alone is expected around
+32 mW x 1.5 ms ~= 48 uJ — two orders of magnitude above the analytical
+number, before static power and the host. The measured-vs-analytical
+ratio, when the meter lands, is the audit the thesis promised (C0022's
+option (b), a measured ANN engine, remains open and optional).
