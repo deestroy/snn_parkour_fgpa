@@ -34,6 +34,8 @@ print('%d+%d checks, %d mismatches' % (r1['checked'], r4['checked'], r1['mismatc
 run "Stage B host side vs golden mock"        python3 host/mock_server.py --selftest
 run "M5 protocol vs mock meter"               python3 measure/protocol.py --mock
 run "M5 DMM manual-entry arithmetic"          python3 measure/manual_meter.py --selftest
+run "Y2 per-cycle log (ring, flush, stats)"   python3 robot/host/test_cycle_log.py
+run "Y2 perception loop (stale latent, misses)" python3 robot/host/test_perception_loop.py
 run "RTL lint, dense top (verilator -Wall)"    bash -c 'verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-UNUSEDPARAM -Wno-UNUSEDSIGNAL -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC --top-module axis_conv_top hdl/common/lif_update.v hdl/dense/conv_layer.v hdl/dense/conv_layer_c1.v hdl/eventdriven/ed_scatter.v hdl/eventdriven/ed_scatter_c1.v hdl/eventdriven/ed_conv_layer.v hdl/dense/axis_conv.v hdl/dense/axis_conv_top.v && echo LINT PASS'
 run "RTL lint, event-driven top (ENGINE=1 K=4)" bash -c 'verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-UNUSEDPARAM -Wno-UNUSEDSIGNAL -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -GENGINE=1 -GED_K=4 --top-module axis_conv_top hdl/common/lif_update.v hdl/dense/conv_layer.v hdl/dense/conv_layer_c1.v hdl/eventdriven/ed_scatter.v hdl/eventdriven/ed_scatter_c1.v hdl/eventdriven/ed_conv_layer.v hdl/dense/axis_conv.v hdl/dense/axis_conv_top.v && echo LINT PASS'
 echo "== $pass passed, $fail failed =="
