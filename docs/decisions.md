@@ -2327,3 +2327,26 @@ C0022-addendum gap quotes and the C0043 neuron-model cost table live in
 the same doc for the thesis's related-work section. C0023's T/bit-width
 sweeps now name Harmeling tables 3/5 as their published comparison
 points (sweeps themselves still need builds + meter).
+
+## C0030 resolved (2026-08-20 16:25) — the pipelined sweep: 2 cycles/neuron, bit-identical
+
+ed_conv_layer's sweep now overlaps neuron n's update with neuron n+1's
+read (beat A: present n+1's addresses + write n's V/spike; beat B:
+re-register the latches for the LIF chain). The I-zero rides the read
+edge: the banks are read-first, so the latch captures I[n] on the same
+edge that clears it — each neuron's I is zeroed when read, one beat
+before its update, and nothing else writes I during the sweep. One read
++ one write port per memory still holds, so the BRAM discipline is
+intact; timing risk is the same class as the ED engine's existing paths
+(fabric-FF-sourced LIF), to be confirmed at the next build's WNS.
+
+Verified bit-identical: C1 at K=1/2/4/8/16, C2/C3 at K=4, robot geometry
+with real distilled weights, AXIS hostile handshake. Sweep floor per
+timestep: 18,496 -> 9,248 cycles (exactly 2/neuron). ED K=4 C1
+end-to-end: 149,273 -> 105,225 cycles (1.49 -> 1.05 ms).
+
+RE-BASELINE NOTE: today's runs use the NEW unbiased trace set (C0039),
+whose activity is lower than the old digit-0 set (20,093 vs 25,078 C1
+input spikes/16 samples). Numbers from before 2026-08-20 16:00 are on
+the old set; every comparison table gets rebuilt on the new set after
+C0035 lands, in one pass.

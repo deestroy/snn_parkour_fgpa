@@ -140,6 +140,8 @@ module ed_conv_layer #(
     integer n;                    // sweep index (flat, for vmem/out_mem)
     reg [OC_W-1:0]  sw_oc;        // the same index as fields, for i_addr
     reg [POS_W-1:0] sw_pos;
+    reg             up_valid;     // pipeline: an update is in flight
+    integer         n_up;         // the neuron being updated (= read-1)
     reg start_pend;               // start seen while draining
 
     assign busy = (state != S_IDLE) || sc_busy || !fifo_empty;
@@ -164,6 +166,7 @@ module ed_conv_layer #(
                 end else if (start_pend && fifo_empty && !sc_busy) begin
                     start_pend <= 1'b0; n <= 0; sw_oc <= 0; sw_pos <= 0;
                     i_addr <= 0;                      // neuron 0's I read starts now
+                    up_valid <= 1'b0;
                     state <= S_SW_RD;
                 end
             end
@@ -176,39 +179,53 @@ module ed_conv_layer #(
             end
             S_CLRW: if (!sc_busy) begin state <= S_IDLE; done <= 1'b1; end
 
-            // --- the sweep: one neuron per 4 cycles (read V,I; re-register;
-            //     update; zero I). i_addr for neuron n is presented one state
-            //     EARLY (in the previous S_SW_ZERO / at sweep start), so the
-            //     scatter unit's registered read is already valid during
-            //     S_SW_WAIT and can be copied into a flip-flop there. The zero
-            //     write in S_SW_ZERO still sees i_addr == n: the assignment to
-            //     n+1 takes effect only at the end of that state.
-            S_SW_RD: begin
-                v_r    <= vmem[n];                  // BRAM latch, valid next cycle
-                state  <= S_SW_WAIT;
+            // --- the PIPELINED sweep (C0030): TWO cycles per neuron. Beat A
+            //     presents neuron n_rd's addresses (vmem latch + bank latch
+            //     capture at the A->B edge) and, from the second beat on,
+            //     simultaneously UPDATES neuron n_rd-1 (write vmem/out, zero
+            //     its I through the banks' separate write port). Beat B
+            //     re-registers the latches into fabric FFs for the LIF chain.
+            //     Reads and writes always target different neurons, so the
+            //     one-read-one-write port discipline holds per memory.
+            S_SW_RD: begin                          // beat A
+                v_r <= vmem[n];                     // latch neuron n_rd
+                if (up_valid) begin
+                    vmem[n_up]    <= v_next;        // update neuron n_rd-1
+                    out_mem[n_up] <= spike_next;
+                    i_we <= 1'b1; i_wdata <= 0;     // zero I[n_rd] AT THE READ
+                    // edge: the bank is read-first, so the latch captures
+                    // I[n_rd] and the same edge clears it -- each neuron's I
+                    // is zeroed when read, one beat before its update, and
+                    // nothing else writes I during the sweep (scatter idle).
+                end
+                state <= S_SW_WAIT;
             end
-            S_SW_WAIT: begin
-                v_r2 <= v_r; i_r2 <= i_rdata;       // fast sources for the LIF chain
-                state <= S_SW_UPD;
-            end
-            S_SW_UPD: begin
-                vmem[n]    <= v_next;
-                out_mem[n] <= spike_next;
-                i_we <= 1'b1; i_wdata <= 0;       // request: zero I[i_addr==n]
-                state <= S_SW_ZERO;
-            end
-            S_SW_ZERO: begin                       // zero write lands this edge (i_addr == n)
-                if (n == NEURONS-1) begin state <= S_IDLE; done <= 1'b1; end
-                else begin
-                    n <= n + 1; state <= S_SW_RD;
+            S_SW_WAIT: begin                        // beat B
+                v_r2 <= v_r; i_r2 <= i_rdata;       // fast sources for the LIF
+                up_valid <= 1'b1; n_up <= n;
+                if (n == NEURONS-1) begin
+                    state <= S_SW_UPD;              // epilogue: last update only
+                end else begin
+                    n <= n + 1;
                     if (sw_pos == H_OUT*W_OUT-1) begin
                         sw_pos <= 0; sw_oc <= sw_oc + 1;
-                        i_addr <= {sw_oc + 1'b1, {POS_W{1'b0}}};   // n+1, early
+                        i_addr <= {sw_oc + 1'b1, {POS_W{1'b0}}};
                     end else begin
                         sw_pos <= sw_pos + 1;
                         i_addr <= {sw_oc, sw_pos + 1'b1};
                     end
+                    state <= S_SW_RD;
                 end
+            end
+            S_SW_UPD: begin                         // epilogue beat A (no new read)
+                vmem[n_up]    <= v_next;
+                out_mem[n_up] <= spike_next;
+                i_we <= 1'b1; i_wdata <= 0;
+                up_valid <= 1'b0;
+                state <= S_SW_ZERO;
+            end
+            S_SW_ZERO: begin                        // final zero lands; done
+                state <= S_IDLE; done <= 1'b1;
             end
             endcase
         end
