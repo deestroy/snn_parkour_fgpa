@@ -1867,3 +1867,18 @@ Vivado's own estimates now differ by only 25 mW — at or below its
 resolution, which is itself an argument for the meter. BOOT.bin verified
 byte-exact against this .xsa; ENGINE=0 confirmed; ED image kept at
 host/mac/ed_k4_BOOT.bin.bak. Board run next: prediction 4.36 ms/inference.
+
+### 2026-08-19 23:00 — dense build power breakdown (Vivado estimate): the engine is ~32 mW on a 1.7 W board
+
+Implemented power report, dense build: total 1.706 W = dynamic 1.564 W +
+static 0.143 W. Of the dynamic, PS7 (the ARM side) is 1.533 W (96 %); the
+FABRIC — the thing the thesis compares — is ~31 mW: clocks 16 mW, signals
+6 mW, logic 5 mW, BRAM 5 mW. Consequences, written down before the meter
+session: (1) the idle->burst delta to resolve is ~32 mW = ~2.7 mA at 12 V
+on a ~0.5 A baseline — a 4.5-digit bench DMM's job, hopeless for a
+3.5-digit handheld (matches measure/dmm_protocol.md); (2) the fair
+tool-vs-meter comparison for the ENGINE is this fabric number, not the
+1.7 W total (the total is dominated by the ARM, identical for both
+engines); both get reported (project brief: estimate next to measurement);
+(3) the dense-vs-ED estimate gap at the fabric level is ~25 mW on ~30 mW
+— the tool genuinely cannot rank the two designs. The meter can.
