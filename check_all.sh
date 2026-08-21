@@ -20,9 +20,9 @@ run "M2 LIF neuron HDL"                       bash sim/run_lif_tb.sh
 run "M3 dense conv c1/c2/c3"                  bash sim/run_conv_tb.sh c1 c2 c3
 run "M3 dense FC"                             bash sim/run_fc_tb.sh
 run "M4 AXIS wrapper, dense P=1 (hostile handshake)" bash sim/run_axis_tb.sh c1
-run "C0029/C0035 AXIS dense P=4"               env DP=4 bash sim/run_axis_tb.sh c1
+run "C0029/C0035 AXIS dense P=4 (BAKED, synth path)" env BW=1 DP=4 bash sim/run_axis_tb.sh c1
 run "C0029 P-wide dense engine, P=4 (fair baseline)" env P=4 bash sim/run_conv_p_tb.sh c1
-run "M6 AXIS wrapper, event-driven K=4"          env ENGINE=1 K=4 bash sim/run_axis_tb.sh c1
+run "M6 AXIS wrapper, ED K=4 (BAKED, synth path)" env BW=1 ENGINE=1 K=4 bash sim/run_axis_tb.sh c1
 run "M6 event-driven engine vs golden, K=1"   bash sim/run_ed_tb.sh c1 ed_conv_layer
 run "M6 event-driven engine vs golden, K=4"   env K=4 bash sim/run_ed_tb.sh c1 ed_conv_layer
 run "M6 event-driven FC vs golden (D0023)"     bash sim/run_ed_fc_tb.sh
@@ -38,7 +38,7 @@ run "M5 protocol vs mock meter"               python3 measure/protocol.py --mock
 run "M5 DMM manual-entry arithmetic"          python3 measure/manual_meter.py --selftest
 run "Y2 per-cycle log (ring, flush, stats)"   python3 robot/host/test_cycle_log.py
 run "Y2 perception loop (stale latent, misses)" python3 robot/host/test_perception_loop.py
-run "RTL lint, dense top (verilator -Wall)"    bash -c 'verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-UNUSEDPARAM -Wno-UNUSEDSIGNAL -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC --top-module axis_conv_top hdl/common/lif_update.v hdl/dense/conv_layer_p.v hdl/eventdriven/ed_scatter.v hdl/eventdriven/ed_scatter_c1.v hdl/eventdriven/ed_conv_layer.v hdl/dense/axis_conv.v hdl/dense/axis_conv_top.v && echo LINT PASS'
-run "RTL lint, event-driven top (ENGINE=1 K=4)" bash -c 'verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-UNUSEDPARAM -Wno-UNUSEDSIGNAL -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -GENGINE=1 -GED_K=4 --top-module axis_conv_top hdl/common/lif_update.v hdl/dense/conv_layer_p.v hdl/eventdriven/ed_scatter.v hdl/eventdriven/ed_scatter_c1.v hdl/eventdriven/ed_conv_layer.v hdl/dense/axis_conv.v hdl/dense/axis_conv_top.v && echo LINT PASS'
+run "RTL lint, dense top (verilator -Wall)"    bash -c 'verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-UNUSEDPARAM -Wno-UNUSEDSIGNAL -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC --top-module axis_conv_top hdl/common/lif_update.v hdl/dense/conv_layer_p.v hdl/dense/conv_layer_p_c1.v hdl/eventdriven/ed_scatter.v hdl/eventdriven/ed_scatter_c1.v hdl/eventdriven/ed_conv_layer.v hdl/dense/axis_conv.v hdl/dense/axis_conv_top.v && echo LINT PASS'
+run "RTL lint, event-driven top (ENGINE=1 K=4)" bash -c 'verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-UNUSEDPARAM -Wno-UNUSEDSIGNAL -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -GENGINE=1 -GED_K=4 --top-module axis_conv_top hdl/common/lif_update.v hdl/dense/conv_layer_p.v hdl/dense/conv_layer_p_c1.v hdl/eventdriven/ed_scatter.v hdl/eventdriven/ed_scatter_c1.v hdl/eventdriven/ed_conv_layer.v hdl/dense/axis_conv.v hdl/dense/axis_conv_top.v && echo LINT PASS'
 echo "== $pass passed, $fail failed =="
 [ "$fail" -eq 0 ]

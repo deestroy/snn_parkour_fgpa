@@ -73,6 +73,26 @@ emit_inlined_ed_scatter_c1()
 # vectors exist (P1). Same anchor-replacement approach as the c1 variants:
 # conv_layer_r1.v / ed_scatter_r1.v with the DISTILLED quantised weights
 # inlined, ready for the next Vivado session's 64x64 bitstream.
+def gen_conv_p(name, w_hex_path):
+    """Baked conv_layer_p variant: module conv_layer_p_<name> with the
+    weight table inlined (wrom_all), same anchor discipline as the others."""
+    if not os.path.exists(w_hex_path):
+        return
+    vals = [l.strip() for l in open(w_hex_path) if l.strip()]
+    src = open(os.path.join(REPO, 'hdl', 'dense', 'conv_layer_p.v')).read()
+    init = ("    // BAKED weights (%s), inlined -- no $readmemh for Vivado to lose\n"
+            "    initial begin\n" % name) +         "".join("        wrom_all[%d] = 8'h%s;\n" % (i, v) for i, v in enumerate(vals)) + "    end\n"
+    src = src.replace("module conv_layer_p #(", "module conv_layer_p_%s #(" % name)
+    src = src.replace("    initial $readmemh(WEIGHT_FILE, wrom_all);\n", init)
+    out = os.path.join(REPO, 'hdl', 'dense', 'conv_layer_p_%s.v' % name)
+    open(out, 'w').write(src)
+    print("conv_layer_p_%s.v: inlined (%d entries)" % (name, len(vals)))
+
+
+gen_conv_p('c1', os.path.join(REPO, 'sim', 'vectors', 'conv_c1_w.hex'))
+gen_conv_p('r1', os.path.join(REPO, 'sim', 'vectors', 'conv_r1_w.hex'))
+
+
 def gen_r1():
     wt_hex = os.path.join(REPO, 'sim', 'vectors', 'ed_r1_wt.hex')
     w_hex = os.path.join(REPO, 'sim', 'vectors', 'conv_r1_w.hex')

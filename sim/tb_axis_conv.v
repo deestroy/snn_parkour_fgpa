@@ -24,6 +24,7 @@ module tb_axis_conv;
     parameter ED_K = 1;
     parameter N_ENGINES = 1;
     parameter DENSE_P = 1;
+    parameter BAKED = 0;
     localparam T = 4;
     localparam MAXW = 65536;
 
@@ -40,7 +41,7 @@ module tb_axis_conv;
     // BAKED_WEIGHTS=1: exercise the exact path synthesis uses (compiled-in
     // table), so a hex-vs-baked mismatch would show up here, not on silicon.
     axis_conv_top #(
-        .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(0),   // dense path (conv_layer_p) has no baked variant yet -- file weights; ED baked covered by run_ed benches
+        .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(BAKED),
         .ENGINE(ENGINE), .ED_K(ED_K), .WT_FILE(WT_FILE), .N_ENGINES(N_ENGINES), .DENSE_P(DENSE_P)
     ) dut (
         .aclk(clk), .aresetn(~rst),
