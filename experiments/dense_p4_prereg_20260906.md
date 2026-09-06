@@ -37,3 +37,12 @@ banks; flattened word gather). Server build 4.
   dense walk (taps+3 per neuron group, C0028 discipline applies).
 - A spread comparable to ED's: something data-dependent leaked into the
   dense path (it must not).
+
+## Outcome (2026-09-06, evening, same day)
+
+1. Correctness: **16/16 bit-identical** — held.
+2. Engine latency: **1048.9 us** vs ~1.04 ms predicted (+0.8 %) — held.
+3. Spread: **zero** (1048.9 us on all 16, and on the sweep) — held.
+4. Verdict: ED wins **1.52x** at the mean and on every sample — held.
+5. Server overhead: **117.5 us**, same as ED — held (app still -O0).
+Nothing falsified.

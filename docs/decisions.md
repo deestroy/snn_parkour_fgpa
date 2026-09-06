@@ -2494,3 +2494,15 @@ generate references as advisory. Verified bit-identical: c1 P=1/P=4,
 c2/c3 P=4, r1 real weights, AXIS synth configs (BW=1 DP=4, BW=1 K=4),
 ladder 23/23. Predictions for the pass are pre-registered in
 experiments/dense_p4_prereg_20260906.md.
+
+**Evening: the fixed dense P=4 on silicon — 16/16 bit-identical,
+1048.9 us on every sample (+0.8 % vs the cycle model, zero spread), and
+the all-zero diagnosis confirmed by elimination.** Matched-parallelism
+verdict is now a hardware number: ED K=4 688.5 us mean vs dense P=4
+1048.9 us -> **1.52x** (sim 1.54x), ED faster on every one of the 16
+samples. Table and per-sample data: experiments/board_dense_p4_20260906.md;
+predictions vs outcomes: experiments/dense_p4_prereg_20260906.md (all
+five held). Flow lesson recorded in the checklist: the bitstream header
+timestamp is write_bitstream's, not implementation's — match the timing
+report to the routed design, and never click Generate Bitstream to
+"refresh" an export.
