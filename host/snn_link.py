@@ -37,17 +37,28 @@ class BurstResult:
         self.crc_last = int(words[5])
         self.temp_start_c = int(np.int32(words[6])) / 1000.0 if words.size > 7 else None
         self.temp_end_c = int(np.int32(words[7])) / 1000.0 if words.size > 7 else None
+        # build 4: words 8..9 are engine-only ticks (DMA + fabric, without
+        # the server's per-pass CRC bookkeeping)
+        self.eng_ticks = (int(words[8]) | (int(words[9]) << 32)) \
+            if words.size > 9 else None
         self.elapsed_s = self.ticks / self.ticks_per_s
         self.latency_s = self.elapsed_s / max(self.n, 1)
+        self.eng_latency_s = (self.eng_ticks / self.ticks_per_s / max(self.n, 1)) \
+            if self.eng_ticks is not None else None
 
     def __str__(self):
-        return ("%d iterations in %.3f s -> %.1f us/inference (%.0f inf/s), "
-                "%d mismatches, crc %08x"
-                % (self.n, self.elapsed_s, 1e6 * self.latency_s,
-                   self.n / self.elapsed_s if self.elapsed_s else 0.0,
-                   self.mismatches, self.crc_last)) + (
-                "" if self.temp_start_c is None else
-                "  die %.1f->%.1f degC" % (self.temp_start_c, self.temp_end_c))
+        s = ("%d iterations in %.3f s -> %.1f us/inference (%.0f inf/s), "
+             "%d mismatches, crc %08x"
+             % (self.n, self.elapsed_s, 1e6 * self.latency_s,
+                self.n / self.elapsed_s if self.elapsed_s else 0.0,
+                self.mismatches, self.crc_last))
+        if self.eng_latency_s is not None:
+            s += ("  [engine %.1f us + server %.1f us]"
+                  % (1e6 * self.eng_latency_s,
+                     1e6 * (self.latency_s - self.eng_latency_s)))
+        if self.temp_start_c is not None:
+            s += "  die %.1f->%.1f degC" % (self.temp_start_c, self.temp_end_c)
+        return s
 
 
 def encode(cmd: int, payload: np.ndarray) -> bytes:

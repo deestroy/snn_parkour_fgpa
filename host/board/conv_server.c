@@ -28,7 +28,7 @@
 #include "xadcps.h"                  /* PS XADC: die temperature (C0009) */
 
 /* ---------------------------------------------------------------- config */
-#define BUILD_ID       0x00000003u              /* 3: BURST sweep mode, C0018 (2026-08-20) */
+#define BUILD_ID       0x00000004u              /* 4: sweep from the oldest slot; engine-only ticks (2026-09-05) */
 #define CAP_WORDS      65535u                   /* per direction; DDR-resident. 65535 = max the 16-bit n_words field can carry */
 #define TIMEOUT_LOOP   (50000000u)
 
@@ -242,11 +242,20 @@ static int run_burst(uint32_t n_in) {
     static uint32_t ref_crc[MAX_SAMPLES];
     uint8_t have_ref[MAX_SAMPLES] = {0};
     uint32_t mism = 0, done = 0;
+    uint64_t eng = 0;                /* ticks spent inside one_pass only */
     int32_t t_mc0 = die_temp_mc();
     uint64_t t0 = gt_read(), t1;
     for (uint32_t i = 0; i < iters; i++) {
-        uint32_t si = sweep ? (i % nset) : last;
+        /* sweep indexes from the OLDEST slot so pass i is always the i-th
+         * LOADED sample, whatever the ring position: a lone RUN_CONV
+         * between client invocations rotates s_next, and slot order then
+         * diverges from load order (bit us on silicon; the mock, which
+         * keeps a load-order list, could not see it). When the store has
+         * not wrapped, s_next == n_samples and this reduces to i % nset. */
+        uint32_t si = sweep ? ((s_next + i) % nset) : last;
+        uint64_t t_a = gt_read();
         int e = one_pass(sample_words[si]);
+        eng += gt_read() - t_a;
         if (e) { send_error((uint32_t)e); return -1; }
         done++;
         uint32_t c = 0;
@@ -260,11 +269,15 @@ static int run_burst(uint32_t n_in) {
     uint32_t c = 0;                              /* crc_update folds init/final */
     for (uint32_t k = 0; k < RSP_WORDS; k++) c = crc_word(c, tx_words[k]);
     /* words 6..7: die temperature (milli-degC) at burst start/end (C0009/
-     * C0020). Older clients read only words 0..5 and are unaffected. */
-    uint32_t rep[8] = { done, (uint32_t)ticks, (uint32_t)(ticks >> 32),
-                        TICKS_PER_S, mism, c,
-                        (uint32_t)t_mc0, (uint32_t)die_temp_mc() };
-    send_frame(CMD_BURST | RSP_OK_BIT, rep, 8);
+     * C0020). words 8..9: engine-only ticks (one_pass = DMA + fabric),
+     * excluding the per-pass CRC bookkeeping, which at -O0 costs ~80 us
+     * a pass and was inflating the latency number. Older clients read
+     * only words 0..5 and are unaffected. */
+    uint32_t rep[10] = { done, (uint32_t)ticks, (uint32_t)(ticks >> 32),
+                         TICKS_PER_S, mism, c,
+                         (uint32_t)t_mc0, (uint32_t)die_temp_mc(),
+                         (uint32_t)eng, (uint32_t)(eng >> 32) };
+    send_frame(CMD_BURST | RSP_OK_BIT, rep, 10);
     return 0;
 }
 

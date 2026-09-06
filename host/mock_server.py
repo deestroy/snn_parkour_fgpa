@@ -103,9 +103,13 @@ class MockConvServer:
                         out = self.loaded[(n - 1) % len(self.loaded)]
                     else:
                         out = self.last_out
+                    # build 4 reply shape: temps (mock has no XADC -> 0) and
+                    # engine-only ticks, mocked at 90 % of the loop time
+                    eng = int(ticks * 0.9)
                     rep = np.array([n, ticks & 0xFFFFFFFF, ticks >> 32,
                                     self.MOCK_TICKS_PER_S, 0,
-                                    crc_words(out)], "<u4")
+                                    crc_words(out), 0, 0,
+                                    eng & 0xFFFFFFFF, eng >> 32], "<u4")
                     link.send(CMD_BURST | RSP_OK, rep)
             else:
                 link.send(RSP_ERR, np.array([1], "<u4"))
