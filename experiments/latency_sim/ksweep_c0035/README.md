@@ -41,3 +41,29 @@ wrapper. Scatter cycles per spike fall from ~74 at K=1 to ~4.6 at K=16.
   C0025 (board K-energy sweep), gated on the meter.
 - K=4 stays the silicon operating point: matched to dense P=4, most of
   the scatter gain captured (K 4->8 saves only 17 %), BRAM 12.5 tiles.
+
+## Matched parallelism, K = P, dense P=2/8/16 added (same evening)
+
+Dense P=2, 8, 16 run through the same harness (bit-identical at each P;
+`dense_p<P>.txt`). Dense is exactly data-independent at every P.
+
+| K = P | ED mean | ED min-max | dense | dense / ED |
+|---|---|---|---|---|
+| 1 | 135,520 | 90,793-178,101 | 409,243 | 3.02x |
+| 2 | 90,344 | 66,521-113,029 | 205,787 | 2.28x |
+| **4** | **67,756** | 54,385-80,493 | **104,059** | **1.54x** (silicon: 1.52x) |
+| 8 | 56,464 | 48,317-64,225 | 53,195 | 0.94x — dense wins |
+| 16 | 50,822 | 45,301-56,091 | 27,763 | 0.55x — dense wins |
+
+Dense fits 407.2k/P + 2.0k; ED fits 45.2k + 90.3k/K. Equating them puts
+the **parallelism crossover at K = P ~ 6.6** for C1 at this activity —
+between the 4 (ED wins on every sample) and 8 (dense wins at the mean;
+ED's best sample, 48,317, still beats dense's 53,195) that we can build.
+The mechanism: dense parallelism divides ALL its work; ED parallelism
+divides only the scatter, never the neuron sweep. At high parallelism the
+dense engine's "wasted" work is cheap enough that ED's fixed sweep cost
+dominates — on a layer with 18 taps per neuron. C2/C3 (147/291 taps) push
+this crossover far to the right; the fan-in dependence is the layer-level
+story already in D0026/C0037. Silicon has K = P = 4 only; a K = P = 8
+board pair would bracket the crossover and is a candidate for the
+C0003/C0025 build slot.

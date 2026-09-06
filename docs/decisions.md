@@ -2506,3 +2506,16 @@ five held). Flow lesson recorded in the checklist: the bitstream header
 timestamp is write_bitstream's, not implementation's — match the timing
 report to the routed design, and never click Generate Bitstream to
 "refresh" an export.
+
+**Same evening, two sweeps in simulation/training.** (1) K sweep re-run
+on the current wrapper (experiments/latency_sim/ksweep_c0035): ED cycles
+fit 45.2k + 90.3k/K to <10 cycles; dense P=2/8/16 added: dense fits
+407.2k/P + 2.0k. Matched-parallelism crossover for C1 at this activity is
+**K = P ~ 6.6**: ED wins 1.54x at K = P = 4 (silicon 1.52x), dense wins
+at 8 (0.94x) and 16 (0.55x). Mechanism: P divides all dense work, K
+divides only ED's scatter — the neuron sweep floor is K-independent.
+(2) D0007 addendum, beta sweep (experiments/beta_sweep): shift-friendly
+betas 0.5/0.75/0.9375/0.96875 at seed 0 give 96.81/96.85/96.98/96.85 %
+vs 96.60 % (seed 0) / 97.03 % (3-seed) at 0.875 — flat within seed
+noise; conv firing rates rise ~15 % relative as beta falls to 0.5. beta
+= 0.875 stands; beta is a weak activity knob next to threshold.
