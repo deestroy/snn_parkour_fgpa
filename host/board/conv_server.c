@@ -34,7 +34,9 @@
 
 #ifdef SDT
 #  define DMA_DEV_ID  XPAR_XAXIDMA_0_BASEADDR
-#  define XADC_DEV_ID XPAR_XADCPS_0_BASEADDR   /* SDT lookups take a base address */
+#  define XADC_DEV_ID XPAR_XXADCPS_0_BASEADDR  /* SDT lookups take a base address;
+                                                  double X is real: XPAR_X + driver
+                                                  name "xadcps" (2024.1 SDT) */
 #else
 #  define DMA_DEV_ID  XPAR_AXIDMA_0_DEVICE_ID
 #  define XADC_DEV_ID XPAR_XADCPS_0_DEVICE_ID
