@@ -2392,3 +2392,30 @@ comparison — while C2/C3's multiples were never in doubt. Board note: the
 new dense path (conv_layer_p) needs a baked-weight variant before an
 ENGINE=0 board build; all cycle history from before today is superseded
 by this table.
+
+---
+
+## 2026-09-05 — Board pass 3: ED K=4 pipelined sweep + word wrapper on silicon
+
+Build 1 from docs/vivado_session_next.md landed. First delivered .xsa
+failed the pre-write checks twice over (ENGINE=0/DENSE_P=1 — the
+customisation dialog was opened but only BAKED_WEIGHTS took — and the DMA
+data-path address map had dropped again, 1 MEMRANGE instead of 3). Both
+caught by the .hwh grep before any card write; second .xsa clean.
+**WNS +0.508 on the first timing-clean attempt** — the sign-off rules
+(stepped addresses, re-registered BRAM reads, one port per bank) held as
+design rules for the new logic rather than as repairs after the fact.
+
+On the board: **16/16 samples bit-identical** (first silicon run of
+C0030 + C0035 + baked ed_scatter_c1), then a 16-sample burst sweep:
+**mean 723.5 us/inference, range 589.8-850.8 us** (data-dependent
+timing, visible on silicon; 3,200 burst inferences, zero CRC
+mismatches). +6.7 % over the 678 us sim prediction (per-pass DMA/driver
+overhead + different sample set). 2.1x faster than the pre-C0030 ED
+build's 1.51 ms. Full table: experiments/board_ed_k4_20260905.md.
+
+Server ELF in this BOOT.bin is still build 2 — the conv_server.c
+rebuild (build 3: burst sweep mode + XADC die temps) didn't make it
+into Create Boot Image. Vitis rebuild queued; C0018/C0009 verification
+stays open until PING says 3. Build 2 (dense P=4) also still queued —
+the 1.54x matched-parallelism verdict remains simulation-only until then.
