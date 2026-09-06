@@ -93,11 +93,6 @@ module conv_layer_p #(
     wire in_bit_r = in_bounds_q ? in_word_q[in_bit_sel] : 1'b0;
     reg signed [7:0]       w_r [0:P-1];
     reg signed [WIDTH-1:0] acc [0:P-1];
-    // stepped word/bit indices of each bank's current neuron in out_words:
-    // flat_j = (og*P + j)*HW + oy*W_OUT + ox; +1 per neuron step (bit carry),
-    // += P*HW at each og wrap (constant word/bit increments)
-    reg [$clog2((NEURONS+31)/32)-1:0] ow_w [0:P-1];
-    reg [4:0]                          ow_b [0:P-1];
 
     // banked memories: ONE write + ONE read port each ----------------------
     wire we_upd = (state == S_UPDATE);
@@ -120,17 +115,24 @@ module conv_layer_p #(
     wire                    spike_next [0:P-1];
     wire [P*WIDTH-1:0] v_flat;
     wire [P-1:0]       s_flat;
-    // C0035: spikes ALSO land in a word-organised register file, bit-set as
-    // each neuron group updates (P independent bit writes per cycle -- a
-    // flop array, not BRAM; ~NEURONS bits of flops, the price of word reads)
+    // C0035 rev 2: spikes ALSO land in a PER-BANK flop bit file (obits,
+    // inside g_bank), written at the same address as vmem/smem -- ONE
+    // writer per bank. The first version was a single global word file
+    // with P concurrent bit writes: legal on flops, but each of ~NEURONS
+    // flops needed P address comparators and dense P=4 failed timing at
+    // WNS -3.2 on exactly those write cones (2026-09-06 impl log). The
+    // word read port below is pure constant wiring computed at
+    // elaboration: bit (w,b) of the flat golden order lives at a
+    // compile-time-known (bank, offset).
     localparam WORDS_OUT = (NEURONS + 31) / 32;
-    reg [31:0] out_words [0:WORDS_OUT-1];
-    always @(posedge clk) out_w_data <= out_words[out_w_addr];
+    wire [31:0] word_bits [0:WORDS_OUT-1];
+    always @(posedge clk) out_w_data <= word_bits[out_w_addr];
 
     genvar g;
     generate for (g = 0; g < P; g = g + 1) begin : g_bank
         reg signed [WIDTH-1:0] vmem [0:BN-1];
         reg                    smem [0:BN-1];
+        reg [BN-1:0]           obits;   // this bank's spikes, one flop each
         reg signed [WIDTH-1:0] v_lat, v_r2;
         reg                    s_lat;
         // per-bank weights, re-indexed from the shared hex at time zero
@@ -147,6 +149,7 @@ module conv_layer_p #(
             if (we_upd || we_clr) begin
                 vmem[mem_waddr] <= we_clr ? {WIDTH{1'b0}} : v_next[g];
                 smem[mem_waddr] <= we_clr ? 1'b0 : spike_next[g];
+                obits[mem_waddr] <= we_clr ? 1'b0 : spike_next[g];
             end
             v_lat <= vmem[(state == S_TAIL || state == S_VRD) ? n_off : x_off_v[AB-1:0]];
             v_r2  <= v_lat;
@@ -169,6 +172,23 @@ module conv_layer_p #(
     assign out_data = s_flat[sel_o];
     assign v_data   = v_flat[sel_v*WIDTH +: WIDTH];
 
+    // word gather: golden flat bit gw*32+gb2 -> (bank, offset), all indices
+    // compile-time constants (the / and % below are elaboration-only) ------
+    genvar gw, gb2;
+    generate for (gw = 0; gw < WORDS_OUT; gw = gw + 1) begin : g_ow
+        for (gb2 = 0; gb2 < 32; gb2 = gb2 + 1) begin : g_ob
+            if (gw*32 + gb2 < NEURONS) begin : g_in
+                localparam integer FLAT  = gw*32 + gb2;
+                localparam integer OC    = FLAT / HW;
+                localparam integer LANE  = OC % P;
+                localparam integer LOCAL = (OC / P) * HW + (FLAT % HW);
+                assign word_bits[gw][gb2] = g_bank[LANE].obits[LOCAL];
+            end else begin : g_pad
+                assign word_bits[gw][gb2] = 1'b0;   // padding past NEURONS
+            end
+        end
+    end endgenerate
+
     always @(posedge clk) begin
         done <= 1'b0;
         if (rst) begin
@@ -182,19 +202,14 @@ module conv_layer_p #(
             end else if (start) begin
                 og <= 0; oy <= 0; ox <= 0;
                 ic <= 0; ky <= 0; kx <= 0;
-                for (j = 0; j < P; j = j + 1) begin
-                    acc[j] <= 0;
-                    ow_w[j] <= (j * HW) >> 5;       // constants per j
-                    ow_b[j] <= (j * HW) & 31;
-                end
+                for (j = 0; j < P; j = j + 1) acc[j] <= 0;
                 prime <= 1'b1;
                 n_off <= 0; wb_a <= 0; wb <= -(W_IN + 1); in_a <= -(W_IN + 1);
                 busy <= 1'b1; state <= S_MAC;
             end
         end
 
-        S_CLEAR: begin
-            if (clr < WORDS_OUT) out_words[clr[$clog2(WORDS_OUT)-1:0]] <= 32'b0;
+        S_CLEAR: begin  // banks clear vmem/smem/obits at mem_waddr = clr
             if (clr == BN-1) begin state <= S_IDLE; done <= 1'b1; end
             else clr <= clr + 1;
         end
@@ -229,47 +244,26 @@ module conv_layer_p #(
         S_VRD:  state <= S_VREG;   // v_lat valid
         S_VREG: state <= S_UPDATE; // v_r2 valid (fabric FF feeds the LIF)
 
-        S_UPDATE: begin            // P banks each write their neuron (we_upd)
-            for (j = 0; j < P; j = j + 1) begin
-                acc[j] <= 0;
-                out_words[ow_w[j]][ow_b[j]] <= spike_next[j];  // word file (C0035)
-            end
+        S_UPDATE: begin            // P banks each write their neuron (we_upd);
+                                   // obits takes the spike at the same address
+            for (j = 0; j < P; j = j + 1) acc[j] <= 0;
             prime <= 1'b1;
             if (ox != W_OUT-1) begin
                 ox <= ox + 1; wb <= wb + 2; in_a <= wb + 2;
                 n_off <= n_off + 1;
                 wb_a <= og * TAPS;
-                for (j = 0; j < P; j = j + 1) begin      // flat_j += 1
-                    if (ow_b[j] == 31) begin ow_b[j] <= 0; ow_w[j] <= ow_w[j] + 1; end
-                    else ow_b[j] <= ow_b[j] + 1;
-                end
             end else begin ox <= 0;
                 if (oy != H_OUT-1) begin
                     oy <= oy + 1;
                     wb <= wb + (2*W_IN - 2*(W_OUT-1)); in_a <= wb + (2*W_IN - 2*(W_OUT-1));
                     n_off <= n_off + 1;
                     wb_a <= og * TAPS;
-                    for (j = 0; j < P; j = j + 1) begin  // flat_j += 1
-                        if (ow_b[j] == 31) begin ow_b[j] <= 0; ow_w[j] <= ow_w[j] + 1; end
-                        else ow_b[j] <= ow_b[j] + 1;
-                    end
                 end else begin oy <= 0;
                     if (og != GB-1) begin
                         og <= og + 1;
                         wb <= -(W_IN + 1); in_a <= -(W_IN + 1);
                         n_off <= n_off + 1;
                         wb_a <= (og + 1) * TAPS;
-                        for (j = 0; j < P; j = j + 1) begin
-                            // flat_j += P*HW - HW + 1 (constant): split into
-                            // word/bit increments with carry
-                            if (ow_b[j] + ((P*HW - HW + 1) & 31) > 31) begin
-                                ow_b[j] <= ow_b[j] + ((P*HW - HW + 1) & 31) - 32;
-                                ow_w[j] <= ow_w[j] + ((P*HW - HW + 1) >> 5) + 1;
-                            end else begin
-                                ow_b[j] <= ow_b[j] + ((P*HW - HW + 1) & 31);
-                                ow_w[j] <= ow_w[j] + ((P*HW - HW + 1) >> 5);
-                            end
-                        end
                     end else begin state <= S_IDLE; done <= 1'b1; end
                 end
             end

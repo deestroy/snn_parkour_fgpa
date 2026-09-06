@@ -2442,3 +2442,27 @@ C0018 (sweep-mode metering window) and C0009 (XADC die temps, 35.0-39.6
 degC logged) are now silicon-verified. Superseded: build 2/3 latency
 numbers in this file and experiments/board_ed_k4_20260905.md's first
 table. Remaining board work: dense P=4 build, N=8, seeds, SAIF.
+
+---
+
+## 2026-09-06 — Dense P=4 timing repair: banked output word file (C0035 rev 2)
+
+Build 2 (dense P=4, first conv_layer_p implementation run) FAILED timing
+at router WNS -3.230: every critical path was in the out_words flop file,
+where P=4 lanes wrote 4 bits/cycle into one ~4640-flop array — four
+address comparators on every flop's enable. The ED engine shares the
+structure but has ONE writer and closed at +0.508; the P>1 dense case
+violated the one-writer-per-bank rule in spirit (flops made it legal,
+timing made it expensive). Caught at the WNS gate; no card was written.
+
+Repair: each lane keeps its OWN spike bit file (obits, BN flops), written
+at the SAME address as vmem/smem — one writer, one 1-of-BN decode, no
+cross-lane mux; the ow_w/ow_b stepped word counters and the og-wrap
+carry hack are deleted. The global word read port becomes constant
+wiring: (word, bit) -> (bank, offset) is computed at elaboration
+(divides run at time zero only). Cycle counts unchanged (101,724 c1 P=4;
+re-baseline table stands). Verified bit-identical: c1/c2/c3 at P=1 and
+P=4, r1 synthetic and REAL weights, AXIS synth configs (BW=1 DP=4 dense,
+BW=1 K=4 ED, hostile handshake), full ladder 22/22. Baked variants
+regenerated; r1 baked provenance restored to the fpga_student weights
+after the synthetic-vector bench overwrote them on disk.
