@@ -52,8 +52,20 @@ Same steps; predicted ~1.04 ms/inference. Utilization: the P=4 dense row
 9. ED FC on silicon (C0015) is a separate wrapper change -- NOT this
    session; listed so it is not forgotten.
 
-## Pre-card-write checklist (unchanged, plus one)
+## Pre-card-write checklist (2026-09-06 revision)
 
 .hwh: ENGINE, ED_K / DENSE_P, N_ENGINES, BAKED_WEIGHTS, DDR part
-MT41J128M16, HP0=1, two DMA MEMRANGEs. BOOT.bin PL partition byte-equal
-to the .xsa bitstream. WNS >= 0. PING build 3.
+MT41J128M16, HP0=1, three MEMRANGEs (DMA regs + MM2S->DDR + S2MM->DDR).
+WNS >= 0 (read it BEFORE exporting; Vivado writes bitstreams that fail
+timing). BOOT.bin PL partition byte-equal to the .xsa bitstream — and,
+after a fix, that bitstream must DIFFER from the previous build's (a
+stale Create Boot Image reproduced the old .bit on 2026-09-06). PING
+build 4.
+
+Added after the dense P=4 zero-output pass: bit-identical simulation
+does not cover synthesis-time INITIALIZATION. Every ROM must be
+initialized in one step and read directly by the hardware (no second
+initial block copying from another array); `sim/lint_synth_safety.sh`
+enforces this and lists cross-scope generate references for review.
+The first silicon pass of any new engine is a correctness pass first,
+timing second: a "BOARD PASS" line, never just a PING.
