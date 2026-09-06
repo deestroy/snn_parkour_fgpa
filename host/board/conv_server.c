@@ -34,8 +34,10 @@
 
 #ifdef SDT
 #  define DMA_DEV_ID  XPAR_XAXIDMA_0_BASEADDR
+#  define XADC_DEV_ID XPAR_XADCPS_0_BASEADDR   /* SDT lookups take a base address */
 #else
 #  define DMA_DEV_ID  XPAR_AXIDMA_0_DEVICE_ID
+#  define XADC_DEV_ID XPAR_XADCPS_0_DEVICE_ID
 #endif
 
 #define MAGIC          0x5A4E4E53u
@@ -268,7 +270,7 @@ int main(void) {
     crc_init();
     gt_enable();
     {   /* XADC init is best-effort: metering wants it, nothing depends on it */
-        XAdcPs_Config *xc = XAdcPs_LookupConfig(XPAR_XADCPS_0_DEVICE_ID);
+        XAdcPs_Config *xc = XAdcPs_LookupConfig(XADC_DEV_ID);
         if (xc && XAdcPs_CfgInitialize(&xadc, xc, xc->BaseAddress) == XST_SUCCESS)
             xadc_ok = 1;
     }
