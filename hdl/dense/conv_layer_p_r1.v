@@ -60,10 +60,13 @@ module conv_layer_p_r1 #(
     reg [4:0]  in_bit_sel;
     reg        in_bounds_q;
 
-    // --- weight banks: bank p holds channels oc == p (mod P), consecutive
-    //     within the bank at offset ((oc/P)*C_IN + ic)*9 + (ky*3 + kx).
-    //     Loaded from the same golden hex by re-indexing at init.
-    localparam WB_N = GB * TAPS;              // words per bank
+    // --- weights: ONE array, initialized in ONE step, read at P per-lane
+    //     addresses (the tool replicates the ROM per read port). The first
+    //     version copied wrom_all into per-bank ROMs in a second initial
+    //     block; iverilog honoured the #0 ordering, Vivado did not, and the
+    //     banks synthesised to ALL-ZERO ROMs -- zero output on silicon,
+    //     bit-identical in simulation (2026-09-06). ed_scatter's single-
+    //     stage init is the silicon-proven pattern; this now matches it.
     reg signed [7:0] wrom_all [0:C_OUT*TAPS-1];
     // BAKED weights (r1), inlined -- no $readmemh for Vivado to lose
     initial begin
@@ -374,7 +377,12 @@ module conv_layer_p_r1 #(
     integer j;
 
     // stepped addresses (never formulas into memories) ---------------------
-    integer in_a, wb_a, wb;     // input addr, weight offset in bank, window base
+    integer in_a, wb;           // input addr, window base
+    // per-lane GLOBAL weight addresses into wrom_all: lane j reads channel
+    // og*P + j, so wa[j] = (og*P + j)*TAPS + tap. grp_base steps by P*TAPS
+    // at each og wrap; the j*TAPS offsets are unrolled constants.
+    integer wa [0:P-1];
+    integer grp_base;
     reg [AB-1:0] n_off;         // bank offset of the current P-neuron group
     wire signed [31:0] iy = 2*oy + ky - 1;
     wire signed [31:0] ix = 2*ox + kx - 1;
@@ -425,17 +433,8 @@ module conv_layer_p_r1 #(
         reg [BN-1:0]           obits;   // this bank's spikes, one flop each
         reg signed [WIDTH-1:0] v_lat, v_r2;
         reg                    s_lat;
-        // per-bank weights, re-indexed from the shared hex at time zero
-        reg signed [7:0] wrom [0:WB_N-1];
-        integer gi, ti;
-        initial begin
-            #0;
-            for (gi = 0; gi < GB; gi = gi + 1)
-                for (ti = 0; ti < TAPS; ti = ti + 1)
-                    wrom[gi*TAPS + ti] = wrom_all[((gi*P + g)*TAPS) + ti];
-        end
         always @(posedge clk) begin
-            w_r[g] <= wrom[wb_a];
+            w_r[g] <= wrom_all[wa[g]];
             if (we_upd || we_clr) begin
                 vmem[mem_waddr] <= we_clr ? {WIDTH{1'b0}} : v_next[g];
                 smem[mem_waddr] <= we_clr ? 1'b0 : spike_next[g];
@@ -463,7 +462,11 @@ module conv_layer_p_r1 #(
     assign v_data   = v_flat[sel_v*WIDTH +: WIDTH];
 
     // word gather: golden flat bit gw*32+gb2 -> (bank, offset), all indices
-    // compile-time constants (the / and % below are elaboration-only) ------
+    // compile-time constants (the / and % below are elaboration-only). The
+    // g_bank[LANE].obits[LOCAL] reference is the same construct as
+    // axis_conv_top's g_rep[0].* -- on silicon in the validated ED build.
+    // (A flattened P*BN-bit wire was tried instead and made iverilog
+    // quadratic on the robot geometry: hours instead of minutes.) --------
     genvar gw, gb2;
     generate for (gw = 0; gw < WORDS_OUT; gw = gw + 1) begin : g_ow
         for (gb2 = 0; gb2 < 32; gb2 = gb2 + 1) begin : g_ob
@@ -494,7 +497,9 @@ module conv_layer_p_r1 #(
                 ic <= 0; ky <= 0; kx <= 0;
                 for (j = 0; j < P; j = j + 1) acc[j] <= 0;
                 prime <= 1'b1;
-                n_off <= 0; wb_a <= 0; wb <= -(W_IN + 1); in_a <= -(W_IN + 1);
+                n_off <= 0; wb <= -(W_IN + 1); in_a <= -(W_IN + 1);
+                grp_base <= 0;
+                for (j = 0; j < P; j = j + 1) wa[j] <= j * TAPS;
                 busy <= 1'b1; state <= S_MAC;
             end
         end
@@ -512,7 +517,7 @@ module conv_layer_p_r1 #(
                 for (j = 0; j < P; j = j + 1)
                     acc[j] <= acc[j] + {{(WIDTH-8){w_r[j][7]}}, w_r[j]};
             prime <= 1'b0;
-            wb_a <= wb_a + 1;
+            for (j = 0; j < P; j = j + 1) wa[j] <= wa[j] + 1;
             if (kx != 2) begin kx <= kx + 1; in_a <= in_a + 1; end
             else begin kx <= 0;
                 if (ky != 2) begin ky <= ky + 1; in_a <= in_a + (W_IN - 2); end
@@ -541,19 +546,21 @@ module conv_layer_p_r1 #(
             if (ox != W_OUT-1) begin
                 ox <= ox + 1; wb <= wb + 2; in_a <= wb + 2;
                 n_off <= n_off + 1;
-                wb_a <= og * TAPS;
+                for (j = 0; j < P; j = j + 1) wa[j] <= grp_base + j * TAPS;
             end else begin ox <= 0;
                 if (oy != H_OUT-1) begin
                     oy <= oy + 1;
                     wb <= wb + (2*W_IN - 2*(W_OUT-1)); in_a <= wb + (2*W_IN - 2*(W_OUT-1));
                     n_off <= n_off + 1;
-                    wb_a <= og * TAPS;
+                    for (j = 0; j < P; j = j + 1) wa[j] <= grp_base + j * TAPS;
                 end else begin oy <= 0;
                     if (og != GB-1) begin
                         og <= og + 1;
                         wb <= -(W_IN + 1); in_a <= -(W_IN + 1);
                         n_off <= n_off + 1;
-                        wb_a <= (og + 1) * TAPS;
+                        grp_base <= grp_base + P * TAPS;
+                        for (j = 0; j < P; j = j + 1)
+                            wa[j] <= grp_base + P * TAPS + j * TAPS;
                     end else begin state <= S_IDLE; done <= 1'b1; end
                 end
             end

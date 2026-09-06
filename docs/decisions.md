@@ -2466,3 +2466,31 @@ P=4, r1 synthetic and REAL weights, AXIS synth configs (BW=1 DP=4 dense,
 BW=1 K=4 ED, hostile handshake), full ladder 22/22. Baked variants
 regenerated; r1 baked provenance restored to the fpga_student weights
 after the synthetic-vector bench overwrote them on disk.
+
+**Same day, silicon pass of the repaired dense P=4: ALL ZEROS.** WNS
++0.089, PING build 4, DMA alive — and every sample came back as 580
+zero words (the "wrong word" counts were exactly the golden nonzero-word
+counts; confirmed by reading a raw reply). Bit-identical in simulation.
+Diagnosis by pattern comparison with the silicon-proven ed_scatter:
+conv_layer_p initialized its weights in TWO stages (wrom_all from
+readmemh/inline, then per-bank wrom copies in a second initial block
+ordered by "#0"); iverilog honours that ordering, Vivado has no such
+guarantee, and all-zero weights produce exactly zero spikes. The engine
+OOC utilization report (5,079 FF ~= 4x1,156 obits + state, 4 RAMB36
+membrane banks, 578/289 F7/F8 word mux, DSP 0) shows the datapath
+survived, and cannot distinguish the weight question (Vivado does not
+fold constants through a RAM with a write port) — so this is a strong
+inference, to be confirmed by elimination on the next board pass.
+
+Repair (C0029 rev 2): one weight array, one init step, read directly at
+per-lane stepped global addresses wa[j] = (og*P+j)*TAPS + tap (grp_base
++ unrolled constants) — the ed_scatter pattern. A flattened P*BN-bit
+gather wire was tried and reverted: it made iverilog quadratic on the
+robot geometry (hours), and the hierarchical g_bank[LANE].obits[LOCAL]
+form is the same construct as axis_conv_top's g_rep[0].* which is on
+silicon. New guard: sim/lint_synth_safety.sh (check 21) fails the
+ladder on any "#0" two-stage init in hdl/ and lists cross-scope
+generate references as advisory. Verified bit-identical: c1 P=1/P=4,
+c2/c3 P=4, r1 real weights, AXIS synth configs (BW=1 DP=4, BW=1 K=4),
+ladder 23/23. Predictions for the pass are pre-registered in
+experiments/dense_p4_prereg_20260906.md.
