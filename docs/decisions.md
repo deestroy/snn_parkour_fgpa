@@ -2419,3 +2419,26 @@ rebuild (build 3: burst sweep mode + XADC die temps) didn't make it
 into Create Boot Image. Vitis rebuild queued; C0018/C0009 verification
 stays open until PING says 3. Build 2 (dense P=4) also still queued —
 the 1.54x matched-parallelism verdict remains simulation-only until then.
+
+**Build 4, same evening — the engine-only numbers.** Build 3's PING
+exposed a stale-ELF copy (twice: the app rebuilt from the unchanged
+source; caught by the build number, which is why that check exists), an
+SDT rename chain (XPAR_XADCPS_0_DEVICE_ID -> XPAR_XXADCPS_0_BASEADDR,
+double X real), and two measurement defects found ON silicon: (1) the
+sweep indexed ring SLOTS while the client assumed LOAD ORDER — a lone
+RUN_CONV between invocations rotated the ring and failed the CRC check;
+the mock keeps a load-order list and structurally could not catch it
+(mock models the intent, silicon models the ring); (2) per-pass CRC
+bookkeeping at -O0 sat inside the timed loop, inflating latency ~117 us
+per pass. Build 4 sweeps from the oldest slot (rotation-proof, verified
+with the ring deliberately offset) and accumulates engine-only ticks
+around one_pass, reported in reply words 8..9.
+
+**Result: ED K=4 C1 engine latency mean 688.5 us (554.8-815.8 across the
+16 check samples), +1.5 % over the 678 us cycle-model prediction.** The
+earlier +6.7 % gap was the server's bookkeeping, not the engine. Sweep
+consistency: 16-sample sweep mean == mean of 16 single-sample bursts.
+C0018 (sweep-mode metering window) and C0009 (XADC die temps, 35.0-39.6
+degC logged) are now silicon-verified. Superseded: build 2/3 latency
+numbers in this file and experiments/board_ed_k4_20260905.md's first
+table. Remaining board work: dense P=4 build, N=8, seeds, SAIF.
