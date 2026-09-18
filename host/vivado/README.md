@@ -33,5 +33,14 @@ Output: `C:/Users/dhritiaravind/m4_conv/builds/<engine>_<YYYYmmdd_HHMM>/`.
 Copy that folder's BOOT.bin + design_1_wrapper.xsa to host/mac/build on
 the Mac as before; the Mac-side pre-write checks are unchanged.
 
+Re-export without rebuilding: if the run finished but the script failed
+afterwards (or you want the reports/.xsa of the run already on disk),
+add `set REUSE_RUN 1` before the `source` line. The script then leaves
+the block design untouched, insists impl_1 is "write_bitstream Complete"
+and not flagged out of date by Vivado, and does only the checks, reports
+and export. Any implemented-design tabs open in the GUI are closed by
+the script (open_run refuses to run while one is open -- the 2026-09-17
+failure).
+
 Not covered: the Vitis app rebuild (only needed when conv_server.c
 changes) and the optional -O2 setting.

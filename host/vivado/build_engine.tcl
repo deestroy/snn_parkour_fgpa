@@ -35,6 +35,10 @@ foreach v {ENGINE ED_K DENSE_P} {
 }
 set BAKED 1
 set NENG  1
+# REUSE_RUN 1: do NOT rebuild -- take the already-completed impl_1 (must be
+# "write_bitstream Complete" and not out of date) and only do the checks,
+# reports and export.  For re-exporting after a post-build script error.
+if {![info exists REUSE_RUN]} { set REUSE_RUN 0 }
 if {$ENGINE} { set tag "ed_k${ED_K}" } else { set tag "dense_p${DENSE_P}" }
 set tag "${tag}_[clock format [clock seconds] -format %Y%m%d_%H%M]"
 set proj_dir [file dirname $PROJECT]
@@ -55,12 +59,14 @@ set bd [get_files -quiet design_1.bd]
 if {$bd eq ""} { error "design_1.bd not in project" }
 open_bd_design $bd
 set cell [get_bd_cells $BD_CELL]
-set_property -dict [list \
-    CONFIG.ENGINE        $ENGINE \
-    CONFIG.ED_K          $ED_K \
-    CONFIG.DENSE_P       $DENSE_P \
-    CONFIG.BAKED_WEIGHTS $BAKED \
-    CONFIG.N_ENGINES     $NENG ] $cell
+if {!$REUSE_RUN} {
+    set_property -dict [list \
+        CONFIG.ENGINE        $ENGINE \
+        CONFIG.ED_K          $ED_K \
+        CONFIG.DENSE_P       $DENSE_P \
+        CONFIG.BAKED_WEIGHTS $BAKED \
+        CONFIG.N_ENGINES     $NENG ] $cell
+}
 # read back -- this is the check that caught the ENGINE=0 stale-customisation build
 foreach {p want} [list ENGINE $ENGINE ED_K $ED_K DENSE_P $DENSE_P BAKED_WEIGHTS $BAKED N_ENGINES $NENG] {
     set got [get_property CONFIG.$p $cell]
@@ -72,6 +78,7 @@ foreach {p want} [list ENGINE $ENGINE ED_K $ED_K DENSE_P $DENSE_P BAKED_WEIGHTS 
 foreach sp {Data_MM2S Data_S2MM} {
     set segs [get_bd_addr_segs -quiet -of_objects [get_bd_addr_spaces axi_dma_0/$sp]]
     if {[llength $segs] == 0} {
+        if {$REUSE_RUN} { error "$sp unassigned -- the completed run cannot be reused" }
         say "  $sp has no address assignment -- running assign_bd_address"
         assign_bd_address
         set segs [get_bd_addr_segs -quiet -of_objects [get_bd_addr_spaces axi_dma_0/$sp]]
@@ -87,6 +94,9 @@ foreach sp {Data_MM2S Data_S2MM} {
     if {[llength $excl]} { error "$sp has excluded segments: $excl" }
 }
 
+if {$REUSE_RUN} {
+    say "REUSE_RUN: block design left untouched (no validate/save/generate)"
+} else {
 validate_bd_design
 # This VM intermittently reports "Spawn failed: No error" from the helper
 # process Vivado forks AFTER writing the .bd (seen 2026-09-17). Treat the
@@ -100,6 +110,7 @@ if {[catch {generate_target all $bd} msg]} {
     after 5000
     generate_target all $bd
 }
+}
 
 # ---------------------------------------------------------------- build
 # Two ways to build. (A) the project runs, which spawn child Vivado
@@ -110,6 +121,14 @@ if {[catch {generate_target all $bd} msg]} {
 # (B) synthesises the block design globally (no OOC checkpoints).
 set PART [get_property PART [current_project]]
 set used_inprocess 0
+
+# open_run / synth_design refuse to start while a design is open, and the
+# GUI keeps every implemented design the user opened (impl_1, impl_1_2, ...)
+# -- stale views of earlier implementations, safe to close.
+proc close_all_designs {} {
+    foreach d [get_designs -quiet] { current_design $d; close_design }
+}
+close_all_designs
 
 proc try_project_runs {jobs} {
     reset_run synth_1
@@ -136,7 +155,19 @@ proc try_project_runs {jobs} {
     return 0
 }
 
-if {[try_project_runs $JOBS]} {
+if {$REUSE_RUN} {
+    set st [get_property STATUS [get_runs impl_1]]
+    if {![string match "*write_bitstream Complete*" $st]} { error "REUSE_RUN: impl_1 status is '$st', not complete" }
+    if {[get_property NEEDS_REFRESH [get_runs synth_1]] || [get_property NEEDS_REFRESH [get_runs impl_1]]} {
+        error "REUSE_RUN: the run is OUT OF DATE relative to the sources/block design -- rebuild (REUSE_RUN 0)"
+    }
+    say "REUSE_RUN: impl_1 is complete and current -- skipping the rebuild"
+    set built 1
+} else {
+    set built [try_project_runs $JOBS]
+}
+
+if {$built} {
     say "project runs completed"
     set wns [get_property STATS.WNS [get_runs impl_1]]
     set tns [get_property STATS.TNS [get_runs impl_1]]
@@ -146,6 +177,9 @@ if {[try_project_runs $JOBS]} {
         file copy -force $f $out
     }
     set bit [lindex [glob -nocomplain $impl_dir/design_1_wrapper.bit] 0]
+    if {$bit eq ""} { error "no design_1_wrapper.bit in $impl_dir" }
+    file copy -force $bit $out
+    close_all_designs
     open_run impl_1
 } else {
     say "project runs unavailable on this machine -- building IN-PROCESS (no spawn)"
