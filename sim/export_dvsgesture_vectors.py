@@ -26,6 +26,7 @@ FRAMES = os.path.join(REPO, "data", "packed_dvsgesture", "test_frames.npy")
 sys.path.insert(0, REPO)
 from golden.network import lif_update  # noqa: E402
 from sim.export_robot_vectors import conv_s2, C_IN, H_IN, W_IN, C_OUT, H_OUT, W_OUT, T  # noqa: E402
+from sim.corner_exposure import report  # noqa: E402
 
 
 def main() -> int:
@@ -79,6 +80,7 @@ def main() -> int:
         for x in V.ravel(): fh.write("%04x\n" % (int(x) & 0xFFFF))
 
     assert V.max() < 32767 and V.min() > -32768, "membranes overflow int16"
+    report("g1", frames, OUT)                             # C0044 guard: corner blind spots
     print("g1 (DVS-Gesture, real weights): %d samples, in rate %.4f, out rate %.4f, "
           "|V|max %d, THRESHOLD=%d" % (B, frames.mean(), S.mean(), np.abs(V).max(), thr))
     print("NOTE: run the engines with THRESH=%d." % thr)

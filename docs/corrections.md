@@ -909,9 +909,25 @@ for C0012 stated in verification terms rather than reviewer terms. A
 cheap guard is in place: the synthetic r1 set (corner activity in 13
 of 32 timesteps) is a ladder check at K=4 (`check_all.sh`, 24 checks,
 ~12 min), and it was shown to FAIL on the pre-fix RTL before being
-added. Still open: the vector exporters should report the per-neuron
-exposure of the receptive-field corners so a check set's blind spots
-are visible without a second dataset.
+added. The exporters now print a corner-exposure line and write
+`sim/vectors/ed_<layer>_exposure.txt` (`sim/corner_exposure.py`, with a
+self-test in the ladder): for each output-corner neuron, how many
+frames put a spike in its receptive field. First reading, 2026-09-17:
+
+| set | frames | TL | TR | BL | BR | blind at |
+|---|---|---|---|---|---|---|
+| N-MNIST c1 (16 samples) | 64 | 0 | 0 | 0 | 0 | all four |
+| N-MNIST c2 | 64 | 0 | 0 | 0 | 1 | TL, TR, BL |
+| N-MNIST c3 | 64 | 0 | 10 | 6 | 1 | TL |
+| DVS-Gesture g1 (8) | 32 | 3 | 0 | 1 | 0 | TR, BR |
+| robot depth frames, real student (8) | 32 | 0 | 0 | 31 | 31 | TL, TR |
+| synthetic r1 (8) | 32 | 13 | 13 | 22 | 25 | none |
+
+N-MNIST is blind at every C1 corner, DVS-Gesture at two, and the real
+robot frames at the top two (the depth camera's top rows are empty in
+the recorded rollout). Only the synthetic set covers all four, which is
+why it is the ladder's guard; a data set's own vectors are evidence
+about the data, not about the boundary logic.
 ---
 ## Closing note on this review
 Three passes have been made: methodology (C0001–C0017), measurement

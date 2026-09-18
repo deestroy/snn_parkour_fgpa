@@ -24,6 +24,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "sim", "vectors")
 sys.path.insert(0, REPO)
 from golden.network import lif_update  # noqa: E402  the one true rule
+from sim.corner_exposure import report  # noqa: E402
 
 C_IN, H_IN, W_IN = 2, 64, 64
 C_OUT, H_OUT, W_OUT = 16, 32, 32
@@ -105,6 +106,7 @@ def main() -> int:
             fh.write("%04x\n" % (int(x) & 0xFFFF))
 
     assert V.max() < 32767 and V.min() > -32768, "membranes overflow int16"
+    report("r1", frames, OUT)                             # C0044 guard: corner blind spots
     print("r1: %d samples, input rate %.4f, output rate %.4f, |V|max %d"
           % (B, frames.mean(), S.mean(), np.abs(V).max()))
     return 0

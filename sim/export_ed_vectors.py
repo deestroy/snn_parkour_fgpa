@@ -31,6 +31,7 @@ import numpy as np
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 from golden.eventdriven import GEOM, transpose_weights, EventDrivenConv, flat_neuron  # noqa: E402
+from sim.corner_exposure import report  # noqa: E402
 
 OUT = os.path.join(REPO, "sim", "vectors")
 
@@ -97,6 +98,7 @@ def main() -> int:
                     fh.write("%04x\n" % (int(v) & 0xFFFF))
                 eng.sweep()   # advances V, zeroes I, exactly as the RTL sweep will
 
+    report(args.layer, spikes_in.astype(np.uint8), OUT)   # C0044 guard: corner blind spots
     print("%s: %d samples x %d ts, %d input spikes total (%.1f/ts), W_T %s, I dump written"
           % (args.layer, b, t, n_spk, n_spk / (b * t), wt.shape))
     return 0

@@ -25,6 +25,7 @@ OUT = os.path.join(REPO, "sim", "vectors")
 ART = os.path.join(REPO, "robot", "artifacts")
 sys.path.insert(0, REPO)
 from golden.network import lif_update  # noqa: E402
+from sim.corner_exposure import report  # noqa: E402
 
 C_IN, H_IN, W_IN = 2, 64, 64
 C_OUT, H_OUT, W_OUT = 16, 32, 32
@@ -116,6 +117,7 @@ def main() -> int:
                 fh.write("%d\n" % len(idx))
                 for x in idx:
                     fh.write("%d\n" % x)
+    report("r1", frames, OUT)                             # C0044 guard: corner blind spots
     print("r1 (real weights): %d samples, in rate %.4f, out rate %.4f, |V|max %d, THRESHOLD=%d"
           % (B, frames.mean(), S.mean(), np.abs(V).max(), thr))
     print("NOTE: run the engines with -P THRESHOLD=%d (not 64)." % thr)
