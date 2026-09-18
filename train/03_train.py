@@ -36,9 +36,12 @@ OUT_DIR = os.path.join(REPO, "experiments")
 LAYERS = ("c1", "c2", "c3", "fc")
 
 
-def run_epoch(net, loader, binarise, optimiser=None):
+def run_epoch(net, loader, binarise, optimiser=None, rate_reg=None):
     """One pass over a loader. Returns (loss, accuracy, {layer: firing rate}).
-    Pass optimiser=None to evaluate without updating weights."""
+    Pass optimiser=None to evaluate without updating weights.
+    rate_reg = (target, lambda, layers): adds lambda * sum_l (rate_l - target)^2
+    to the training loss (M7 activity axis on real data; the CSV/accuracy
+    "loss" stays the cross-entropy so runs remain comparable)."""
     training = optimiser is not None
     net.train() if training else net.eval()
     criterion = nn.CrossEntropyLoss()
@@ -54,9 +57,13 @@ def run_epoch(net, loader, binarise, optimiser=None):
         with torch.set_grad_enabled(training):
             logits, rates = net(x)
             loss = criterion(logits, y)
+            total = loss
+            if training and rate_reg is not None:
+                target, lam, layers = rate_reg
+                total = loss + lam * sum((rates[k] - target) ** 2 for k in layers)
         if training:
             optimiser.zero_grad()
-            loss.backward()
+            total.backward()
             optimiser.step()
 
         tot_loss += float(loss) * y.numel()
@@ -92,6 +99,11 @@ def main() -> int:
                     help="override the membrane decay (default: model.BETA)")
     ap.add_argument("--save", default="",
                     help="path to write a checkpoint of the final weights")
+    ap.add_argument("--rate_target", type=float, default=None,
+                    help="M7 activity axis: penalise conv firing rates towards this value (off by default)")
+    ap.add_argument("--rate_lambda", type=float, default=20.0)
+    ap.add_argument("--rate_layers", default="c1,c2,c3",
+                    help="layers whose OUTPUT rate is penalised (their outputs are the inputs of c2, c3, fc)")
     ap.add_argument("--T", type=int, default=T_DEFAULT,
                     help="timesteps (C0023 sweep); DVS-Gesture at T != %d reads data/packed_dvsgesture_t<T>" % T_DEFAULT)
     args = ap.parse_args()
@@ -128,8 +140,15 @@ def main() -> int:
     os.makedirs(OUT_DIR, exist_ok=True)
     # N-MNIST keeps the M0 file name; other datasets get a unique name per
     # (seed, T) so concurrent sweep runs on one machine cannot clobber it.
-    if args.dataset == "nmnist":
+    rate_reg = None
+    if args.rate_target is not None:
+        rate_reg = (args.rate_target, args.rate_lambda, tuple(args.rate_layers.split(",")))
+        print("rate penalty: target %.3f, lambda %.1f, layers %s" % rate_reg)
+    if args.dataset == "nmnist" and rate_reg is None:
         csv_path = os.path.join(OUT_DIR, "m0_firing_rates_%s.csv" % tag)
+    elif rate_reg is not None:
+        csv_path = os.path.join(OUT_DIR, "rates_%s_%s_target%.3f_seed%d_t%d.csv"
+                                % (tag, args.dataset, args.rate_target, args.seed, args.T))
     else:
         csv_path = os.path.join(OUT_DIR, "m0_firing_rates_%s_%s_seed%d_t%d.csv"
                                 % (tag, args.dataset, args.seed, args.T))
@@ -142,7 +161,7 @@ def main() -> int:
         for epoch in range(1, args.epochs + 1):
             t0 = time.time()
             tr_loss, tr_acc, tr_rates = run_epoch(net, train_loader, binarise,
-                                                  optimiser)
+                                                  optimiser, rate_reg)
             te_loss, te_acc, te_rates = run_epoch(net, test_loader, binarise)
             dt = time.time() - t0
 
@@ -184,6 +203,8 @@ def main() -> int:
                        "dataset": args.dataset, "pack_dir": pack_dir,
                        "beta": beta, "n_steps": args.T,
                        "binarise": binarise, "seed": args.seed,
+                       "rate_target": args.rate_target, "rate_lambda": args.rate_lambda,
+                       "rate_layers": args.rate_layers,
                        "epochs": args.epochs},
             "test_accuracy": history[-1][1],
         }, args.save)
