@@ -66,6 +66,16 @@ set bd [get_files -quiet design_1.bd]
 if {$bd eq ""} { error "design_1.bd not in project" }
 open_bd_design $bd
 set cell [get_bd_cells $BD_CELL]
+# Global synthesis: no out-of-context child run for the RTL block. With the
+# default (Hierarchical) mode Vivado spawns a separate synthesis for
+# design_1_axis_conv_top_0_0 and the main run reads its checkpoint; on this
+# VM that child silently never ran (2026-09-17, dense P=8: "module
+# 'design_1_axis_conv_top_0_0' not found"). One run, one process.
+if {[get_property synth_checkpoint_mode $bd] ne "None"} {
+    say "  synth_checkpoint_mode -> None (was [get_property synth_checkpoint_mode $bd])"
+    set_property synth_checkpoint_mode None $bd
+    set force_regen 1
+} else { set force_regen 0 }
 if {!$REUSE} {
     set_property -dict [list \
         CONFIG.ENGINE        $ENGINE \
@@ -112,6 +122,7 @@ set bd_path [get_property NAME $bd]
 if {[catch {save_bd_design} msg]} { say "save_bd_design reported: $msg" }
 if {[clock seconds] - [file mtime $bd_path] > 120} { error "design_1.bd was NOT rewritten (mtime stale) -- save really failed" }
 say "  design_1.bd written [clock format [file mtime $bd_path] -format %H:%M:%S]"
+if {$force_regen} { reset_target all $bd }
 if {[catch {generate_target all $bd} msg]} {
     say "generate_target reported: $msg -- retrying once"
     after 5000
@@ -139,7 +150,7 @@ close_all_designs
 
 proc try_project_runs {jobs} {
     reset_run synth_1
-    foreach r [get_runs -quiet *axis_conv_top*synth*] { reset_run $r }
+    foreach r [get_runs -quiet *axis_conv_top*synth*] { reset_run $r }   ;# none once checkpoint mode is None
     for {set attempt 1} {$attempt <= 3} {incr attempt} {
         if {[catch {launch_runs impl_1 -to_step write_bitstream -jobs $jobs} msg]} {
             say "launch_runs attempt $attempt: $msg"
