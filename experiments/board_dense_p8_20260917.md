@@ -88,7 +88,24 @@ Caveat: this build synthesised globally (synth_checkpoint_mode None),
 the P=4 build hierarchically; global synthesis optimises across the
 block boundary, so the LUT columns are not strictly like for like. BRAM
 is mode-independent: +2 tiles for doubling P (rounding, as at K=8).
-Engine-level rows (axis_conv_top_0 / conv_layer_p) not yet transcribed.
+Engine-level rows, same report — the like-for-like comparison of the two
+engines at matched parallelism (the DMA and interconnect are common):
+
+| | dense P=8 engine (conv_layer_p_c1) | ED K=8 engine (ed_conv_layer + scatter + lif) |
+|---|---|---|
+| LUTs | 2,799 (all logic, 0 LUTRAM) | 1,161 (765 logic + 396 LUTRAM) |
+| Registers | 5,211 | 377 |
+| Block RAM | 13 RAMB18 = 6.5 tiles | 5 RAMB36 + 13 RAMB18 = 11.5 tiles |
+| DSP | 0 | 0 |
+| wrapper (axis_conv, g_rep[0].core) | 36 LUT, 127 FF | 105 LUT, 123 FF |
+
+The dense engine spends its area in flops (its eight MAC lanes, their
+accumulators and the per-lane output bit files) and 2.4x the LUTs; the
+ED engine spends its area in block RAM (per-bank membrane and input-
+current memories plus the baked weight ROMs). Neither uses a DSP. The
+remaining ~2,500 LUTs of the design are the DMA and AXI interconnect in
+both builds. These are static-power-relevant differences the meter will
+see (M5), not just latency ones.
 
 ## Raw client lines
 
