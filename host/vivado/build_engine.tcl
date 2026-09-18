@@ -20,7 +20,10 @@
 # Do not click Generate Bitstream or touch the block design meanwhile.
 
 # ---------------------------------------------------------------- settings
-set PROJECT   "C:/Users/dhritiaravind/m4_conv/m4_conv.xpr"
+# Project: the clean m4_conv2 (docs/vivado_new_project.md). To build the
+# old m4_conv once more:  set PROJECT C:/Users/dhritiaravind/m4_conv/m4_conv.xpr
+# before `source` (consumed per run).
+if {[info exists PROJECT]} { set PROJ $PROJ; unset PROJECT } else { set PROJ "C:/Users/dhritiaravind/m4_conv2/m4_conv2.xpr" }
 set BD_CELL   "axis_conv_top_0"
 set JOBS      2   ;# this VM's launcher is flaky with many parallel jobs
 # Boot-image inputs. Each is a list of candidate paths; the first that
@@ -58,6 +61,8 @@ foreach v {ENGINE ED_K DENSE_P} {
     if {![info exists $v]} { error "set $v before sourcing (e.g. set ENGINE 1; set ED_K 8; set DENSE_P 4)" }
 }
 set BAKED 1
+# DATASET (C0012): 0 = N-MNIST C1 (default), 1 = DVS-Gesture C1. Set before `source`.
+if {[info exists DATASET]} { set DS $DATASET; unset DATASET } else { set DS 0 }
 # N_ENGINES (C0003 replication for the meter): set before `source`, default 1.
 # Consumed and unset like REUSE_RUN so it cannot leak into the next build.
 if {[info exists N_ENGINES]} { set NENG $N_ENGINES; unset N_ENGINES } else { set NENG 1 }
@@ -69,16 +74,17 @@ if {[info exists N_ENGINES]} { set NENG $N_ENGINES; unset N_ENGINES } else { set
 # REUSE_RUN=1 from the ED K=8 re-export and refused on the read-back).
 if {[info exists REUSE_RUN]} { set REUSE [expr {$REUSE_RUN ? 1 : 0}]; unset REUSE_RUN } else { set REUSE 0 }
 if {$ENGINE} { set tag "ed_k${ED_K}" } else { set tag "dense_p${DENSE_P}" }
+if {$DS == 1} { set tag "${tag}_dvsg" }
 if {$NENG > 1} { append tag "_x${NENG}" }
 set tag "${tag}_[clock format [clock seconds] -format %Y%m%d_%H%M]"
-set proj_dir [file dirname $PROJECT]
+set proj_dir [file dirname $PROJ]
 set out "$proj_dir/builds/$tag"
 file mkdir $out
 proc say {msg} { puts "\[build_engine\] $msg" }
-say "configuration: ENGINE=$ENGINE ED_K=$ED_K DENSE_P=$DENSE_P BAKED=$BAKED N_ENGINES=$NENG REUSE_RUN=$REUSE -> $out"
+say "configuration: ENGINE=$ENGINE ED_K=$ED_K DENSE_P=$DENSE_P BAKED=$BAKED N_ENGINES=$NENG DATASET=$DS REUSE_RUN=$REUSE -> $out"
 
 # ---------------------------------------------------------------- project
-if {[catch {current_project}]} { open_project $PROJECT }
+if {[catch {current_project}]} { open_project $PROJ }
 # deterministic runs: the auto-incremental reference checkpoint made two
 # implementations of the same netlist differ by 300k config bytes
 set_property AUTO_INCREMENTAL_CHECKPOINT 0 [get_runs synth_1]
@@ -105,10 +111,11 @@ if {!$REUSE} {
         CONFIG.ED_K          $ED_K \
         CONFIG.DENSE_P       $DENSE_P \
         CONFIG.BAKED_WEIGHTS $BAKED \
-        CONFIG.N_ENGINES     $NENG ] $cell
+        CONFIG.N_ENGINES     $NENG \
+        CONFIG.DATASET       $DS ] $cell
 }
 # read back -- this is the check that caught the ENGINE=0 stale-customisation build
-foreach {p want} [list ENGINE $ENGINE ED_K $ED_K DENSE_P $DENSE_P BAKED_WEIGHTS $BAKED N_ENGINES $NENG] {
+foreach {p want} [list ENGINE $ENGINE ED_K $ED_K DENSE_P $DENSE_P BAKED_WEIGHTS $BAKED N_ENGINES $NENG DATASET $DS] {
     set got [get_property CONFIG.$p $cell]
     if {$got != $want} { error "parameter $p reads back $got, wanted $want" }
     say "  CONFIG.$p = $got"
