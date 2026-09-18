@@ -41,6 +41,13 @@ set APP_ELF  {
     C:/Users/dhritiaravind/vitis_m4_loopback_zed/conv_server/build/conv_server.elf
 }
 set APP_SIZE 389840
+# DATASET=1 bitstreams need the server built with -DDATASET=1 (build 5,
+# 1,024/2,048-word frames). Keep it as a separate file so the N-MNIST
+# builds keep their own. Size 0 = not yet known: accept any, print it.
+set APP_ELF_G1 {
+    C:/Users/dhritiaravind/vitis_m4_loopback_zed/conv_server/build/conv_server_g1.elf
+}
+set APP_SIZE_G1 0
 # bootgen ships with both Vivado and Vitis; first that exists wins.
 set BOOTGEN {
     C:/Xilinx/Vivado/2024.1/bin/bootgen.bat
@@ -328,7 +335,12 @@ proc pick_file {cands want_size what} {
     return ""
 }
 set fsbl [pick_file $FSBL_ELF $FSBL_SIZE "FSBL"]
-set app  [pick_file $APP_ELF  $APP_SIZE  "conv_server.elf"]
+if {$DS == 1} {
+    set app [pick_file $APP_ELF_G1 $APP_SIZE_G1 "conv_server_g1.elf (DATASET=1 server)"]
+    if {$app ne ""} { say "bootgen: DATASET=1 server, [file size $app] bytes (record this as APP_SIZE_G1)" }
+} else {
+    set app [pick_file $APP_ELF  $APP_SIZE  "conv_server.elf"]
+}
 set bg   [pick_file $BOOTGEN  0          "bootgen"]
 if {$fsbl ne "" && $app ne "" && $bg ne ""} {
     say "bootgen: FSBL $fsbl"
