@@ -79,8 +79,13 @@ foreach sp {Data_MM2S Data_S2MM} {
     }
     say "  $sp -> $segs"
 }
-set excl [get_bd_addr_segs -quiet -excluded]
-if {[llength $excl]} { error "excluded address segments present: $excl" }
+# excluded segments matter only INSIDE the DMA masters' address spaces (a
+# global -excluded query also lists every slave's own segment as seen from
+# spaces that legitimately don't map it -- the first run tripped on that)
+foreach sp {Data_MM2S Data_S2MM} {
+    set excl [get_bd_addr_segs -quiet -excluded -of_objects [get_bd_addr_spaces axi_dma_0/$sp]]
+    if {[llength $excl]} { error "$sp has excluded segments: $excl" }
+}
 
 validate_bd_design
 save_bd_design
