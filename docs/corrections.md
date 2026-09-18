@@ -906,9 +906,12 @@ Build 3 (ED K=8) picks the fix up automatically once the VM copy of
 and still exercise nothing at a boundary neuron. The second benchmark
 earned its keep before producing an energy number: this is the argument
 for C0012 stated in verification terms rather than reviewer terms. A
-cheap guard is now on the list: the vector exporters should report the
-per-neuron exposure of the receptive-field corners, and a synthetic set
-with corner activity (r1 has it) belongs in the ladder.
+cheap guard is in place: the synthetic r1 set (corner activity in 13
+of 32 timesteps) is a ladder check at K=4 (`check_all.sh`, 24 checks,
+~12 min), and it was shown to FAIL on the pre-fix RTL before being
+added. Still open: the vector exporters should report the per-neuron
+exposure of the receptive-field corners so a check set's blind spots
+are visible without a second dataset.
 ---
 ## Closing note on this review
 Three passes have been made: methodology (C0001–C0017), measurement

@@ -2599,9 +2599,9 @@ bit-identity claims for that data were true. What was NOT true was the
 inference "bit-identical on the check set => the sweep is correct". The
 synthetic r1 set (13 of 32 timesteps with corner activity) fails on the
 current tree, so the C0030 note that it passed did not survive; the
-ladder only ever ran c1. The ladder should carry a set with corner
-activity — added to the C0044 action list rather than done tonight,
-because r1 at K=1 is 90 s and the ladder's budget is the user's call.
+ladder only ever ran c1. The user's call: the r1 set is now a ladder
+check at K=4 (24 checks, ~12 min), and the check was run against the
+pre-fix RTL first to prove it catches the bug.
 
 **Consequences.** The ED K=4 bitstream on the board carries the bug;
 its N-MNIST results stand, but it must not be reused for DVS-Gesture or

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run every check in the repo. One command, one verdict.
-# Usage: bash check_all.sh          (~3 min on the Mac; board not required)
+# Usage: bash check_all.sh          (~12 min on the Mac; board not required)
 set -u
 cd "$(dirname "$0")"
 pass=0; fail=0
@@ -25,6 +25,7 @@ run "C0029 P-wide dense engine, P=4 (fair baseline)" env P=4 bash sim/run_conv_p
 run "M6 AXIS wrapper, ED K=4 (BAKED, synth path)" env BW=1 ENGINE=1 K=4 bash sim/run_axis_tb.sh c1
 run "M6 event-driven engine vs golden, K=1"   bash sim/run_ed_tb.sh c1 ed_conv_layer
 run "M6 event-driven engine vs golden, K=4"   env K=4 bash sim/run_ed_tb.sh c1 ed_conv_layer
+run "C0044 ED engine, r1 corner-activity set, K=4" env K=4 bash sim/run_ed_tb.sh r1 ed_conv_layer
 run "M6 event-driven FC vs golden (D0023)"     bash sim/run_ed_fc_tb.sh
 run "M6 scatter unit vs Python I-dump, K=1"   bash sim/run_ed_scatter_tb.sh c1
 run "M6 scatter unit vs Python I-dump, K=4"   env K=4 bash sim/run_ed_scatter_tb.sh c1
