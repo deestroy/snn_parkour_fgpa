@@ -102,42 +102,88 @@ if {[catch {generate_target all $bd} msg]} {
 }
 
 # ---------------------------------------------------------------- build
-reset_run synth_1
-foreach r [get_runs -quiet *axis_conv_top*synth*] { reset_run $r }
-if {[catch {launch_runs impl_1 -to_step write_bitstream -jobs $JOBS} msg]} {
-    say "launch_runs reported: $msg -- resetting and retrying once with 1 job"
-    after 5000
-    reset_run impl_1
-    launch_runs impl_1 -to_step write_bitstream -jobs 1
+# Two ways to build. (A) the project runs, which spawn child Vivado
+# processes -- this VM's launcher fails intermittently ("Spawn failed: No
+# error", or a run left at "Scripts Generated"), so (A) is tried briefly
+# and (B) takes over: the same synth/opt/place/route/bitstream commands run
+# INSIDE this process, spawning nothing.  Results are identical in kind;
+# (B) synthesises the block design globally (no OOC checkpoints).
+set PART [get_property PART [current_project]]
+set used_inprocess 0
+
+proc try_project_runs {jobs} {
+    reset_run synth_1
+    foreach r [get_runs -quiet *axis_conv_top*synth*] { reset_run $r }
+    for {set attempt 1} {$attempt <= 3} {incr attempt} {
+        if {[catch {launch_runs impl_1 -to_step write_bitstream -jobs $jobs} msg]} {
+            say "launch_runs attempt $attempt: $msg"
+        }
+        after 15000
+        set st [get_property STATUS [get_runs impl_1]]
+        set sst [get_property STATUS [get_runs synth_1]]
+        say "launch attempt $attempt: synth_1='$sst' impl_1='$st'"
+        if {[string match "Running*" $sst] || [string match "Running*" $st] || \
+            [string match "*Complete*" $st] || [string match "Queued*" $st]} {
+            wait_on_run impl_1
+            set st [get_property STATUS [get_runs impl_1]]
+            if {[string match "*write_bitstream Complete*" $st]} { return 1 }
+            say "impl_1 ended with status '$st'"
+            return 0
+        }
+        reset_run impl_1
+        set jobs 1
+    }
+    return 0
 }
-say "runs launched; waiting (this blocks the console)..."
-wait_on_run impl_1
-set status [get_property STATUS [get_runs impl_1]]
-say "impl_1 status: $status"
-if {![string match "*write_bitstream Complete*" $status]} { error "implementation did not complete: $status" }
+
+if {[try_project_runs $JOBS]} {
+    say "project runs completed"
+    set wns [get_property STATS.WNS [get_runs impl_1]]
+    set tns [get_property STATS.TNS [get_runs impl_1]]
+    set whs [get_property STATS.WHS [get_runs impl_1]]
+    set impl_dir [get_property DIRECTORY [get_runs impl_1]]
+    foreach f [glob -nocomplain $impl_dir/*timing_summary_routed.rpt $impl_dir/*utilization_placed.rpt $impl_dir/*power_routed.rpt] {
+        file copy -force $f $out
+    }
+    set bit [lindex [glob -nocomplain $impl_dir/design_1_wrapper.bit] 0]
+    open_run impl_1
+} else {
+    say "project runs unavailable on this machine -- building IN-PROCESS (no spawn)"
+    set used_inprocess 1
+    set_property synth_checkpoint_mode None $bd
+    generate_target all $bd
+    set wrapper [get_files -quiet *design_1_wrapper.v]
+    if {$wrapper eq ""} { set wrapper [make_wrapper -files $bd -top -import] }
+    update_compile_order -fileset sources_1
+    synth_design -top design_1_wrapper -part $PART
+    opt_design
+    place_design
+    phys_opt_design
+    route_design
+    report_timing_summary -max_paths 10 -file $out/design_1_wrapper_timing_summary_routed.rpt
+    report_utilization -file $out/design_1_wrapper_utilization_placed.rpt
+    set wns [get_property SLACK [lindex [get_timing_paths -max_paths 1 -nworst 1 -setup] 0]]
+    set whs [get_property SLACK [lindex [get_timing_paths -max_paths 1 -nworst 1 -hold]  0]]
+    set tns "n/a (in-process; see timing report)"
+    set bit "$out/design_1_wrapper.bit"
+    write_bitstream -force $bit
+}
 
 # ---------------------------------------------------------------- timing gate
-set wns [get_property STATS.WNS [get_runs impl_1]]
-set tns [get_property STATS.TNS [get_runs impl_1]]
-set whs [get_property STATS.WHS [get_runs impl_1]]
 say "WNS=$wns TNS=$tns WHS=$whs"
-set impl_dir [get_property DIRECTORY [get_runs impl_1]]
-foreach f [glob -nocomplain $impl_dir/*timing_summary_routed.rpt $impl_dir/*utilization_placed.rpt $impl_dir/*power_routed.rpt] {
-    file copy -force $f $out
-}
 if {$wns < 0 || $whs < 0} {
     say "TIMING FAILED -- nothing exported. Top paths are in $out/*timing_summary_routed.rpt"
+    if {$used_inprocess} { close_design }
     error "WNS=$wns WHS=$whs"
 }
 
 # ---------------------------------------------------------------- reports + export
-open_run impl_1
 report_utilization -hierarchical -file $out/utilization_hier.rpt
 report_power -file $out/power.rpt
-close_design
 set xsa "$out/design_1_wrapper.xsa"
 write_hw_platform -fixed -include_bit -force $xsa
 say "exported $xsa"
+close_design
 
 # ---------------------------------------------------------------- optional bootgen
 set bit [glob -nocomplain $impl_dir/design_1_wrapper.bit]
