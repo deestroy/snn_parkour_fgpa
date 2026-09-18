@@ -43,18 +43,27 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--ckpt", default=os.path.join(
         REPO, "train", "checkpoints", "m1_beta0875_seed0.pt"))
+    ap.add_argument("--weights", default=None,
+                    help="int8 weights .npz (default: golden/m1_weights_int8.npz)")
+    ap.add_argument("--traces", default=TRACES,
+                    help="where to write the 16-sample traces")
     args = ap.parse_args()
 
-    frames = np.load(os.path.join(REPO, "data", "packed", "test_frames.npy"))
-    labels = np.load(os.path.join(REPO, "data", "packed", "test_labels.npy"))
+    ckpt = torch.load(args.ckpt, map_location="cpu")
+    dataset = ckpt["config"].get("dataset", "nmnist")
+    sys.path.insert(0, os.path.join(REPO, "train"))
+    from data import DATASETS
+    pack = os.path.join(REPO, "data", DATASETS[dataset][0])
+    frames = np.load(os.path.join(pack, "test_frames.npy"))
+    labels = np.load(os.path.join(pack, "test_labels.npy"))
     if args.limit:
         frames, labels = frames[:args.limit], labels[:args.limit]
 
-    ckpt = torch.load(args.ckpt, map_location="cpu")
     readout_w = ckpt["state_dict"]["readout.weight"].numpy()
     float_acc = float(ckpt["test_accuracy"])
 
-    net = GoldenNetwork(readout_w=readout_w)
+    net = (GoldenNetwork(weights_path=args.weights, readout_w=readout_w)
+           if args.weights else GoldenNetwork(readout_w=readout_w))
     print("golden model over %d test samples (integer datapath, float readout)"
           % len(labels))
 
@@ -90,10 +99,10 @@ def main() -> int:
     packed = {k: np.stack(v, axis=1) for k, v in trace.items()}  # (B, T, ...)
     packed["fc_counts"] = counts
     packed["labels"] = labels[pick]
-    np.savez_compressed(TRACES, **packed)
-    sz = os.path.getsize(TRACES) / 1e6
+    np.savez_compressed(args.traces, **packed)
+    sz = os.path.getsize(args.traces) / 1e6
     print("\ntraces for %d samples -> %s  (%.1f MB)"
-          % (N_TRACE_SAMPLES, os.path.relpath(TRACES, REPO), sz))
+          % (N_TRACE_SAMPLES, os.path.relpath(args.traces, REPO), sz))
 
     gate = (float_acc - acc) <= 0.015 and ok16
     print("\n%s" % ("PASS: golden model holds accuracy and fits the membrane"

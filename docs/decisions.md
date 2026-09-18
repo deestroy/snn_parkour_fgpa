@@ -2557,3 +2557,14 @@ simulator to the real stack (like-for-like Fig. 5 / Table IV; days of
 board link tunnels over SSH and the extra hop must be attributed in the
 deadline accounting) vs. keep MuJoCo ("same protocol, different
 simulator"). Recommended the switch, staged: teacher first.
+
+**IsaacGym cost on the 1080 Ti, measured (2026-09-17).** extreme-parkour
+A1 parkour, headless, the default 6,144 envs: **13.3 s/iteration**
+(147,456 timesteps), ~8 GB of 11 GB VRAM, GPU 50-60 %. The README's
+3090 figure (8-10 h for 10-15k iterations) implies ~2-2.4 s/iteration,
+so this card is ~6x slower: a 10k-iteration teacher is ~37 h, 15k is
+~55 h; the distillation phase (5-10k iterations, camera envs) adds one
+to two more days. Gotchas recorded: `--debug` silently forces 64 envs
+(use `--no_wandb` instead); the env needs an `LD_LIBRARY_PATH` hook for
+libpython3.8 (added as an activation script). The go/no-go on the
+multi-day teacher run is the user's.

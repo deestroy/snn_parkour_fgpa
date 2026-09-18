@@ -8,9 +8,12 @@ case "$layer" in
     c2) ci=16; hi=17; wi=17; co=32; ho=9;  wo=9 ; ns=16 ;;
     c3) ci=32; hi=9;  wi=9;  co=64; ho=5;  wo=5 ; ns=16 ;;
     r1) ci=2;  hi=64; wi=64; co=16; ho=32; wo=32; ns=8 ;;
+    g1) ci=2;  hi=64; wi=64; co=16; ho=32; wo=32; ns=8 ;;   # DVS-Gesture C1 (C0012), THRESH=128
     *) echo "unknown layer"; exit 2 ;;
 esac
-if [ "$layer" = r1 ]; then
+if [ "$layer" = g1 ]; then
+    python3 sim/export_dvsgesture_vectors.py > /dev/null
+elif [ "$layer" = r1 ]; then
     if [ "${R1_REAL:-0}" = 1 ]; then python3 sim/export_fpga_student_vectors.py > /dev/null
     else python3 sim/export_robot_vectors.py > /dev/null; fi
 else
