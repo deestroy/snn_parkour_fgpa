@@ -150,7 +150,8 @@ Reading:
   samples).
 
 Cycle projection from the model validated at T = 4 (`latency_sim/`,
-0.3 % per sample; `cycles = 2NT + 5.0 s + 71.7 s/K`, dense `88.0 NT/P`),
+0.3 % per sample; `cycles = 2NT + 5.0 s + 71.7 s/K`, dense `22.0 N T / P`,
+i.e. 88.0 cycles per neuron per T = 4 inference),
 using the full test set's density for spikes per clip `s`:
 
 | T | spikes / clip | ED K=4 | dense P=4 | dense / ED |
