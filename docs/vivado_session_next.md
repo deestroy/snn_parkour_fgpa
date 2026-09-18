@@ -22,11 +22,27 @@ current. Before any build, run the copy-check ritual anyway: line 19 of
 conv_layer_p_c1.v reads `module conv_layer_p_c1 #(`, Ctrl+F
 `wrom_all[wa[g]]` finds one hit, `#0;` finds nothing.
 
-## Build 3 DONE 2026-09-17 — ED K=8: 575.5 us mean, 16/16, 13.5 BRAM tiles (experiments/board_ed_k8_20260917.md)
-## -> confirm its C0044 status: Ctrl+F `(C0044)` in the VM project's ed_conv_layer.v.
-## Build 4 next, dense P=8, from the Tcl console (no REUSE_RUN):
-##   set ENGINE 0; set ED_K 4; set DENSE_P 8; source C:/Users/dhritiaravind/snn_parkour_fpga/host/vivado/build_engine.tcl
-## expected engine ~543 us flat (532 from the cycle model + the ~11 us per-pass offset both ED builds showed)
+## Builds 3 + 4 DONE 2026-09-17 — the K = P = 8 pair is on silicon
+ED K=8: 575.5 us mean (494-653), 13.5 BRAM tiles, WNS +0.332 — but this
+bitstream PREDATES the C0044 fix (N-MNIST numbers stand; not for other
+data). Dense P=8: 540.3 us flat, 8.5 tiles, WNS +0.101, built with the
+fix in the project. dense/ED = 0.939x: crossover between 4 and 8 on
+silicon. Records: experiments/board_ed_k8_20260917.md,
+experiments/board_dense_p8_20260917.md.
+
+Scripted flow now standard: `git pull` in C:/Users/dhritiaravind/snn_parkour_fpga,
+then in the Tcl console
+  set ENGINE <0|1>; set ED_K <K>; set DENSE_P <P>; source C:/Users/dhritiaravind/snn_parkour_fpga/host/vivado/build_engine.tcl
+Outputs land in m4_conv/builds/<tag>/; Create Boot Image in Vitis with
+that folder's .bit; copy BOOT.bin + .xsa to the Mac through
+\\tsclient\Users\dhritiaravind\git_projects\snn_parkour_fpga\host\mac\build.
+Project HDL still lives in m4_loopback/: after any hdl/ change, copy the
+file from the clone over the m4_loopback copy (Copy-Item ... -Force) and
+confirm the marker with Ctrl+F before building.
+
+Next ED build should be a clean K=8 (C0044 in) if the K=8 bitstream is
+ever needed for DVS-Gesture; otherwise proceed to the "if time remains"
+list below.
 
 ## Build 3 + 4 — the K = P = 8 pair (brackets the parallelism crossover)
 

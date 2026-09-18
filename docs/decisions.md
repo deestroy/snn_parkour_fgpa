@@ -2661,3 +2661,36 @@ after the build), so the K=8 bitstream carries the bug like the K=4 one.
 N-MNIST results are unaffected by construction; not for DVS-Gesture or
 robot data. The VM copy was then overwritten from the clone; the dense
 P=8 build and every later build carry the fix.
+
+## 2026-09-17 — Board pass 6: dense P=8 on silicon; the K = P = 8 verdict
+
+**Result.** ENGINE=0 P=8 (builds/dense_p8_20260917_2221, WNS +0.101):
+16/16 bit-identical, 4,800 inferences with zero mismatches, **540.3 us
+on every sample** (zero spread, sweep 540.3). Every pre-registered
+prediction (experiments/dense_p8_prereg_20260917.md, commit 7e5e4d1)
+held. Against ED K=8 (575.5 us mean): dense/ED = 0.939x, dense wins at
+the mean by 6.1 %, ED wins 2 of 16 samples. Record in
+experiments/board_dense_p8_20260917.md.
+
+**What the two evenings add up to.** K = P = 4: ED 1.52x. K = P = 8:
+dense 1.065x. The parallelism crossover on C1 at ~31 % activity lies
+between 4 and 8 on silicon, matching the cycle-model estimate of ~6.6.
+The ED advantage is a function of the parallelism the dense engine is
+given, not a constant; this is the latency half of M7. Energy half:
+meter.
+
+**Offsets, corrected.** The per-pass board-over-sim offset is per
+engine, not universal: dense +8.3 us (P=4 and P=8 alike), ED +10.7 us
+(K=4 and K=8 alike). Use those, not a single ~11 us.
+
+**Synthesis mode changed, recorded.** From this build on, the project
+synthesises globally (synth_checkpoint_mode None): the VM's launcher
+dropped the out-of-context child run for the RTL block on the first
+dense P=8 attempt ("module design_1_axis_conv_top_0_0 not found").
+LUT counts across the change are not strictly comparable (5,362 at P=8
+vs 5,760 at P=4 hierarchical); BRAM counts are (8.5 vs 6.5 tiles).
+
+**C0044 in the project.** The VM's m4_loopback/ed_conv_layer.v was
+overwritten from the clone before this build (marker confirmed at line
+210 in the clone; the m4_loopback copy checked by the user); every
+build from here on carries the fix. The K=8 bitstream (pass 5) does not.

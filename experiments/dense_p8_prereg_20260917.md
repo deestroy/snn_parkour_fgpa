@@ -12,7 +12,7 @@ project now carries it). Bitstream header 2026-09-17 22:25:34. Server
 build 4. Pre-write checks: .hwh ENGINE=0 DENSE_P=8 ED_K=4 BAKED=1
 N_ENGINES=1, MT41J128M16, HP0=1, three MEMRANGEs, BOOT.bin PL partition
 byte-equal to the .xsa bitstream, bitstream differs from the K=8 build.
-WNS/WHS: to be transcribed from the run's summary before the card write.
+WNS +0.101 / WHS +0.020 (summary.txt of the run, transcribed 22:42 before the card write).
 
 Source of the predictions: experiments/latency_sim/ksweep_c0035/dense_p8.txt
 (53,195 cycles, identical on all 16 samples) plus the ~11 us per-pass
@@ -50,4 +50,12 @@ offset both ED builds showed on silicon (K=4: +10.5 us, K=8: +10.9 us).
 
 ## Outcome
 
-(to be filled in after the pass)
+(2026-09-17, 22:44, same evening; experiments/board_dense_p8_20260917.md)
+
+1. Correctness: **16/16 bit-identical**, 4,800 further inferences with zero CRC mismatches — held.
+2. Engine latency: **540.3 us** vs ~543 predicted (-0.5 %; +1.6 % over raw sim) — held.
+3. Spread: **zero** (540.3 on all 16 and on the sweep) — held.
+4. Verdict: dense/ED = **0.939x**, dense wins at the mean by 6.1 %; ED wins samples 5 and 11 only — held, exactly as written.
+5. Server overhead: **117.5 us** — held.
+6. Resources: 8.5 BRAM tiles (P=4: 6.5), 5,362 LUTs, DSP 0 — held in kind (no doubling); LUT comparison clouded by the synthesis-mode change.
+Nothing falsified. Crossover between K = P = 4 and 8 on silicon.
