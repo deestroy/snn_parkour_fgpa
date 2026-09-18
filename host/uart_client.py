@@ -25,18 +25,29 @@ from host.snn_link import (Link, CMD_PING, CMD_RUN_CONV, CMD_BURST,  # noqa: E40
 
 DEFAULT_PORT = "/dev/cu.usbmodem0201258920271"
 DATA = os.path.join(REPO, "host", "conv_test_data.npz")
+# DATASET (C0012): 0 = N-MNIST C1 (16 samples, 292/580 words), 1 = DVS-Gesture
+# C1 (8 samples, 1,024/2,048 words). The server (build 5+) reports its
+# DATASET in PING word 2; a mismatch is refused before any sample is sent.
+DATASETS = {"c1": (0, DATA, "N-MNIST C1"),
+            "g1": (1, os.path.join(REPO, "host", "conv_test_data_g1.npz"), "DVS-Gesture C1")}
 
 
-def run_samples(link: Link, label: str = "board") -> bool:
-    d = np.load(DATA)
+def run_samples(link: Link, label: str = "board", dataset: str = "c1") -> bool:
+    want_ds, data, ds_name = DATASETS[dataset]
+    d = np.load(data)
     tx, rx, labels = d["tx_words"], d["rx_words"], d["labels"]
     n_samples, n_tx = tx.shape
 
     # any unsolicited announce frame from a fresh boot is harmless: call()
     # hunts for the PING response it asked for
     info = link.call(CMD_PING, np.zeros(0, "<u4"))
-    ds = ("N-MNIST C1", "DVS-Gesture C1")[int(info[2])] if info.size > 2 else "N-MNIST C1 (build <5)"
+    got_ds = int(info[2]) if info.size > 2 else 0
+    ds = ("N-MNIST C1", "DVS-Gesture C1")[got_ds] if info.size > 2 else "N-MNIST C1 (build <5)"
     print("[%s] PING ok: build %d, cap %d words, dataset %s" % (label, info[0], info[1], ds))
+    if got_ds != want_ds:
+        print("FAIL: server is a DATASET=%d build but the check set is %s (DATASET=%d)"
+              " -- wrong BOOT.bin/server for this bitstream, nothing sent" % (got_ds, ds_name, want_ds))
+        return False
     if info[1] < max(n_tx, rx.shape[1]):
         print("FAIL: server cap %d < needed %d" % (info[1], max(n_tx, rx.shape[1])))
         return False
@@ -64,13 +75,13 @@ def run_samples(link: Link, label: str = "board") -> bool:
 
 
 def run_burst(link: Link, n: int, sample: int = 0, label: str = "board",
-              sweep: bool = False, preload=None) -> bool:
+              sweep: bool = False, preload=None, dataset: str = "c1") -> bool:
     """M5/M7 measurement mode: load ONE golden sample, then have the board
     replay it n times back to back (protocol.md BURST). Verifies the last
     output's CRC against golden and that every iteration matched the first,
     then reports system latency per inference. Blocks for as long as the
     burst runs -- choose n for the duration the meter needs."""
-    d = np.load(DATA)
+    d = np.load(DATASETS[dataset][1])
     tx, rx = d["tx_words"], d["rx_words"]
     load = preload if preload is not None else [sample]
     for s_i in load:
@@ -78,7 +89,7 @@ def run_burst(link: Link, n: int, sample: int = 0, label: str = "board",
         if got.size != rx.shape[1] or int((got != rx[s_i]).sum()):
             print("[%s] burst: sample %d did not match golden on load" % (label, s_i))
             return False
-    est = 5e-3 * n                       # generous timeout: 5 ms/inference
+    est = 8e-3 * n                       # generous timeout: 8 ms/inference (DVS-Gesture worst ~4.6 ms)
     old = getattr(link.s, "timeout", None)
     if old is not None:
         link.s.timeout = max(old, est + 5.0)
@@ -114,19 +125,24 @@ def main() -> int:
                     help="cycle ALL 16 samples during the burst (C0018)")
     ap.add_argument("--burst-only", action="store_true",
                     help="skip the 16-sample check (meter runs)")
+    ap.add_argument("--dataset", default="c1", choices=sorted(DATASETS),
+                    help="c1 = N-MNIST C1 (DATASET=0, default); g1 = DVS-Gesture C1 (DATASET=1)")
     args = ap.parse_args()
     import serial
     ser = serial.Serial(args.port, args.baud, timeout=2.0)
     link = Link(ser)
     ok = True
+    n_samples = int(np.load(DATASETS[args.dataset][1])["tx_words"].shape[0])
     if not args.burst_only:
-        ok = run_samples(link, label="board")
+        ok = run_samples(link, label="board", dataset=args.dataset)
         if ok:
             print("M4's done-when is met: correct results back from real hardware.")
     if ok and args.burst:
         ok = run_burst(link, n=args.burst, sample=args.sample, label="board",
-                       sweep=args.burst_sweep,
-                       preload=list(range(16)) if args.burst_sweep else None)
+                       sweep=args.burst_sweep, dataset=args.dataset,
+                       # the server keeps 16 slots and sweeps them oldest-first; fill
+                       # all 16 in load order (8-sample sets are loaded twice)
+                       preload=[i % n_samples for i in range(16)] if args.burst_sweep else None)
     return 0 if ok else 1
 
 

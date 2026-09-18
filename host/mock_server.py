@@ -29,7 +29,7 @@ T, C_IN, H_IN, W_IN = 4, 2, 34, 34
 C_OUT, H_OUT, W_OUT = 16, 17, 17
 WORDS_IN = (C_IN * H_IN * W_IN + 31) // 32       # 73
 WORDS_OUT = (C_OUT * H_OUT * W_OUT + 31) // 32   # 145
-CAP = 1024
+CAP = 4096
 
 
 def unpack_words(words: np.ndarray, n_bits: int) -> np.ndarray:
@@ -43,12 +43,27 @@ class MockConvServer:
     MOCK_LATENCY_S = 3.4e-3
     MOCK_TICKS_PER_S = 333333333
 
-    def __init__(self):
+    def __init__(self, dataset: str = "c1"):
+        self.dataset = 1 if dataset == "g1" else 0
         self.golden = GoldenNetwork()
         self.last_out = None          # BURST replays the last RUN_CONV
         self.loaded = []              # outputs of loaded samples, in order (C0018)
+        self.table = None
+        if self.dataset == 1:
+            # DVS-Gesture C1: answer from the harness-validated word streams
+            # (the golden g1 conv lives in sim/export_dvsgesture_vectors.py;
+            # the mock only has to exercise the client's plumbing at the
+            # 1,024/2,048-word frame size and the PING dataset word)
+            d = np.load(os.path.join(REPO, "host", "conv_test_data_g1.npz"))
+            self.table = {d["tx_words"][i].tobytes(): d["rx_words"][i].astype("<u4")
+                          for i in range(d["tx_words"].shape[0])}
 
     def run_conv(self, words: np.ndarray) -> np.ndarray:
+        if self.table is not None:
+            key = np.asarray(words, "<u4").tobytes()
+            if key not in self.table:
+                raise ValueError("g1 mock: unknown input frame")
+            return self.table[key]
         assert words.size == T * WORDS_IN
         frames = np.zeros((1, T, C_IN, H_IN, W_IN), np.uint8)
         for t in range(T):
@@ -62,7 +77,7 @@ class MockConvServer:
         return np.concatenate(out).astype("<u4")
 
     def serve(self, link: Link) -> None:
-        link.send(CMD_PING | RSP_OK, np.array([1, CAP, 0], "<u4"))  # announce
+        link.send(CMD_PING | RSP_OK, np.array([5, CAP, self.dataset], "<u4"))  # announce (build-5 shape)
         while True:
             try:
                 cmd, words = link.recv()
@@ -77,7 +92,8 @@ class MockConvServer:
             if cmd == CMD_PING:
                 link.send(CMD_PING | RSP_OK, np.array([1, CAP, 0], "<u4"))
             elif cmd == CMD_RUN_CONV:
-                if words.size != T * WORDS_IN:
+                n_in = T * WORDS_IN if self.table is None else 4 * 256   # g1: 4 ts x 256 words
+                if words.size != n_in:
                     link.send(RSP_ERR, np.array([3], "<u4"))
                 else:
                     self.last_out = self.run_conv(words)
@@ -135,21 +151,28 @@ def in_process_pair():
     return client, server
 
 
-def selftest() -> int:
-    from host.uart_client import run_samples
+def selftest(dataset: str = "c1") -> int:
+    from host.uart_client import run_samples, run_burst
     client_end, server_end = in_process_pair()
-    srv = MockConvServer()
+    srv = MockConvServer(dataset)
     th = threading.Thread(target=srv.serve, args=(Link(server_end),), daemon=True)
     th.start()
-    from host.uart_client import run_burst
     link = Link(client_end)
-    ok = run_samples(link, label="mock (golden model)")
-    ok = run_burst(link, n=400, sample=0, label="mock") and ok
-    ok = run_burst(link, n=100, label="mock", sweep=True, preload=list(range(16))) and ok
-    return 0 if ok else 1
+    n = 16 if dataset == "c1" else 8
+    ok = run_samples(link, label="mock (golden model)", dataset=dataset)
+    ok = run_burst(link, n=400, sample=0, label="mock", dataset=dataset) and ok
+    ok = run_burst(link, n=100, label="mock", sweep=True, preload=[i % n for i in range(16)], dataset=dataset) and ok
+    # the intended failure: a DATASET=0 server must be refused by the g1 check set (and vice versa)
+    other = "g1" if dataset == "c1" else "c1"
+    c2, s2 = in_process_pair()
+    threading.Thread(target=MockConvServer(dataset).serve, args=(Link(s2),), daemon=True).start()
+    refused = not run_samples(Link(c2), label="mock (mismatch)", dataset=other)
+    print("dataset-mismatch refusal: %s" % ("ok" if refused else "NOT REFUSED"))
+    return 0 if (ok and refused) else 1
 
 
 if __name__ == "__main__":
     if "--selftest" in sys.argv:
-        raise SystemExit(selftest())
+        ds = sys.argv[sys.argv.index("--dataset") + 1] if "--dataset" in sys.argv else "c1"
+        raise SystemExit(selftest(ds))
     print("use --selftest, or import MockConvServer")
