@@ -2857,3 +2857,19 @@ at sim creation with CUDA out-of-memory (3 GB free). The teacher (iteration
 8,779 of 15,000 at 11:33, ~5.4 s/iteration) finishes tonight; a waiter
 runs the 8-env, 2-iteration smoke when its process exits. Until that
 passes, the launcher is "unit-tested, untested against IsaacGym".
+
+## 2026-09-18 — DVS-Gesture T sweep: T = 16 overflows the int16 membrane
+
+Seed 0 at T = 8 and 16 (`experiments/dvsgesture/README.md`): float
+65.15 / 68.94 % against 63.26 % at T = 4; golden integer 65.53 / 70.83 %.
+The number that matters for hardware: the fc membrane range grows with
+T (fc |V|max 19.8k -> 28.8k -> 34.5k) and at **T = 16 it exceeds int16**
+(-34,472 < -32,768). The golden model's 70.83 % is therefore not a
+hardware number; the RTL would wrap. T = 8 fits with 12 % headroom.
+Options recorded, none taken: 18-bit membranes (RTL width change,
++12 % membrane BRAM), fc scale k = 7 (halves the range, costs rounding),
+or T <= 8 for this dataset. Cycle projection from the validated model:
+ED K=4 3.4 / 5.9 / 9.8 ms and dense P=4 3.6 / 7.2 / 14.4 ms at T =
+4 / 8 / 16 — longer T favours ED slightly because bins get sparser
+while dense cost is linear in T. One seed per T; the T = 4 seed spread
+is 5.3 pp, so the +5.7 pp from T = 4 to 16 is real but not large.

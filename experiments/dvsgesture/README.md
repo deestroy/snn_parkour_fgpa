@@ -117,6 +117,55 @@ Seeds 1 and 2 are 68.56 % and 63.26 % test; the coincidence with seed 0's
 numbers differ). Logs: `train_seed{1,2}.log`, `quantise_seed{1,2}.log`,
 `golden_check_seed{1,2}.log`, `seed{1,2}_m0_firing_rates_binarised.csv`.
 
+## T sweep (C0023), seed 0, 30 epochs each (2026-09-18)
+
+Packed with `04b_pack_dvsgesture.py --T <T>` into `packed_dvsgesture_t<T>`,
+trained with `03_train.py --T <T>`; each run through quantise and golden.
+`t8/`, `t16/` hold the logs and firing-rate CSVs.
+
+| T | test input density | float | int8 | golden integer | golden - float | fc |V| range | fits int16? | rates c1 / c2 / c3 / fc |
+|---|---|---|---|---|---|---|---|---|
+| 4 | 27.2 % | 63.26 % | 65.15 % | 63.26 % | 0.00 pp | -19,777 .. 17,154 | yes (60 %) | .073 / .143 / .186 / .359 |
+| 8 | 21.7 % | 65.15 % | 66.29 % | 65.53 % | +0.38 pp | -28,768 .. 22,533 | yes (88 %) | .063 / .122 / .150 / .288 |
+| 16 | 15.1 % | 68.94 % | 71.59 % | 70.83 % | +1.89 pp | **-34,472 .. 28,983** | **NO (17 bits)** | .046 / .088 / .117 / .235 |
+
+Reading:
+- Accuracy rises with T (63 -> 65 -> 69 % float), as expected when the
+  gesture's motion is split into more bins; the gain from 4 to 16 bins
+  (+5.7 pp) is about the size of the seed spread at T = 4 (5.3 pp), so it
+  is real but not large, and one seed per T.
+- **At T = 16 the fc membrane overflows int16** (-34,472 below the
+  -32,768 floor). The golden model computes in unbounded integers, so its
+  70.83 % is NOT what the hardware would produce; the RTL's 16-bit
+  membrane would wrap. This is the hardware limit of the encoding as
+  built: T = 8 fits with 12 % headroom, T = 16 does not. Options, none
+  taken here (judgement call for the thesis): widen the membrane to 18
+  bits (RTL change, +12 % membrane BRAM); drop the fc scale one bit
+  (k = 7, halves the range at a rounding cost); or accept T <= 8. The
+  golden check now has a concrete case where "fits int16" is the gate
+  that bites.
+- Per-neuron firing rates fall with T while accuracy rises: shorter bins
+  carry fewer events each. Total spikes per clip still grow (see below).
+- The "drop" column is again noise around zero (-0.4 to +1.9 pp on 264
+  samples).
+
+Cycle projection from the model validated at T = 4 (`latency_sim/`,
+0.3 % per sample; `cycles = 2NT + 5.0 s + 71.7 s/K`, dense `88.0 NT/P`),
+using the full test set's density for spikes per clip `s`:
+
+| T | spikes / clip | ED K=4 | dense P=4 | dense / ED |
+|---|---|---|---|---|
+| 4 | 8,900 | 335k (3.35 ms) | 1,442k/4 = 360k (3.60 ms) | 1.08x |
+| 8 | 14,200 | 587k (5.87 ms) | 721k (7.21 ms) | 1.23x |
+| 16 | 19,800 | 979k (9.79 ms) | 1,442k (14.42 ms) | 1.47x |
+
+(The T = 4 row uses the whole test set's 27.2 % density; the measured
+8-sample subset was sparser, 20.9 %, hence its 1.25x.) Longer T favours
+the event-driven engine slightly, because the input gets sparser per
+bin while the dense engine's cost is exactly linear in T. These are
+projections, not simulations; the T = 8 vectors can be exported and run
+through both benches when a T = 8 build is on the table.
+
 ## Board readiness (2026-09-18)
 
 Baked for silicon: `hdl/dense/conv_layer_p_g1.v` and
