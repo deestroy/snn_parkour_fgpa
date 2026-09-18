@@ -95,6 +95,28 @@ and must not be reused for data with corner activity.
   (M1 chain re-runs 2026-09-17 21:48 EDT)
 - checkpoint `dvsgesture_beta0875_seed0.pt` and packed frames stay on the box (`~/snn_parkour_fpga/experiments/dvsgesture/`, `data/packed_dvsgesture/`)
 
+## Three seeds at T = 4 (2026-09-18, CPU runs on the box, 30 epochs each)
+
+| seed | float | int8 weights | golden integer | golden - float | fc |V|max | M1 gate |
+|---|---|---|---|---|---|---|
+| 0 | 63.26 % | 65.15 % | 63.26 % | 0.00 pp | 19,777 | pass |
+| 1 | 68.56 % | 67.80 % | 66.67 % | -1.89 pp | 21,252 | FAIL (gate ~1 pp) |
+| 2 | 63.26 % | 63.64 % | 65.91 % | +2.65 pp | 21,221 | pass |
+
+Float accuracy 63.3 / 68.6 / 63.3 %: mean **65.0 %, spread 5.3 pp** on a
+264-sample test set (one sample = 0.38 pp). The quantisation "drop" is
+-1.9 to +2.7 pp across seeds, i.e. it is noise around zero, not a bias:
+seed 1 loses 5 test samples to integer arithmetic, seed 2 gains 7. The
+~1 pp M1 gate was calibrated on N-MNIST's 10,000-sample test set and is
+too tight for 264 samples; seed 1's FAIL is recorded as such, not
+tuned away, and the gate stays (it is the right gate for the datasets it
+was set on; a per-dataset tolerance is a C-item, not a quiet edit).
+Membranes fit int16 on every seed (fc uses 65 % of the budget at worst).
+Seeds 1 and 2 are 68.56 % and 63.26 % test; the coincidence with seed 0's
+63.26 % is 167/264 on both, different networks (their int8 and golden
+numbers differ). Logs: `train_seed{1,2}.log`, `quantise_seed{1,2}.log`,
+`golden_check_seed{1,2}.log`, `seed{1,2}_m0_firing_rates_binarised.csv`.
+
 ## Board readiness (2026-09-18)
 
 Baked for silicon: `hdl/dense/conv_layer_p_g1.v` and
