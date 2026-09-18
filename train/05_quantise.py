@@ -58,6 +58,8 @@ def main() -> int:
     ap.add_argument("--ckpt", default=os.path.join(
         REPO, "train", "checkpoints", "m1_beta0875_seed0.pt"))
     ap.add_argument("--device", default="auto")
+    ap.add_argument("--out", default=OUT_PATH,
+                    help="weights .npz to write (default: the N-MNIST golden file)")
     args = ap.parse_args()
     if args.device == "auto":
         args.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -91,7 +93,8 @@ def main() -> int:
         print("       -> integer threshold for this layer = 2^%d = %d" % (k, 2 ** k))
 
     # --- check: accuracy with rounded weights, everything else untouched --
-    _, test_loader = build_loaders(batch_size=256)
+    _, test_loader = build_loaders(batch_size=256,
+                                   dataset=cfg.get("dataset", "nmnist"))
 
     def accuracy():
         hits = n = 0
@@ -117,11 +120,11 @@ def main() -> int:
     print("drop from rounding : %.2f pp   (M1 budget ~1 pp for the full"
           " fixed-point model)" % (100 * (base - quant)))
 
-    np.savez(OUT_PATH, **packed,
+    np.savez(args.out, **packed,
              beta=cfg["beta"], n_steps=cfg["n_steps"],
              threshold=1.0, in_shape=np.array(cfg["in_shape"]),
              float_acc=base, int8_weight_acc=quant)
-    print("\nweights -> %s" % os.path.relpath(OUT_PATH, REPO))
+    print("\nweights -> %s" % os.path.relpath(args.out, REPO))
     return 0
 
 

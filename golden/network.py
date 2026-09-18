@@ -95,31 +95,46 @@ class GoldenNetwork:
         self.thr = {"c1": 2 ** self.k["conv1"], "c2": 2 ** self.k["conv2"],
                     "c3": 2 ** self.k["conv3"], "fc": 2 ** (self.k["fc"] + 2)}
         self.readout_w = readout_w  # float (10, 128) or None
+        # geometry from the weights file (C0012: DVS-Gesture is 2x64x64);
+        # older files carry no in_shape and are N-MNIST 2x34x34
+        in_shape = z["in_shape"] if "in_shape" in z.files else (2, 34, 34)
+        self.in_shape = tuple(int(x) for x in in_shape)
+        h = self.in_shape[1]
+        assert self.in_shape[1] == self.in_shape[2], "square inputs only"
+        self.hw = []                       # 3x3 stride-2 pad-1: h -> (h+1)//2
+        for _ in range(3):
+            h = (h + 1) // 2
+            self.hw.append(h)
+        self.pool_dim = 64 * (self.hw[2] // 2) ** 2   # sum-pool 2x2 of C3
+        assert self.w["fc"].shape[1] == self.pool_dim, (
+            "fc weights expect %d inputs, geometry gives %d"
+            % (self.w["fc"].shape[1], self.pool_dim))
 
     def forward(self, frames: np.ndarray, record: bool = False
                 ) -> Tuple[np.ndarray, Dict[str, List[np.ndarray]]]:
-        """:param frames: (B, T, 2, 34, 34) event counts (any int dtype).
+        """:param frames: (B, T, 2, H, W) event counts (any int dtype); H = W = in_shape[1].
         :param record: keep per-timestep currents, membranes and spikes.
         :return: (fc spike counts (B, 128) int32, trace dict)."""
         b = frames.shape[0]
         spikes_in = (frames > 0).astype(np.int8)  # binarise (D0003)
 
-        v = {"c1": np.zeros((b, 16, 17, 17), np.int32),
-             "c2": np.zeros((b, 32, 9, 9), np.int32),
-             "c3": np.zeros((b, 64, 5, 5), np.int32),
+        h1, h2, h3 = self.hw
+        v = {"c1": np.zeros((b, 16, h1, h1), np.int32),
+             "c2": np.zeros((b, 32, h2, h2), np.int32),
+             "c3": np.zeros((b, 64, h3, h3), np.int32),
              "fc": np.zeros((b, 128), np.int32)}
         counts = np.zeros((b, 128), np.int32)
         trace: Dict[str, List[np.ndarray]] = {}
         self.v_extremes = {n: (0, 0) for n in v}
 
         for t in range(self.n_steps):
-            i1 = conv_int(spikes_in[:, t], self.w["conv1"], 17)
+            i1 = conv_int(spikes_in[:, t], self.w["conv1"], h1)
             v["c1"], s1 = lif_update(v["c1"], i1, self.thr["c1"])
-            i2 = conv_int(s1.astype(np.int8), self.w["conv2"], 9)
+            i2 = conv_int(s1.astype(np.int8), self.w["conv2"], h2)
             v["c2"], s2 = lif_update(v["c2"], i2, self.thr["c2"])
-            i3 = conv_int(s2.astype(np.int8), self.w["conv3"], 5)
+            i3 = conv_int(s2.astype(np.int8), self.w["conv3"], h3)
             v["c3"], s3 = lif_update(v["c3"], i3, self.thr["c3"])
-            pooled = sum_pool_2x2(s3).reshape(b, -1)  # (B, 256), values 0..4
+            pooled = sum_pool_2x2(s3).reshape(b, -1)  # (B, pool_dim), values 0..4
             i4 = pooled @ self.w["fc"].astype(np.int32).T
             v["fc"], s4 = lif_update(v["fc"], i4, self.thr["fc"])
             counts += s4
