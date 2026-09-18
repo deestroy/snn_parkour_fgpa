@@ -33,11 +33,13 @@ SHAPES = {  # layer: (weights key, C_IN, H_IN, W_IN, C_OUT, H_OUT, W_OUT)
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--layer", default="c1", choices=sorted(SHAPES))
+    ap.add_argument("--weights", default=os.path.join(REPO, "golden", "m1_weights_int8.npz"))
+    ap.add_argument("--traces", default=os.path.join(REPO, "golden", "traces_m1.npz"))
     args = ap.parse_args()
     wkey, c_in, h_in, w_in, c_out, h_out, w_out = SHAPES[args.layer]
 
-    weights = np.load(os.path.join(REPO, "golden", "m1_weights_int8.npz"))[wkey]
-    traces = np.load(os.path.join(REPO, "golden", "traces_m1.npz"))
+    weights = np.load(args.weights)[wkey]
+    traces = np.load(args.traces)
 
     # Input spikes: for c1 the binarised frames; for c2/c3 the previous
     # layer's spike trace. Output: this layer's spike + membrane traces.

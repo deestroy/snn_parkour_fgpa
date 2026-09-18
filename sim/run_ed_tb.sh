@@ -31,8 +31,10 @@ elif [ "$layer" = r1 ]; then
         python3 sim/export_robot_vectors.py > /dev/null          # synthetic
     fi
 else
-    python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null   # dense weight hex (shim)
-    python3 sim/export_ed_vectors.py --layer "$layer" > /dev/null     # address lists + expected + W_T
+    vec=""; [ -n "${VEC_WEIGHTS:-}" ] && vec="--weights $VEC_WEIGHTS --traces $VEC_TRACES"   # another network's weights + traces (rate sweep)
+    python3 sim/export_conv_vectors.py --layer "$layer" $vec > /dev/null   # dense weight hex (shim)
+    python3 sim/export_ed_vectors.py --layer "$layer" $vec > /dev/null     # address lists + expected + W_T
+    [ -n "${VEC_WEIGHTS:-}" ] && THRESH=$(cat sim/vectors/ed_${layer}_thresh.txt)
 fi
 mkdir -p sim/work
 srcs="hdl/common/lif_update.v hdl/dense/conv_layer.v hdl/eventdriven/ed_iface_shim.v hdl/eventdriven/ed_scatter.v"

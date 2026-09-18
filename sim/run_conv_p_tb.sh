@@ -22,7 +22,10 @@ elif [ "$layer" = r1 ]; then
     if [ "${R1_REAL:-0}" = 1 ]; then python3 sim/export_fpga_student_vectors.py > /dev/null; THRESH=$(cat sim/vectors/r1_thresh.txt)
     else python3 sim/export_robot_vectors.py > /dev/null; fi
 else
-    python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null
+    vec=""; [ -n "${VEC_WEIGHTS:-}" ] && vec="--weights $VEC_WEIGHTS --traces $VEC_TRACES"
+    python3 sim/export_conv_vectors.py --layer "$layer" $vec > /dev/null
+    python3 sim/export_ed_vectors.py --layer "$layer" $vec > /dev/null      # for the threshold file
+    [ -n "${VEC_WEIGHTS:-}" ] && THRESH=$(cat sim/vectors/ed_${layer}_thresh.txt)
 fi
 mkdir -p sim/work
 iverilog -g2012 -o "sim/work/tb_conv_p_${layer}.vvp" \

@@ -40,12 +40,19 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--layer", default="c1", choices=sorted(GEOM))
     ap.add_argument("--k", type=int, default=1)
+    ap.add_argument("--weights", default=os.path.join(REPO, "golden", "m1_weights_int8.npz"),
+                    help="quantised weights npz (default: the M1 N-MNIST network)")
+    ap.add_argument("--traces", default=os.path.join(REPO, "golden", "traces_m1.npz"),
+                    help="golden traces npz produced from the same network")
     args = ap.parse_args()
     c_in, h_in, w_in, c_out, h_out, w_out, thr, wkey = GEOM[args.layer]
     assert c_out % args.k == 0
 
-    w = np.load(os.path.join(REPO, "golden", "m1_weights_int8.npz"))[wkey]
-    z = np.load(os.path.join(REPO, "golden", "traces_m1.npz"))
+    zw = np.load(args.weights)
+    w = zw[wkey]
+    if wkey + "_k" in zw.files:                       # the layer's threshold is 2^k for THIS network
+        thr = 2 ** int(zw[wkey + "_k"])
+    z = np.load(args.traces)
     src = {"c1": "in", "c2": "c1_S", "c3": "c2_S"}[args.layer]
     spikes_in = (z[src] != 0)
     exp_s = (z[args.layer + "_S"] != 0)
@@ -99,6 +106,8 @@ def main() -> int:
                 eng.sweep()   # advances V, zeroes I, exactly as the RTL sweep will
 
     report(args.layer, spikes_in.astype(np.uint8), OUT)   # C0044 guard: corner blind spots
+    with open(p("thresh.txt"), "w") as fh:
+        fh.write("%d\n" % thr)                         # bench runners read this when VEC_WEIGHTS is set
     print("%s: %d samples x %d ts, %d input spikes total (%.1f/ts), W_T %s, I dump written"
           % (args.layer, b, t, n_spk, n_spk / (b * t), wt.shape))
     return 0
