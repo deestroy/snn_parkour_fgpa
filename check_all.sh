@@ -41,6 +41,7 @@ run "M5 protocol vs mock meter"               python3 measure/protocol.py --mock
 run "M5 DMM manual-entry arithmetic"          python3 measure/manual_meter.py --selftest
 run "Y2 per-cycle log (ring, flush, stats)"   python3 robot/host/test_cycle_log.py
 run "Y2 perception loop (stale latent, misses)" python3 robot/host/test_perception_loop.py
+run "Y2 IsaacGym port (event sim == numpy, encoder verbatim, backbone)" python3 robot/isaac/test_port.py
 run "Synth-safety lint (no two-stage init)"    bash sim/lint_synth_safety.sh
 run "C0044 corner-exposure helper selftest"    python3 sim/corner_exposure.py --selftest
 run "RTL lint, dense top (verilator -Wall)"    bash -c 'verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-UNUSEDPARAM -Wno-UNUSEDSIGNAL -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC --top-module axis_conv_top hdl/common/lif_update.v hdl/dense/conv_layer_p.v hdl/dense/conv_layer_p_c1.v hdl/dense/conv_layer_p_g1.v hdl/eventdriven/ed_scatter.v hdl/eventdriven/ed_scatter_c1.v hdl/eventdriven/ed_scatter_g1.v hdl/eventdriven/ed_conv_layer.v hdl/dense/axis_conv.v hdl/dense/axis_conv_top.v && echo LINT PASS'

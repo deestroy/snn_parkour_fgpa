@@ -2818,3 +2818,42 @@ build-script bootgen work). Its 10:22 commit swept up this session's
 uncommitted DATASET hunk in build_engine.tcl. No damage, but two
 sessions in one checkout is how a half-edited file gets committed;
 one session per checkout, or a worktree each, from here on.
+
+## 2026-09-18 — DVS-Gesture seeds; the year-two student ported to the real stack
+
+**Seeds (C0019 on the second benchmark).** Three seeds at T = 4, trained
+on the box's CPU beside the teacher: float 63.3 / 68.6 / 63.3 %, golden
+integer 63.3 / 66.7 / 65.9 %. Spread 5.3 pp on 264 test samples, so the
+single-seed 63.26 % was never a number to quote alone. The quantisation
+"drop" is -1.9 to +2.7 pp across seeds — noise around zero, no bias.
+Seed 1 FAILS the ~1 pp M1 gate (5 samples) and is recorded as a fail;
+the gate was set on N-MNIST's 10,000-sample test set and is too tight
+for 264, but it stays until a per-dataset tolerance is argued for as a
+C-item rather than edited quietly. Membranes fit int16 on every seed.
+The T = 8 / 16 packs and runs are in flight (`experiments/dvsgesture/t8`,
+`t16` on the box); results to follow.
+
+**IsaacGym port (item 4 of the 2026-09-18 list).** The recreation's three
+pieces now plug into extreme-parkour's own vision-distillation loop
+without touching their code (`robot/isaac/`): the event simulator is a
+batched GPU port, bit-identical to the numpy original including resets;
+the 58k spiking encoder is the recreation's file verbatim; the backbone
+replaces only `depth_encoder.base_backbone` in rsl_rl's `learn_vision`,
+so their GRU, student actor, DAgger schedule, checkpoints and logs are
+the paper's stack, not ours. Judgement calls, flagged in the README: the
+recreation's student saw ONE event frame repeated over T = 4 (direct
+coding, paper-faithful) while its vector recorder exported four
+CONSECUTIVE tick frames — so the r1 hardware vectors were not the
+student's input; the port makes the window an explicit option and the
+export must follow it. Frames are binarised in training by default
+(D0003; the recreation trained on counts/8 and exported binarised —
+another train/deploy mismatch closed). Depth is their 2 m clip, resized
+to 64x64.
+
+**What is proven and what is not.** CPU checks pass (event-sim
+bit-identity, verbatim encoder, gradient into c1 for both windows). The
+IsaacGym smoke is NOT yet run: attempted beside the teacher, PhysX failed
+at sim creation with CUDA out-of-memory (3 GB free). The teacher (iteration
+8,779 of 15,000 at 11:33, ~5.4 s/iteration) finishes tonight; a waiter
+runs the 8-env, 2-iteration smoke when its process exits. Until that
+passes, the launcher is "unit-tested, untested against IsaacGym".
