@@ -2519,3 +2519,41 @@ betas 0.5/0.75/0.9375/0.96875 at seed 0 give 96.81/96.85/96.98/96.85 %
 vs 96.60 % (seed 0) / 97.03 % (3-seed) at 0.875 — flat within seed
 noise; conv firing rates rise ~15 % relative as beta falls to 0.5. beta
 = 0.875 stands; beta is a weak activity knob next to threshold.
+
+---
+
+## 2026-09-17 — Second GPU host; the ES-Parkour stack becomes runnable
+
+The user gained an NVIDIA box (GTX 1080 Ti, 11 GB; Ubuntu 24.04, driver
+580; 50 GB free). Two consequences, both acted on today:
+
+**C0012 unblocked.** DVS-Gesture downloaded (figshare's
+`ndownloader.figshare.com/files/<id>` host works; the `figshare.com/
+ndownloader/...` form tonic uses returns an empty HTTP 202 — both
+tarballs MD5-verified against tonic's checksums) and packed at the
+robot-era 2x64x64 geometry (D0024, the `r1` layer both engines are
+already bit-identical on), T = 4: train 1,077 samples / test 264, 11
+classes. **Input density 22 % (train) / 27 % (test)** — about four times
+N-MNIST's — i.e. DVS-Gesture sits near the C1 activity crossover (~31 %
+from the cycle model): a benchmark where the event-driven advantage is
+NOT a foregone conclusion, which is exactly the second benchmark the
+thesis needs. Pipeline: `train/04b_pack_dvsgesture.py`, `--dataset` on
+the loader/trainer, `--out` on 05_quantise, geometry-generic golden
+model (ladder 23/23 unchanged). Training running; results to follow.
+
+**ES-Parkour's real stack.** The paper trains in IsaacGym (NVIDIA-only),
+which forced the AMD-box recreation onto MuJoCo — and the recreation's
+teacher scores 100/100/100/94 % at level 3 against the paper's
+45/60/71/29 %, so its numbers were never like-for-like. Staged on the
+new box without sudo: micromamba `py38` (torch 1.10.0+cu113),
+extreme-parkour (the paper's public base; ES-Parkour's own code was
+never released), IsaacGym Preview 4 (user-downloaded). Smoke tests:
+GPU PhysX sim creation OK; a 256-env headless A1-parkour PPO run
+trains at ~1.4 s/iteration. Feasibility gate PASSED on Pascal + driver
+580 + Ubuntu 24.04 (needs `LD_LIBRARY_PATH` to the env's lib; made an
+activation hook). Judgement call put to the user: switch year two's
+simulator to the real stack (like-for-like Fig. 5 / Table IV; days of
+1080 Ti time; sim on the NVIDIA box with the FPGA on the Mac, so the
+board link tunnels over SSH and the extra hop must be attributed in the
+deadline accounting) vs. keep MuJoCo ("same protocol, different
+simulator"). Recommended the switch, staged: teacher first.
