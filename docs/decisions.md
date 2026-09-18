@@ -2746,3 +2746,37 @@ bitstream partition is never chosen by hand again.
 predictions: 29 held, 3 resource predictions missed (all recorded), 0
 correctness or latency misses. Crossover bracketed between K=P=4 and 8
 on silicon; both replicated meter bitstreams ready.
+
+## 2026-09-18 — DVS-Gesture C1 latency: the crossover flips within one dataset
+
+Pre-registered (`experiments/dvsgesture/latency_prereg_20260918.md`)
+then simulated, both engines, K = P in {1, 2, 4, 8, 16}, 8 test
+samples, engine-only cycles. Results in
+`experiments/dvsgesture/latency_sim/README.md`.
+
+**Matched parallelism at K = P = 4: ED 2.88 ms mean vs dense 3.60 ms
+flat, ED 1.25x — but only on 6 of 8 samples.** The two densest
+gestures (36 % and 44 % input density) take 4.00 and 4.57 ms on the
+event-driven engine and lose to the dense one. The per-sample rule
+is exact: ED wins iff the clip has fewer than ~10,000 input spikes
+over T = 4, i.e. input density below ~30.5 %. This is the thesis's
+crossover, on real data, in the latency dimension; the ~31 % figure
+derived from the N-MNIST-era model (C0037) is confirmed on a
+benchmark that straddles it.
+
+**The cycle model transfers exactly.** `cycles = 2NT + 5.0 x spikes +
+71.7 x spikes / K` reproduces every K mean to 0.00 % and every sample
+to 0.3 %, with the same per-spike constants that fit N-MNIST: the
+scatter and pump costs depend on C_OUT, not on image size or dataset.
+Dense is 88.0 cycles per neuron per inference at every P. Parallelism
+crossover K = P = 5.8 (N-MNIST 6.6): Builds 3-4 at K = P = 8 still
+bracket it. The prereg's ED points were 5-17 % low because the
+K-independent per-spike term was written as a constant; the refined
+model is the one to predict with from now on.
+
+**What the deadline reading adds.** The ED per-sample spread is 2.30x
+at K=4 (N-MNIST 1.47x) because gesture clips vary 4.8x in spike count.
+For a control loop the worst case (4.57 ms) is the latency, and there
+the dense engine's constant 3.60 ms wins at K = P = 4. Mean-latency
+and deadline-latency verdicts differ on this dataset, which is the
+distinction C0042 asks the thesis to make explicit.

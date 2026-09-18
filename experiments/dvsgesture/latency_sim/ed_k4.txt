@@ -1,0 +1,9 @@
+# sample cycles_per_sample (sum over T of: first spike push -> done)
+0 199079
+1 457140
+2 246009
+3 242294
+4 287286
+5 400349
+6 229120
+7 241037
