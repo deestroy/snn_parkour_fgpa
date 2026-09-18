@@ -2955,3 +2955,41 @@ resolution. Not evidence of anything; the meter is.
 HDL files in place; after any pull that touches hdl/, refresh the
 module reference before building (docs/vivado_new_project.md 3e). The
 old m4_conv is retired for builds; keep for reference only.
+
+## 2026-09-18 — The activity axis on real data: trained firing rates, C2/C3 crossovers, and what C1 cannot do
+
+**Method.** `03_train.py --rate_target r --rate_lambda 100` penalises the
+conv layers' output rates (`experiments/rate_sweep/`). Five N-MNIST
+networks at 2 / 4 / 8 / 16 / 30 % land within 0.003 of target; accuracy
+is flat 96.8-97.2 % from 2 to 16 % and 95.6 % at 30 %; all quantise and
+pass golden with membranes in 12-14 bits. On N-MNIST the network does
+not need its activity, which is both the best case for an event-driven
+engine and a warning that activity is a property of the training
+recipe, not of the task. Lambda was calibrated (20 / 100 / 500 at
+target 3 %), not guessed.
+
+**Result.** 18 of 18 bench runs bit-identical. C1 is identical for all
+six networks (65,876 cycles, 1.54x): its input is the data, so a rate
+penalty cannot move the C1 board point — that axis is data, dataset and
+encoding, which the DVS-Gesture per-sample result already spans. C2 and
+C3 move a long way: ED K=4 over dense P=4 is 10x / 14x at 2 % and still
+1.6x / 1.9x at 30 %. The ED cost is linear in input spikes with the
+intercept on the sweep floor (C2 20.8k vs 20.7k; C3 13.1k vs 12.8k),
+giving extrapolated crossovers of **48 % (C2) and 57 % (C3)** input
+activity against ~31 % for C1: the deeper the layer, the larger its
+fan-in (18 / 144 / 288 taps) and the more the dense engine pays per
+neuron while ED pays per spike. No trained N-MNIST network reaches
+those crossovers. For the thesis: on this dataset the event-driven
+engine wins every conv layer at every activity a training run
+produces in cycles; whether it wins in energy is the meter's question
+(C0003 / C0038), and the per-sample spread (up to 2.05x at 30 %) is the
+deadline caveat again.
+
+**DVS-Gesture T = 8, three seeds (MI210).** Float 65.2 / 66.7 / 65.2 %;
+fc |V| max 28.8k / 33.0k / 31.2k — **seed 1 overflows int16 at T = 8.**
+The earlier "T = 8 fits with 12 % headroom" was one seed's luck; as
+built, T = 4 is the only setting with margin on every seed. Options
+unchanged (18-bit membranes, fc k = 7, or T = 4); none taken.
+
+Both GPUs were in use for this: the MI210 trained the sweep and the
+seeds (9-14 s per N-MNIST epoch) while the 1080 Ti finishes the teacher.

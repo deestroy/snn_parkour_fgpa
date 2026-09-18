@@ -1,0 +1,116 @@
+# M7 activity axis on real data: N-MNIST networks trained to target firing rates (2026-09-18)
+
+Why: every activity point so far came from a threshold knob or from
+synthetic Bernoulli inputs (C0040: real activity is spatially clustered).
+Here the ACTIVITY is trained in: `train/03_train.py --rate_target r
+--rate_lambda 100` adds `100 * sum_{c1,c2,c3} (rate_l - r)^2` to the
+training loss, so the conv layers' output rates -- the inputs of C2, C3
+and FC -- land at r. C1's own input is the dataset's density (13.6 % on
+the check set) and does not move; the sweep is the activity axis for C2
+and C3, which have bit-identical dense and event-driven benches.
+
+Lambda calibration (3 epochs, target 0.03): lambda 20 -> c2 0.039,
+100 -> 0.033, 500 -> 0.031, accuracy unchanged (96.6 %); 100 chosen.
+MI210: ~9-14 s per epoch. Seed 0, 10 epochs, one seed per point.
+
+## Training, quantisation, golden (all on the 10,000-sample test set)
+
+| target | achieved c1 / c2 / c3 / fc | float | int8 | golden integer | golden - float | shifts k (c1/c2/c3/fc) | max membrane bits |
+|---|---|---|---|---|---|---|---|
+| none (M1 baseline) | .069 / .081 / .103 / .262 | 96.60 % | 96.69 % | 96.60 % | 0.00 | 6/6/6/6 | -- |
+| 0.02 | .024 / .026 / .022 / .222 | 96.91 % | 96.91 % | 96.90 % | -0.01 pp | 5/6/5/6 | 12 |
+| 0.04 | .042 / .042 / .041 / .266 | 97.18 % | 97.30 % | 97.26 % | +0.08 pp | 5/6/6/6 | 12 |
+| 0.08 | .081 / .079 / .080 / .275 | 96.92 % | 96.93 % | 96.96 % | +0.04 pp | 6/6/7/6 | 13 |
+| 0.16 | .160 / .158 / .158 / .324 | 96.82 % | 96.80 % | 96.81 % | -0.01 pp | 6/7/6/6 | 13 |
+| 0.30 | .297 / .297 / .298 / .305 | 95.62 % | 95.64 % | 95.49 % | -0.13 pp | 6/6/6/6 | 14 |
+
+The penalty lands within 0.003 of the target at every point. Accuracy
+is FLAT from 2 % to 16 % (96.8-97.2 %, within the 3-seed spread of the
+baseline) and drops 1.2 pp at 30 %: on N-MNIST the network does not need
+its activity, which is the strongest possible case for an event-driven
+engine -- and also a warning that "activity" is a free parameter of the
+training recipe, not a property of the task. Every point is golden-clean
+and fits int16 with room. Note the shifts move with the rate: the
+threshold each network runs at is 2^k for THAT network, so the bench
+runners now read it from the exporter (`VEC_WEIGHTS` / `VEC_TRACES`).
+
+Files: `train_rate<r>.log`, `quantise_rate<r>.log`, `golden_rate<r>.log`,
+`rates_binarised_nmnist_target<r>_seed0_t4.csv`, `nmnist_rate<r>_int8.npz`
+(committed, 60 KB each); `traces_rate<r>.npz` local + on the AMD box
+(regenerable from the checkpoints there, `runs` under experiments/rate_sweep).
+
+## Engine cycles vs activity (both engines, K = P = 4, 16 check samples)
+
+All 18 runs bit-identical to the golden model (6 networks x 3 layers, ED
+K=4 and dense P=4). Per-sample ED cycle files `bench/ed_k4_<net>_<layer>.txt`,
+dense lines `bench/dense_p4_<net>_<layer>.txt`. "Input rate (bench)" is
+the fraction of input bits set over the 16 check samples x 4 timesteps,
+i.e. the previous layer's firing rate on the CHECK set (the training-log
+rates are on the test set; they agree to ~0.01).
+
+### C1 (dense P=4 constant: 101,724 cycles/sample)
+
+| network | input rate (bench) | input spikes / sample | ED K=4 mean | min | max | dense / ED |
+|---|---|---|---|---|---|---|
+| M1 baseline | 0.136 | 1,256 | 65,876 | 52,544 | 78,589 | 1.54x |
+| target 0.02 | 0.136 | 1,256 | 65,876 | 52,544 | 78,589 | 1.54x |
+| target 0.04 | 0.136 | 1,256 | 65,876 | 52,544 | 78,589 | 1.54x |
+| target 0.08 | 0.136 | 1,256 | 65,876 | 52,544 | 78,589 | 1.54x |
+| target 0.16 | 0.136 | 1,256 | 65,876 | 52,544 | 78,589 | 1.54x |
+| target 0.30 | 0.136 | 1,256 | 65,876 | 52,544 | 78,589 | 1.54x |
+
+No fit here: all six networks share the input (1,256 spikes/sample on
+the check set), so the sweep has one C1 point. C1's activity model is
+the validated one (`2NT + 5.0 s + 71.7 s/K`, experiments/dvsgesture/
+latency_sim): crossover at K = P = 4 near 31 % input density.
+
+### C2 (dense P=4 constant: 383,612 cycles/sample)
+
+| network | input rate (bench) | input spikes / sample | ED K=4 mean | min | max | dense / ED |
+|---|---|---|---|---|---|---|
+| M1 baseline | 0.069 | 1,270 | 72,885 | 52,407 | 90,877 | 5.26x |
+| target 0.02 | 0.023 | 427 | 38,297 | 33,086 | 42,922 | 10.02x |
+| target 0.04 | 0.041 | 751 | 51,550 | 39,438 | 61,397 | 7.44x |
+| target 0.08 | 0.078 | 1,451 | 80,259 | 55,807 | 100,332 | 4.78x |
+| target 0.16 | 0.156 | 2,886 | 139,222 | 86,277 | 185,850 | 2.76x |
+| target 0.30 | 0.290 | 5,359 | 240,475 | 149,704 | 306,981 | 1.60x |
+
+Fit `ED = 20,803 + 41.0 x spikes` (max residual 0.1 %; sweep floor 2 x 2,592 x 4 = 20,736); **crossover at 8,849 input spikes per sample = 48 % input rate** (beyond the swept range; extrapolated)
+
+### C3 (dense P=4 constant: 467,196 cycles/sample)
+
+| network | input rate (bench) | input spikes / sample | ED K=4 mean | min | max | dense / ED |
+|---|---|---|---|---|---|---|
+| M1 baseline | 0.082 | 851 | 78,214 | 58,695 | 96,727 | 5.97x |
+| target 0.02 | 0.025 | 264 | 33,084 | 28,122 | 38,267 | 14.12x |
+| target 0.04 | 0.042 | 430 | 45,978 | 35,307 | 55,089 | 10.16x |
+| target 0.08 | 0.079 | 814 | 75,168 | 55,693 | 93,086 | 6.22x |
+| target 0.16 | 0.156 | 1,615 | 136,827 | 94,304 | 167,239 | 3.41x |
+| target 0.30 | 0.292 | 3,023 | 243,776 | 166,051 | 294,656 | 1.92x |
+
+Fit `ED = 13,105 + 76.4 x spikes` (max residual 0.6 %; sweep floor 2 x 1,600 x 4 = 12,800); **crossover at 5,946 input spikes per sample = 57 % input rate** (beyond the swept range; extrapolated)
+
+## Reading it
+
+- **C1 is identical for all six networks** (65,876 cycles, 1.54x), as it
+  must be: its input is the data. The rate penalty cannot move the C1
+  board point; that axis is data, dataset and encoding (the DVS-Gesture
+  per-sample result is the C1 activity axis).
+- **C2 and C3 are where trained activity moves the verdict**, and it
+  moves a long way: at 2 % activity ED K=4 beats dense P=4 by 10x (C2)
+  and 14x (C3); at 30 % it still wins 1.6x / 1.9x. The dense engine's
+  per-neuron cost grows with the fan-in (18 / 144 / 288 taps for C1 /
+  C2 / C3) while ED's per-spike scatter cost grows only with C_OUT, so
+  the deeper layers are more event-driven-friendly at any given rate.
+- **Crossovers (extrapolated from the linear fits above): C2 ~48 %,
+  C3 ~57 % input activity**, against ~31 % for C1 from the cycle
+  model. No trained N-MNIST network reaches them: even the 30 % network
+  sits at 1.6x. On this dataset the event-driven engine wins every conv
+  layer at every activity a training run produces, and the question the
+  meter has to answer is whether the fabric's energy per cycle follows
+  the cycle count (C0003/C0038).
+- Per-sample spread on ED grows with activity (C2: 1.30x at 2 %, 2.05x
+  at 30 %) -- the deadline-latency caveat from the DVS-Gesture note
+  applies here too.
+- One seed per point; the cycle numbers are exact for these networks,
+  the accuracy column carries the ~0.4 pp seed spread.

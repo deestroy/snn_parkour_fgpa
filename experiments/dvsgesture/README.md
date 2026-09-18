@@ -167,6 +167,23 @@ bin while the dense engine's cost is exactly linear in T. These are
 projections, not simulations; the T = 8 vectors can be exported and run
 through both benches when a T = 8 build is on the table.
 
+## T = 8, three seeds (2026-09-18, MI210 runs; `t8/`)
+
+| seed | float | int8 | golden integer | golden - float | fc |V| range | fits int16? |
+|---|---|---|---|---|---|---|
+| 0 | 65.15 % | 66.29 % | 65.53 % | +0.38 pp | -28,768 .. 22,533 | yes (88 %) |
+| 1 | 66.67 % | 65.53 % | 64.39 % | -2.27 pp | **-33,013 .. 21,573** | **NO** |
+| 2 | 65.15 % | 65.53 % | 64.77 % | -0.38 pp | -31,200 .. 24,559 | yes (95 %) |
+
+Float 65.2 / 66.7 / 65.2 % (mean 65.7 %, spread 1.5 pp, tighter than
+T = 4's 5.3 pp). **The int16 verdict at T = 8 is seed-dependent:** seed
+0 had 12 % headroom, seed 2 has 5 %, seed 1 overflows. So the earlier
+"T = 8 fits" was one seed's luck. As built (int16 membranes, fc scale
+k = 8), T = 4 is the only setting with margin on every seed; T = 8 needs
+the membrane widened or the fc scale dropped a bit before it can be a
+board configuration. Recorded as a hardware limit of the encoding, not
+tuned away.
+
 ## Board readiness (2026-09-18)
 
 Baked for silicon: `hdl/dense/conv_layer_p_g1.v` and
