@@ -40,14 +40,14 @@ set FSBL_SIZE 607080
 set APP_ELF  {
     C:/Users/dhritiaravind/vitis_m4_loopback_zed/conv_server/build/conv_server.elf
 }
-set APP_SIZE 389840
+set APP_SIZE 389864       ;# build 5 (DATASET=0), 2026-09-18
 # DATASET=1 bitstreams need the server built with -DDATASET=1 (build 5,
 # 1,024/2,048-word frames). Keep it as a separate file so the N-MNIST
 # builds keep their own. Size 0 = not yet known: accept any, print it.
 set APP_ELF_G1 {
     C:/Users/dhritiaravind/vitis_m4_loopback_zed/conv_server/build/conv_server_g1.elf
 }
-set APP_SIZE_G1 0
+set APP_SIZE_G1 389864    ;# build 5 -DDATASET=1, 2026-09-18 (same size as DATASET=0: PING word 2 tells them apart)
 # bootgen ships with both Vivado and Vitis; first that exists wins.
 set BOOTGEN {
     C:/Xilinx/Vivado/2024.1/bin/bootgen.bat
