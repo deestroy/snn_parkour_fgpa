@@ -2918,3 +2918,40 @@ got wrong by one step, now pinned by the unit test). The paper's Fig. 5
 numbers stay as context, not as the comparison: its protocol is not
 fully specified. The teacher evaluation is queued on the box behind the
 recorder; the student rows follow their training runs.
+
+## 2026-09-18 — Board pass 9: ED K=4 with C0044 from the fresh project; the flow is now pull + one line
+
+**Result.** m4_conv2/builds/ed_k4_20260918_1300 (WNS +0.475): 16/16,
+4,800 inferences clean, **every per-sample latency equal to the
+2026-09-05 record to 0.1 us**. The C0044 fix changes no cycle count;
+the clean project reproduces the old engine exactly; the script-made
+BOOT.bin boots and serves. Record: experiments/board_ed_k4_c0044_20260918.md.
+
+**Two rejections before the write, both by checks that did not exist
+a day earlier.** (1) The first m4_conv2 build implemented the bare RTL
+block (wrong top): WNS "inf" — the script now forces the wrapper as
+top and refuses an unconstrained run. (2) The second had Vivado's
+default DDR part and an unassigned MIO tree — block automation does
+not apply the board preset; the 901-parameter .hwh diff caught it and
+the script now checks DDR part/HP0/UART1/SD0/QSPI/FCLK0 before
+synthesis. Both would have reached the board under the old click flow.
+
+**Flow, as of today.** VM: `git pull`, then one Tcl line; the script
+sets parameters, verifies the PS preset, builds globally, gates on
+WNS/WHS, exports, runs bootgen with size-checked ELFs, writes a
+summary. Mac: .hwh checks + full PS/DMA diff + partition checks, card
+write, board pass against a pre-registration. The Vitis dialog is
+gone. The only manual step left is the Explorer copy of two files: the
+RDP share is readable by Explorer but not by cmd/PowerShell/Vivado on
+this VM ("Access is denied"), so the script's automatic copy is
+best-effort only.
+
+**Withdrawn.** Yesterday's "x8 runs 4-5 degC hotter" remark: today's
+single-engine pass sat in the same 39-41 degC band. XADC die
+temperature tracks thermal history, not the engine count, at this
+resolution. Not evidence of anything; the meter is.
+
+**Project layout going forward.** m4_conv2 references the clone's ten
+HDL files in place; after any pull that touches hdl/, refresh the
+module reference before building (docs/vivado_new_project.md 3e). The
+old m4_conv is retired for builds; keep for reference only.

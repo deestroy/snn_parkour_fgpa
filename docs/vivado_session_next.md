@@ -30,15 +30,17 @@ fix in the project. dense/ED = 0.939x: crossover between 4 and 8 on
 silicon. Records: experiments/board_ed_k8_20260917.md,
 experiments/board_dense_p8_20260917.md.
 
-Scripted flow now standard: `git pull` in C:/Users/dhritiaravind/snn_parkour_fpga,
-then in the Tcl console
+Scripted flow now standard (project m4_conv2, docs/vivado_new_project.md;
+ED K=4 N=1 with C0044 on silicon 2026-09-18): `git pull` in
+C:/Users/dhritiaravind/snn_parkour_fpga, then in the Tcl console
   set ENGINE <0|1>; set ED_K <K>; set DENSE_P <P>; source C:/Users/dhritiaravind/snn_parkour_fpga/host/vivado/build_engine.tcl
 Outputs land in m4_conv/builds/<tag>/; Create Boot Image in Vitis with
 that folder's .bit; copy BOOT.bin + .xsa to the Mac through
 \\tsclient\Users\dhritiaravind\git_projects\snn_parkour_fpga\host\mac\build.
-Project HDL still lives in m4_loopback/: after any hdl/ change, copy the
-file from the clone over the m4_loopback copy (Copy-Item ... -Force) and
-confirm the marker with Ctrl+F before building.
+Project HDL is the clone itself (referenced in place): after any pull
+that touches hdl/, right-click axis_conv_top_0 > Refresh Module
+Reference, save, then build. BOOT.bin is made by the script; copy the
+two files to the Mac with Explorer (the share is Explorer-only here).
 
 Next ED build should be a clean K=8 (C0044 in) if the K=8 bitstream is
 ever needed for DVS-Gesture; otherwise proceed to the "if time remains"
