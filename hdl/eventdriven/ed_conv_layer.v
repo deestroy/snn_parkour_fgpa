@@ -33,6 +33,7 @@ module ed_conv_layer #(
                                                             // harness symmetry; unused
     parameter WT_FILE = "sim/vectors/ed_c1_wt.hex",         // transposed weights
     parameter BAKED_WEIGHTS = 0,   // 1: use ed_scatter_c1 (W_T inlined, for synthesis)
+    parameter DATASET = 0,           // with BAKED_WEIGHTS: 0 = N-MNIST C1 table (ed_scatter_c1), 1 = DVS-Gesture C1 (ed_scatter_g1)
     // The input address list (D0016). Sized for the worst case -- every input
     // firing once in a timestep -- so it can NEVER overflow. Anything smaller
     // silently drops spikes under a burst (a 64-deep FIFO dropped 81% of
@@ -89,7 +90,17 @@ module ed_conv_layer #(
     reg  signed [WIDTH-1:0]    i_wdata;
     reg                        sc_clear;
 
-    generate if (BAKED_WEIGHTS) begin : g_baked
+    generate if (BAKED_WEIGHTS && DATASET == 1) begin : g_baked_g1
+        ed_scatter_g1 #(                        // DVS-Gesture C1 table (C0012)
+            .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
+            .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
+            .K(K), .WIDTH(WIDTH)
+        ) scatter (
+            .clk(clk), .rst(rst), .clear(sc_clear),
+            .spk_we(sc_we), .spk_addr(sc_addr), .busy(sc_busy),
+            .i_addr(i_addr), .i_rdata(i_rdata), .i_we(i_we), .i_wdata(i_wdata)
+        );
+    end else if (BAKED_WEIGHTS) begin : g_baked
         ed_scatter_c1 #(
             .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
             .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),

@@ -35,7 +35,8 @@ def run_samples(link: Link, label: str = "board") -> bool:
     # any unsolicited announce frame from a fresh boot is harmless: call()
     # hunts for the PING response it asked for
     info = link.call(CMD_PING, np.zeros(0, "<u4"))
-    print("[%s] PING ok: build %d, cap %d words" % (label, info[0], info[1]))
+    ds = ("N-MNIST C1", "DVS-Gesture C1")[int(info[2])] if info.size > 2 else "N-MNIST C1 (build <5)"
+    print("[%s] PING ok: build %d, cap %d words, dataset %s" % (label, info[0], info[1], ds))
     if info[1] < max(n_tx, rx.shape[1]):
         print("FAIL: server cap %d < needed %d" % (info[1], max(n_tx, rx.shape[1])))
         return False

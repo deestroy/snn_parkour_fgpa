@@ -25,6 +25,7 @@ module tb_axis_conv;
     parameter N_ENGINES = 1;
     parameter DENSE_P = 1;
     parameter BAKED = 0;
+    parameter DATASET = 0;
     localparam T = 4;
     localparam MAXW = 65536;
 
@@ -42,7 +43,8 @@ module tb_axis_conv;
     // table), so a hex-vs-baked mismatch would show up here, not on silicon.
     axis_conv_top #(
         .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(BAKED),
-        .ENGINE(ENGINE), .ED_K(ED_K), .WT_FILE(WT_FILE), .N_ENGINES(N_ENGINES), .DENSE_P(DENSE_P)
+        .ENGINE(ENGINE), .ED_K(ED_K), .WT_FILE(WT_FILE), .N_ENGINES(N_ENGINES), .DENSE_P(DENSE_P),
+        .DATASET(DATASET)
     ) dut (
         .aclk(clk), .aresetn(~rst),
         .s_axis_tdata(s_tdata), .s_axis_tvalid(s_tvalid),

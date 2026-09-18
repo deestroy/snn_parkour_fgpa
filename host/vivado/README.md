@@ -52,3 +52,12 @@ failure).
 
 Not covered: the Vitis app rebuild (only needed when conv_server.c
 changes) and the optional -O2 setting.
+
+## DATASET (C0012, 2026-09-18)
+
+`set DATASET 1` before sourcing builds the DVS-Gesture C1 configuration
+(baked g1 tables, 2x64x64 geometry, threshold 128; tag suffix `_dvsg`).
+Default 0 is N-MNIST C1. The script sets and reads back CONFIG.DATASET
+like the other parameters; if the read-back fails the block design's
+module reference has not been refreshed since the top gained the
+parameter (docs/vivado_session_next.md, DVS-Gesture pair, step 2).

@@ -28,7 +28,7 @@
 #include "xadcps.h"                  /* PS XADC: die temperature (C0009) */
 
 /* ---------------------------------------------------------------- config */
-#define BUILD_ID       0x00000004u              /* 4: sweep from the oldest slot; engine-only ticks (2026-09-05) */
+#define BUILD_ID       0x00000005u              /* 5: PING word 2 = DATASET; -DDATASET=1 word counts (2026-09-18) */
 #define CAP_WORDS      65535u                   /* per direction; DDR-resident. 65535 = max the 16-bit n_words field can carry */
 #define TIMEOUT_LOOP   (50000000u)
 
@@ -57,10 +57,22 @@
 
 /* C1 geometry -- must match axis_conv_top's parameters */
 #define T_STEPS        4u
+/* DATASET must match the bitstream's axis_conv_top DATASET (C0012):
+ *   0 = N-MNIST C1     2x34x34 -> 16x17x17   73 / 145 words per timestep
+ *   1 = DVS-Gesture C1 2x64x64 -> 16x32x32  256 / 512 words per timestep
+ * Build with -DDATASET=1 for the DVS-Gesture bitstreams; PING reports it. */
+#ifndef DATASET
+#define DATASET 0
+#endif
+#if DATASET == 1
+#define WORDS_IN_TS    256u                     /* 2*64*64 / 32           */
+#define WORDS_OUT_TS   512u                     /* 16*32*32 / 32          */
+#else
 #define WORDS_IN_TS    73u                      /* ceil(2*34*34 / 32)     */
 #define WORDS_OUT_TS   145u                     /* ceil(16*17*17 / 32)    */
-#define REQ_WORDS      (T_STEPS * WORDS_IN_TS)  /* 292                    */
-#define RSP_WORDS      (T_STEPS * WORDS_OUT_TS) /* 580                    */
+#endif
+#define REQ_WORDS      (T_STEPS * WORDS_IN_TS)  /* 292 / 1024             */
+#define RSP_WORDS      (T_STEPS * WORDS_OUT_TS) /* 580 / 2048             */
 
 /* --------------------------------------------- Cortex-A9 global timer */
 /* 64-bit free-running counter at CPU_3x2x = CPU clock / 2 (ZedBoard preset:
@@ -297,14 +309,14 @@ int main(void) {
     XAxiDma_IntrDisable(&dma, XAXIDMA_IRQ_ALL_MASK, XAXIDMA_DMA_TO_DEVICE);
 
     /* announce: an unsolicited PING response so the host sees us come up */
-    { uint32_t info[2] = { BUILD_ID, CAP_WORDS }; send_frame(CMD_PING | RSP_OK_BIT, info, 2); }
+    { uint32_t info[3] = { BUILD_ID, CAP_WORDS, DATASET }; send_frame(CMD_PING | RSP_OK_BIT, info, 3); }
 
     for (;;) {
         uint32_t n = 0;
         uint8_t cmd = recv_frame(&n);
         if (cmd == CMD_PING) {
-            uint32_t info[2] = { BUILD_ID, CAP_WORDS };
-            send_frame(CMD_PING | RSP_OK_BIT, info, 2);
+            uint32_t info[3] = { BUILD_ID, CAP_WORDS, DATASET };   /* word 2: DATASET (C0012), build 5+ */
+            send_frame(CMD_PING | RSP_OK_BIT, info, 3);
         } else if (cmd == CMD_RUN_CONV) {
             run_conv(n);
         } else if (cmd == CMD_BURST) {

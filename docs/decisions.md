@@ -2780,3 +2780,41 @@ For a control loop the worst case (4.57 ms) is the latency, and there
 the dense engine's constant 3.60 ms wins at K = P = 4. Mean-latency
 and deadline-latency verdicts differ on this dataset, which is the
 distinction C0042 asks the thesis to make explicit.
+
+## 2026-09-18 — DVS-Gesture baked for the board: one DATASET knob
+
+The second benchmark is ready to synthesise. `sim/gen_weight_vh.py`
+now bakes `conv_layer_p_g1` / `ed_scatter_g1` from the DVS-Gesture
+weights, and `axis_conv_top` gained **DATASET** (0 N-MNIST C1, 1
+DVS-Gesture C1). Judgement call: one parameter that selects the table,
+the geometry (2x64x64 -> 16x32x32) and the threshold (128) together,
+rather than exposing H_IN/W_IN/THRESHOLD as separate block-design
+knobs. Reason: the Build-1 .xsa arrived with the wrong ENGINE once
+already; three more independently-settable numbers would be three
+more ways to ship a bitstream whose weights, geometry and threshold do
+not belong together, and the .hwh check would have to cross-validate
+them. With one knob the .hwh check is a single grep, and the server
+mirrors it with `-DDATASET=1` (word counts 1,024 / 2,048; PING word 2
+reports it, server build 5).
+
+Verification: both DATASET=1 configurations through the baked AXIS
+harness with the hostile handshake (ED K=4, dense P=4; 16,384 words
+bit-identical each), both DATASET=0 N-MNIST paths unchanged, lint
+clean for both engines at DATASET=1; the two g1 wrapper checks and the
+two DATASET=1 lints are in the ladder.
+
+Generator hazard found on the way: `gen_weight_vh.py` bakes the r1
+files from whatever `sim/vectors/*_r1_*` hex is present, and the
+synthetic r1 exporter writes the same file names as the real-student
+one. Running the generator after a synthetic r1 export silently
+replaces the distilled-weight r1 baked files with random weights (it
+did; restored from git before committing). The r1 baked files are not
+on any board plan, so this is recorded rather than fixed tonight; the
+fix is a marker in the hex header or separate file names.
+
+Session hygiene: a second Claude Code session was committing in this
+working tree at the same time (the K=P=8 and x8 board passes, the
+build-script bootgen work). Its 10:22 commit swept up this session's
+uncommitted DATASET hunk in build_engine.tcl. No damage, but two
+sessions in one checkout is how a half-edited file gets committed;
+one session per checkout, or a worktree each, from here on.

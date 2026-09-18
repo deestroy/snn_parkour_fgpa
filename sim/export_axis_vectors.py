@@ -18,7 +18,8 @@ import numpy as np
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "sim", "vectors")
 
-SRC = {"c1": ("in", "c1_S"), "c2": ("c1_S", "c2_S"), "c3": ("c2_S", "c3_S")}
+SRC = {"c1": ("in", "c1_S"), "c2": ("c1_S", "c2_S"), "c3": ("c2_S", "c3_S"),
+       "g1": ("conv_g1_in.bin", "conv_g1_s.bin")}   # DVS-Gesture C1: bit files, not traces
 
 
 def pack_words(bits: np.ndarray) -> np.ndarray:
@@ -36,9 +37,18 @@ def main() -> int:
     args = ap.parse_args()
     in_key, out_key = SRC[args.layer]
 
-    z = np.load(os.path.join(REPO, "golden", "traces_m1.npz"))
-    spikes_in = (z[in_key] != 0).astype(np.uint8)   # (B, T, C, H, W)
-    spikes_out = (z[out_key] != 0).astype(np.uint8)
+    if args.layer == "g1":
+        # DVS-Gesture C1 (C0012): bit files written by sim/export_dvsgesture_vectors.py,
+        # flat (B, T, C, H, W) in / (B, T, C_OUT, H_OUT, W_OUT) out, one bit per line
+        bits_in = np.loadtxt(os.path.join(OUT, "conv_g1_in.bin"), dtype=np.uint8)
+        bits_out = np.loadtxt(os.path.join(OUT, "conv_g1_s.bin"), dtype=np.uint8)
+        spikes_in = bits_in.reshape(-1, 4, 2, 64, 64)
+        spikes_out = bits_out.reshape(-1, 4, 16, 32, 32)
+        assert spikes_in.shape[0] == spikes_out.shape[0]
+    else:
+        z = np.load(os.path.join(REPO, "golden", "traces_m1.npz"))
+        spikes_in = (z[in_key] != 0).astype(np.uint8)   # (B, T, C, H, W)
+        spikes_out = (z[out_key] != 0).astype(np.uint8)
     b, t = spikes_in.shape[:2]
 
     with open(os.path.join(OUT, "axis_%s_in.hex" % args.layer), "w") as fh:

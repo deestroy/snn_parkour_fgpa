@@ -91,6 +91,7 @@ def gen_conv_p(name, w_hex_path):
 
 gen_conv_p('c1', os.path.join(REPO, 'sim', 'vectors', 'conv_c1_w.hex'))
 gen_conv_p('r1', os.path.join(REPO, 'sim', 'vectors', 'conv_r1_w.hex'))
+gen_conv_p('g1', os.path.join(REPO, 'sim', 'vectors', 'conv_g1_w.hex'))   # DVS-Gesture C1 (C0012)
 
 
 def gen_r1():
@@ -119,3 +120,23 @@ def gen_r1():
 
 
 gen_r1()
+
+
+def gen_scatter(name, wt_hex, note):
+    """Baked ed_scatter variant: module ed_scatter_<name> with W_T inlined."""
+    if not os.path.exists(wt_hex):
+        return
+    vals = [l.strip() for l in open(wt_hex) if l.strip()]
+    src = open(os.path.join(REPO, 'hdl', 'eventdriven', 'ed_scatter.v')).read()
+    init = ("    // BAKED W_T (%s), inlined -- no $readmemh for Vivado to lose\n"
+            "    initial begin\n" % note) + \
+        "".join("        wt[%d] = 8'h%s;\n" % (i, v) for i, v in enumerate(vals)) + "    end\n"
+    src = src.replace("module ed_scatter #(", "module ed_scatter_%s #(" % name)
+    assert "    initial $readmemh(WT_FILE, wt);\n" in src
+    src = src.replace("    initial $readmemh(WT_FILE, wt);\n", init)
+    open(os.path.join(REPO, 'hdl', 'eventdriven', 'ed_scatter_%s.v' % name), 'w').write(src)
+    print("ed_scatter_%s.v: inlined (%d entries)" % (name, len(vals)))
+
+
+# DVS-Gesture C1 (C0012): selected on the board by axis_conv_top DATASET=1
+gen_scatter('g1', os.path.join(REPO, 'sim', 'vectors', 'ed_g1_wt.hex'), 'DVS-Gesture C1, C0012')

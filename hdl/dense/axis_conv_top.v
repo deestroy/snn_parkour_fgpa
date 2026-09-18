@@ -30,7 +30,13 @@ module axis_conv_top #(
     parameter ED_K = 4,
     parameter WT_FILE = "ed_c1_wt.hex",
     parameter N_ENGINES = 1,  // C0003: engine replication for metering
-    parameter DENSE_P = 1     // C0029/C0035: dense lanes (P == ED_K is matched)
+    parameter DENSE_P = 1,    // C0029/C0035: dense lanes (P == ED_K is matched)
+    // DATASET (C0012): ONE knob selects the baked weight table AND the
+    // geometry/threshold that go with it, so they cannot be mismatched
+    // in the block-design dialog. Check it in the .hwh like ENGINE/ED_K.
+    //   0 = N-MNIST C1:     2x34x34 -> 16x17x17, THRESHOLD 64  (conv_layer_p_c1 / ed_scatter_c1)
+    //   1 = DVS-Gesture C1: 2x64x64 -> 16x32x32, THRESHOLD 128 (conv_layer_p_g1 / ed_scatter_g1)
+    parameter DATASET = 0
 ) (
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 aclk CLK",
        X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF s_axis:m_axis, ASSOCIATED_RESET aresetn" *)
@@ -57,15 +63,22 @@ module axis_conv_top #(
     // are consumed unconditionally. DONT_TOUCH keeps synthesis from
     // pruning them. Per-engine energy is then delta-P / N_ENGINES, with N
     // stated (and checked in the .hwh) alongside every number.
+    // geometry set from DATASET (see the parameter comment)
+    localparam DS_H_IN  = (DATASET == 1) ? 64 : 34;
+    localparam DS_W_IN  = (DATASET == 1) ? 64 : 34;
+    localparam DS_H_OUT = (DATASET == 1) ? 32 : 17;
+    localparam DS_W_OUT = (DATASET == 1) ? 32 : 17;
+    localparam signed [15:0] DS_THRESHOLD = (DATASET == 1) ? 16'sd128 : 16'sd64;
+
     genvar gi;
     generate for (gi = 0; gi < N_ENGINES; gi = gi + 1) begin : g_rep
         wire [31:0] rep_tdata;
         wire rep_tvalid, rep_tready, rep_tlast;
         (* DONT_TOUCH = "true" *) axis_conv #(
-            .C_IN(2), .H_IN(34), .W_IN(34),
-            .C_OUT(16), .H_OUT(17), .W_OUT(17),
-            .T(4), .THRESHOLD(64),
-            .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(BAKED_WEIGHTS),
+            .C_IN(2), .H_IN(DS_H_IN), .W_IN(DS_W_IN),
+            .C_OUT(16), .H_OUT(DS_H_OUT), .W_OUT(DS_W_OUT),
+            .T(4), .THRESHOLD(DS_THRESHOLD),
+            .WEIGHT_FILE(WEIGHT_FILE), .BAKED_WEIGHTS(BAKED_WEIGHTS), .DATASET(DATASET),
             .ENGINE(ENGINE), .ED_K(ED_K), .WT_FILE(WT_FILE), .DENSE_P(DENSE_P)
         ) core (
             .clk(aclk), .rst(~aresetn),

@@ -95,11 +95,23 @@ and must not be reused for data with corner activity.
   (M1 chain re-runs 2026-09-17 21:48 EDT)
 - checkpoint `dvsgesture_beta0875_seed0.pt` and packed frames stay on the box (`~/snn_parkour_fpga/experiments/dvsgesture/`, `data/packed_dvsgesture/`)
 
+## Board readiness (2026-09-18)
+
+Baked for silicon: `hdl/dense/conv_layer_p_g1.v` and
+`hdl/eventdriven/ed_scatter_g1.v` (sim/gen_weight_vh.py), selected by
+the new top-level parameter DATASET=1, which also sets the geometry and
+the threshold. Both exact synthesis configurations pass the baked AXIS
+harness with the hostile handshake (ED K=4 and dense P=4: 16,384 words
+bit-identical each, 8 samples). Server build 5 takes -DDATASET=1 and
+reports the dataset in PING. Session steps: docs/vivado_session_next.md,
+"DVS-Gesture pair". Latency predictions for the card:
+`latency_sim/README.md`.
+
 ## Not yet done
 
 - T sweep on DVS-Gesture (C0023): T = 8/16 should lift accuracy at a
   known cycle cost; membranes and the fc range must be re-checked.
 - Seeds: one seed only. The N-MNIST 3-seed spread was ~0.4 pp; on 264
   test samples one sample is 0.38 pp, so expect a wider spread here.
-- Board run: needs a bitstream with C0044 (Build 3 onward) and the
-  DVS-Gesture weights baked (`sim/gen_weight_vh.py` for g1).
+- Board run: the DATASET=1 pair (above) is ready to build; the K=P=8
+  N-MNIST pair and the x8 builds took the Vivado time on 2026-09-17.

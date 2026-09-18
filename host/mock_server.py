@@ -62,7 +62,7 @@ class MockConvServer:
         return np.concatenate(out).astype("<u4")
 
     def serve(self, link: Link) -> None:
-        link.send(CMD_PING | RSP_OK, np.array([1, CAP], "<u4"))  # announce
+        link.send(CMD_PING | RSP_OK, np.array([1, CAP, 0], "<u4"))  # announce
         while True:
             try:
                 cmd, words = link.recv()
@@ -75,7 +75,7 @@ class MockConvServer:
                 link.send(RSP_ERR, np.array([2], "<u4"))
                 continue
             if cmd == CMD_PING:
-                link.send(CMD_PING | RSP_OK, np.array([1, CAP], "<u4"))
+                link.send(CMD_PING | RSP_OK, np.array([1, CAP, 0], "<u4"))
             elif cmd == CMD_RUN_CONV:
                 if words.size != T * WORDS_IN:
                     link.send(RSP_ERR, np.array([3], "<u4"))

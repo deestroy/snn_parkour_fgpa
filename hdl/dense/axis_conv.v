@@ -32,6 +32,7 @@ module axis_conv #(
     parameter signed [15:0] THRESHOLD = 64,
     parameter WEIGHT_FILE = "sim/vectors/conv_c1_w.hex",
     parameter BAKED_WEIGHTS = 0,
+    parameter DATASET = 0,         // baked table + geometry set: 0 N-MNIST C1, 1 DVS-Gesture C1
     parameter ENGINE = 0,          // 0 dense (conv_layer_p), 1 event-driven
     parameter DENSE_P = 1,         // dense lanes; P == ED_K is matched parallelism
     parameter ED_K = 1,
@@ -89,11 +90,26 @@ module axis_conv #(
             .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
             .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
             .K(ED_K), .THRESHOLD(THRESHOLD), .WT_FILE(WT_FILE),
-            .BAKED_WEIGHTS(BAKED_WEIGHTS)
+            .BAKED_WEIGHTS(BAKED_WEIGHTS), .DATASET(DATASET)
         ) engine (
             .clk(clk), .rst(rst),
             .clear(eng_clear), .spk_we(spk_we), .spk_addr(spk_addr_f),
             .start(eng_start), .busy(eng_busy), .done(eng_done),
+            .out_addr(out_addr_zero), .out_data(out_unused),
+            .out_w_addr(out_w_addr), .out_w_data(out_w_data),
+            .v_addr(v_addr_zero), .v_data(v_unused)
+        );
+    end else if (BAKED_WEIGHTS && DATASET == 1) begin : g_dnb_g1
+        // synthesis path, DVS-Gesture C1 table (C0012)
+        conv_layer_p_g1 #(
+            .C_IN(C_IN), .H_IN(H_IN), .W_IN(W_IN),
+            .C_OUT(C_OUT), .H_OUT(H_OUT), .W_OUT(W_OUT),
+            .P(DENSE_P), .THRESHOLD(THRESHOLD)
+        ) engine (
+            .clk(clk), .rst(rst),
+            .clear(eng_clear), .start(eng_start),
+            .busy(eng_busy), .done(eng_done),
+            .in_w_we(in_w_we), .in_w_addr(in_w_addr), .in_w_data(in_w_data),
             .out_addr(out_addr_zero), .out_data(out_unused),
             .out_w_addr(out_w_addr), .out_w_data(out_w_data),
             .v_addr(v_addr_zero), .v_data(v_unused)

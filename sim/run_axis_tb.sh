@@ -13,14 +13,20 @@ BW="${BW:-0}"        # 1: exercise the BAKED (synthesis) engine variants
 NOGAP="${NOGAP:-0}"     # 1: no gaps/backpressure (latency measurement)
 CYCLES="${CYCLES:-}"    # optional: write per-sample cycle counts to this file
 case "$layer" in
-    c1) ci=2; hi=34; wi_=34; co=16; ho=17; wo_=17 ;;
-    *) echo "only c1 wired for the axis TB so far"; exit 2 ;;
+    c1) ci=2; hi=34; wi_=34; co=16; ho=17; wo_=17; ns=16; ds=0 ;;
+    g1) ci=2; hi=64; wi_=64; co=16; ho=32; wo_=32; ns=8;  ds=1 ;;   # DVS-Gesture C1 (C0012): DATASET=1 on the top
+    *) echo "only c1/g1 wired for the axis TB"; exit 2 ;;
 esac
+NS="${NS:-$ns}"
 
 AXIS_IN="${AXIS_IN:-}"; AXIS_OUT="${AXIS_OUT:-}"   # override the vector files (sweeps)
 if [ -z "$AXIS_IN" ]; then
-    python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null
-    python3 sim/export_ed_vectors.py --layer "$layer" > /dev/null
+    if [ "$layer" = g1 ]; then
+        python3 sim/export_dvsgesture_vectors.py > /dev/null      # conv_g1_* / ed_g1_* (real weights)
+    else
+        python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null
+        python3 sim/export_ed_vectors.py --layer "$layer" > /dev/null
+    fi
     python3 sim/export_axis_vectors.py --layer "$layer"
     AXIS_IN="sim/vectors/axis_${layer}_in.hex"; AXIS_OUT="sim/vectors/axis_${layer}_out.hex"
 fi
@@ -33,12 +39,14 @@ wo=$(( (neurons + 31) / 32 ))
 mkdir -p sim/work
 iverilog -g2012 -I hdl/dense -o sim/work/tb_axis.vvp \
     -Ptb_axis_conv.ENGINE=$ENGINE -Ptb_axis_conv.ED_K=$K -Ptb_axis_conv.N_ENGINES=$NENG -Ptb_axis_conv.DENSE_P=$DP -Ptb_axis_conv.BAKED=$BW \
-    hdl/common/lif_update.v hdl/dense/conv_layer_p.v hdl/dense/conv_layer_p_c1.v \
-    hdl/eventdriven/ed_scatter.v hdl/eventdriven/ed_scatter_c1.v hdl/eventdriven/ed_conv_layer.v \
+    -Ptb_axis_conv.DATASET=$ds \
+    -Ptb_axis_conv.WEIGHT_FILE="\"sim/vectors/conv_${layer}_w.hex\"" -Ptb_axis_conv.WT_FILE="\"sim/vectors/ed_${layer}_wt.hex\"" \
+    hdl/common/lif_update.v hdl/dense/conv_layer_p.v hdl/dense/conv_layer_p_c1.v hdl/dense/conv_layer_p_g1.v \
+    hdl/eventdriven/ed_scatter.v hdl/eventdriven/ed_scatter_c1.v hdl/eventdriven/ed_scatter_g1.v hdl/eventdriven/ed_conv_layer.v \
     hdl/dense/axis_conv.v hdl/dense/axis_conv_top.v \
     sim/tb_axis_conv.v
 
 vvp sim/work/tb_axis.vvp \
     +in="$AXIS_IN" +out="$AXIS_OUT" \
-    +nsamples=16 +wi="$wi" +wo="$wo" +seed=7 +nogap=$NOGAP ${CYCLES:++cycles=$CYCLES} \
+    +nsamples=$NS +wi="$wi" +wo="$wo" +seed=7 +nogap=$NOGAP ${CYCLES:++cycles=$CYCLES} \
     | grep -E "TB_|MISMATCH" | head -8
