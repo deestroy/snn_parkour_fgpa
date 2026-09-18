@@ -141,6 +141,25 @@ foreach {p want} [list ENGINE $ENGINE ED_K $ED_K DENSE_P $DENSE_P BAKED_WEIGHTS 
     say "  CONFIG.$p = $got"
 }
 
+# Processing-system sanity: the ZedBoard preset and the three settings it
+# resets. A fresh project (2026-09-18) built with Vivado's default DDR part
+# (MT41J128M8) -- the configuration that silently lost DDR data in August.
+# Checked before any synthesis time is spent.
+set ps [get_bd_cells processing_system7_0]
+foreach {prop want} {
+    CONFIG.PCW_UIPARAM_DDR_PARTNO   "MT41J128M16 HA-15E"
+    CONFIG.PCW_USE_S_AXI_HP0        1
+    CONFIG.PCW_UART1_PERIPHERAL_ENABLE 1
+    CONFIG.PCW_SD0_PERIPHERAL_ENABLE 1
+    CONFIG.PCW_QSPI_PERIPHERAL_ENABLE 1
+} {
+    set got [get_property $prop $ps]
+    if {$got ne $want} { error "PS $prop = '$got', expected '$want' -- apply Presets > ZedBoard on the ZYNQ7 block, then re-tick S AXI HP0 and set FCLK_CLK0 = 100 MHz" }
+}
+set fclk [get_property CONFIG.PCW_FPGA0_PERIPHERAL_FREQMHZ $ps]
+if {abs($fclk - 100.0) > 0.01} { error "PS FCLK_CLK0 = $fclk MHz, expected 100 -- Clock Configuration > PL Fabric Clocks" }
+say "  PS: ZedBoard DDR part, HP0, UART1, SD0, QSPI, FCLK0=100 MHz -- ok"
+
 # DMA address map: both data masters must be mapped, nothing excluded
 foreach sp {Data_MM2S Data_S2MM} {
     set segs [get_bd_addr_segs -quiet -of_objects [get_bd_addr_spaces axi_dma_0/$sp]]
@@ -339,15 +358,24 @@ close $s
 say "DONE -> copy $out (BOOT.bin/.xsa + summary.txt) to the Mac"
 
 # ---------------------------------------------------------------- optional: drop it straight onto the Mac
+# Through cmd.exe: Vivado's Tcl sees \\tsclient\Users but not the folders
+# under it (file isdirectory -> 0, glob -> empty; 2026-09-18), while
+# cmd's copy handles the redirected share fine.
 if {$MAC_DIR ne ""} {
-    if {![file isdirectory $MAC_DIR]} {
-        say "MAC_DIR $MAC_DIR not reachable (RDP folder redirection off?) -- copy by hand"
+    set mac_native [file nativename $MAC_DIR]
+    if {[catch {exec cmd /c dir /b $mac_native} r]} {
+        say "MAC_DIR $mac_native not reachable from this Vivado ($r) -- copy $out by hand"
     } else {
-        set dst "$MAC_DIR/$tag"
-        file mkdir $dst
+        set dst_native "$mac_native\\$tag"
+        catch {exec cmd /c mkdir $dst_native}
+        set n 0
         foreach f [list $xsa $bit $out/summary.txt $out/BOOT.bin $out/design_1_wrapper_timing_summary_routed.rpt $out/power.rpt $out/utilization_hier.rpt] {
-            if {[file exists $f]} { file copy -force $f $dst }
+            if {[file exists $f]} {
+                if {[catch {exec cmd /c copy /Y [file nativename $f] $dst_native} msg]} {
+                    say "copy of [file tail $f] failed: $msg"
+                } else { incr n }
+            }
         }
-        say "copied to the Mac: $dst"
+        say "copied $n files to the Mac: $dst_native"
     }
 }

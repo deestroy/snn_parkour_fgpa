@@ -63,6 +63,12 @@ Run Block Automation (green banner), defaults, OK.
 
 ### 3a. ZYNQ7 PS — double-click it and set, in this order
 
+**Block automation does NOT apply the board preset by itself** (seen
+2026-09-18: the first m4_conv2 build came out with DDR part MT41J128M8,
+8-bit, MIO tree unassigned). The build script now refuses to build until
+the DDR part, HP0, UART1, SD0, QSPI and FCLK0 read back correctly, and
+the Mac-side diff against the validated .hwh catches the rest.
+
 1. **Presets > ZedBoard > Apply Configuration.** Then verify
    DDR Configuration > Memory Part = **MT41J128M16 HA-15E**.
    (Applying the preset resets the settings below, so do it first.)
