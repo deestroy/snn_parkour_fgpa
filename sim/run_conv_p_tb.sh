@@ -9,13 +9,17 @@ case "$layer" in
     c3) ci=32; hi=9;  wi=9;  co=64; ho=5;  wo=5 ; ns=16 ;;
     r1) ci=2;  hi=64; wi=64; co=16; ho=32; wo=32; ns=8 ;;
     g1) ci=2;  hi=64; wi=64; co=16; ho=32; wo=32; ns=8; thr=128 ;;   # DVS-Gesture C1 (C0012)
+    i1) ci=2;  hi=64; wi=64; co=16; ho=32; wo=32; ns=8; thr=0 ;;     # IsaacGym-port frames + student weights; thr from the exporter
     *) echo "unknown layer"; exit 2 ;;
 esac
 THRESH="${THRESH:-$thr}"
-if [ "$layer" = g1 ]; then
+if [ "$layer" = i1 ]; then
+    python3 sim/export_fpga_student_vectors.py --name i1 --frames "${I1_FRAMES:-robot/artifacts/isaac_event_frames.npz}" --ckpt "${I1_CKPT:-robot/artifacts/fpga_student.pt}" > /dev/null
+    THRESH=$(cat sim/vectors/i1_thresh.txt)
+elif [ "$layer" = g1 ]; then
     python3 sim/export_dvsgesture_vectors.py > /dev/null
 elif [ "$layer" = r1 ]; then
-    if [ "${R1_REAL:-0}" = 1 ]; then python3 sim/export_fpga_student_vectors.py > /dev/null
+    if [ "${R1_REAL:-0}" = 1 ]; then python3 sim/export_fpga_student_vectors.py > /dev/null; THRESH=$(cat sim/vectors/r1_thresh.txt)
     else python3 sim/export_robot_vectors.py > /dev/null; fi
 else
     python3 sim/export_conv_vectors.py --layer "$layer" > /dev/null

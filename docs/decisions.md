@@ -2873,3 +2873,33 @@ ED K=4 3.4 / 5.9 / 9.8 ms and dense P=4 3.6 / 7.2 / 14.4 ms at T =
 4 / 8 / 16 — longer T favours ED slightly because bins get sparser
 while dense cost is linear in T. One seed per T; the T = 4 seed spread
 is 5.3 pp, so the +5.7 pp from T = 4 to 16 is real but not large.
+
+## 2026-09-18 — Year-two recorder and `i1` vector export, window = repeat
+
+Decision (user): the student's input window is **repeat** — one camera-tick
+event frame presented for all T = 4 spiking timesteps (direct coding, as
+the paper and the recreation's student). The IsaacGym recorder
+(`robot/isaac/record_event_frames.py`) saves one tick frame per sample
+and records the window in the file; the exporter refuses a mismatch. The
+hardware vectors for the year-two workload are therefore four identical
+input frames per inference, which means the event-driven engine's
+scatter does the same work four times per inference on this workload —
+a property of direct coding worth stating in the thesis, since it is
+where the consecutive window would have given the ED engine 4x the
+information at the same cost.
+
+New vector-set name `i1` (IsaacGym frames, student weights) alongside
+`r1` (MuJoCo recreation, real or synthetic) and `g1` (DVS-Gesture), each
+with its own exporter call in the bench runners, so the r1 name-collision
+hazard recorded on 2026-09-18 cannot recur for the real workload. The
+real-weight exporters now write `<name>_thresh.txt` and the runners read
+it: the first `r1` real-weights re-run today failed only because the
+runner's default threshold (64) is the synthetic set's, not the
+student's 2^4 = 16 — the same mistake as the g1 dense run yesterday, now
+closed for r1 and i1 alike.
+
+Proof before data: the whole i1 path (fake recorder file with deliberate
+corner activity -> export -> corner report -> ED K=4 and dense P=4 both
+bit-identical) ran on the Mac before the recorder has produced a real
+frame. The recorder itself waits on the box for the teacher to finish
+and the port smoke to pass, then records 64 teacher-driven frames.

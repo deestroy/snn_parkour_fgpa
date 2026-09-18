@@ -20,6 +20,24 @@ running teacher, PhysX failed at sim creation with CUDA out-of-memory
 Until it passes, the launcher and backbone are "compiles and unit-tested,
 untested against IsaacGym".
 
+## Recorder and vector export (2026-09-18, window = repeat)
+
+`record_event_frames.py` runs inside extreme-parkour with the camera envs,
+drives them with the teacher (or `--student <exptid>` once one exists),
+converts every camera tick to an event frame with the backbone's own
+simulator/mapping/binarisation, and saves one tick frame per sample,
+round-robin over environments after a warm-up, with `window="repeat"`
+in the file. `sim/export_fpga_student_vectors.py --name i1` repeats each
+frame over T = 4 (the student's direct coding), quantises the encoder's
+conv1 from either checkpoint layout (recreation `fpga_student.pt` or the
+rsl_rl runner's `depth_encoder_state_dict`), writes the `i1` vector set
+plus `i1_thresh.txt`, and the bench runners (`run_ed_tb.sh i1`,
+`run_conv_p_tb.sh i1`, env `I1_FRAMES` / `I1_CKPT`) read the threshold
+from that file. The export path was proven end to end on a fake recorder
+file with corner activity (ED K=4 and dense P=4 bit-identical) before any
+real frames existed; real frames arrive when the recorder runs on the free
+GPU after the smoke.
+
 ## Choices made in the port (judgement calls, flagged)
 
 - **Window.** The recreation's student repeats ONE event frame over the

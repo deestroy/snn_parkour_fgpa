@@ -32,6 +32,30 @@ C_OUT, H_OUT, W_OUT = 16, 32, 32
 T = 4
 
 
+def load_c1_weight(ck):
+    """conv1 weight from either checkpoint layout:
+    recreation  fpga_student.pt   -> ck["student"]["encoder.c1.weight"]
+    IsaacGym port (rsl_rl runner) -> ck["depth_encoder_state_dict"]["base_backbone.enc.c1.weight"]"""
+    if "depth_encoder_state_dict" in ck:
+        return ck["depth_encoder_state_dict"]["base_backbone.enc.c1.weight"]
+    sd = ck["student"] if "student" in ck else ck
+    return sd["encoder.c1.weight"]
+
+
+def load_frames(path: str, n: int) -> np.ndarray:
+    """Event frames as (B, T, 2, 64, 64) 0/1.
+    Old recorder (MuJoCo): frames (B, T, 2, H, W), T consecutive tick frames.
+    IsaacGym recorder: frames (B, 2, H, W) one tick frame per sample plus a
+    `window` field; "repeat" (the student's direct coding) repeats it T times."""
+    z = np.load(path)
+    fr = (z["frames"][:n] != 0).astype(np.uint8)
+    if fr.ndim == 5:
+        return fr
+    window = str(z["window"]) if "window" in z.files else "repeat"
+    assert window == "repeat", "consecutive windows must be recorded as (B, T, ...) frames"
+    return np.repeat(fr[:, None], T, axis=1)
+
+
 def choose_k(w: np.ndarray) -> int:
     """Largest shift with zero clipping (D0008)."""
     k = 0
@@ -58,11 +82,12 @@ def main() -> int:
     ap.add_argument("--ckpt", default=os.path.join(ART, "fpga_student.pt"))
     ap.add_argument("--frames", default=os.path.join(ART, "event_frames.npz"))
     ap.add_argument("--samples", type=int, default=8)
+    ap.add_argument("--name", default="r1",
+                    help="vector-set name: r1 (MuJoCo recreation frames) or i1 (IsaacGym port frames)")
     a = ap.parse_args()
     import torch
     ck = torch.load(a.ckpt, map_location="cpu", weights_only=False)
-    sd = ck["student"] if "student" in ck else ck
-    w_f = sd["encoder.c1.weight"].numpy()          # (16, 2, 3, 3) float
+    w_f = load_c1_weight(ck).numpy()               # (16, 2, 3, 3) float
     k = choose_k(w_f)
     w_q = np.clip(np.round(w_f * (2 ** k)), -128, 127).astype(np.int64)
     thr = 2 ** k                                    # threshold 1.0 -> 2^k
@@ -70,9 +95,7 @@ def main() -> int:
           % (np.abs(w_f).max(), k, thr,
              float(np.sqrt(np.mean((w_q / 2**k - w_f) ** 2)))))
 
-    z = np.load(a.frames)
-    frames = z["frames"][:a.samples]               # (B, T, 2, 64, 64) 0/1
-    frames = (frames != 0).astype(np.uint8)
+    frames = load_frames(a.frames, a.samples)      # (B, T, 2, 64, 64) 0/1
     B = frames.shape[0]
     assert frames.shape[1:] == (T, C_IN, H_IN, W_IN), frames.shape
 
@@ -87,40 +110,42 @@ def main() -> int:
     assert V.max() < 32767 and V.min() > -32768, "membranes overflow int16"
 
     os.makedirs(OUT, exist_ok=True)
-    with open(os.path.join(OUT, "conv_r1_w.hex"), "w") as fh:
+    with open(os.path.join(OUT, "conv_%s_w.hex" % a.name), "w") as fh:
         for oc in range(C_OUT):
             for ic in range(C_IN):
                 for ky in range(3):
                     for kx in range(3):
                         fh.write("%02x\n" % (int(w_q[oc, ic, ky, kx]) & 0xFF))
-    with open(os.path.join(OUT, "ed_r1_wt.hex"), "w") as fh:
+    with open(os.path.join(OUT, "ed_%s_wt.hex" % a.name), "w") as fh:
         for ic in range(C_IN):
             for ky in range(3):
                 for kx in range(3):
                     for oc in range(C_OUT):
                         fh.write("%02x\n" % (int(w_q[oc, ic, ky, kx]) & 0xFF))
-    with open(os.path.join(OUT, "conv_r1_in.bin"), "w") as fh:
+    with open(os.path.join(OUT, "conv_%s_in.bin" % a.name), "w") as fh:
         for bit in frames.ravel():
             fh.write("%d\n" % bit)
-    for name, arr in (("conv_r1_s.bin", S), ("ed_r1_s.bin", S)):
+    for name, arr in (("conv_%s_s.bin" % a.name, S), ("ed_%s_s.bin" % a.name, S)):
         with open(os.path.join(OUT, name), "w") as fh:
             for bit in arr.ravel():
                 fh.write("%d\n" % bit)
-    for name in ("conv_r1_v.hex", "ed_r1_v.hex"):
+    for name in ("conv_%s_v.hex" % a.name, "ed_%s_v.hex" % a.name):
         with open(os.path.join(OUT, name), "w") as fh:
             for x in V.ravel():
                 fh.write("%04x\n" % (int(x) & 0xFFFF))
-    with open(os.path.join(OUT, "ed_r1_spk.txt"), "w") as fh:
+    with open(os.path.join(OUT, "ed_%s_spk.txt" % a.name), "w") as fh:
         for b in range(B):
             for t in range(T):
                 idx = np.flatnonzero(frames[b, t].ravel())
                 fh.write("%d\n" % len(idx))
                 for x in idx:
                     fh.write("%d\n" % x)
-    report("r1", frames, OUT)                             # C0044 guard: corner blind spots
-    print("r1 (real weights): %d samples, in rate %.4f, out rate %.4f, |V|max %d, THRESHOLD=%d"
-          % (B, frames.mean(), S.mean(), np.abs(V).max(), thr))
-    print("NOTE: run the engines with -P THRESHOLD=%d (not 64)." % thr)
+    report(a.name, frames, OUT)                           # C0044 guard: corner blind spots
+    with open(os.path.join(OUT, "%s_thresh.txt" % a.name), "w") as fh:
+        fh.write("%d\n" % thr)                      # the bench runners read this for i1
+    print("%s (real weights): %d samples, in rate %.4f, out rate %.4f, |V|max %d, THRESHOLD=%d"
+          % (a.name, B, frames.mean(), S.mean(), np.abs(V).max(), thr))
+    print("NOTE: run the engines with THRESH=%d." % thr)
     return 0
 
 
