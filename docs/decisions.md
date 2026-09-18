@@ -2694,3 +2694,28 @@ vs 5,760 at P=4 hierarchical); BRAM counts are (8.5 vs 6.5 tiles).
 overwritten from the clone before this build (marker confirmed at line
 210 in the clone; the m4_loopback copy checked by the user); every
 build from here on carries the fix. The K=8 bitstream (pass 5) does not.
+
+## 2026-09-17 — Board pass 7: ED K=4 replicated x8 (C0003) on silicon
+
+**Result.** N_ENGINES=8 (builds/ed_k4_x8_20260917_2251, WNS +0.430,
+86 of 140 BRAM tiles, 11,733 LUTs, eight ~1,152-LUT cores): 16/16
+bit-identical, 4,800 inferences clean, and **every per-sample latency
+equal to the N=1 record to 0.1 us** — the replicas run in lockstep and
+do not stall instance 0. Pre-registration
+experiments/ed_k4_x8_prereg_20260917.md held in full; record in
+experiments/board_ed_k4_x8_20260917.md. This is the first ED K=4
+bitstream with C0044 in it, and the one the meter session uses for the
+N=1-vs-N=8 scaling ratio (with the N=1 K=4 build). Die temperature ran
+~4-5 degC above the N=1 passes — suggestive, not evidence.
+
+**C0003 status.** ED: both N=1 and N=8 built and passed. Dense P=4 at
+N=8: one Tcl line, not yet run. Scaling ratio: meter. Bitstreams are
+archived per tag on the Mac (host/mac/build/archive/, local) because
+host/mac/build/ is overwritten by every delivery.
+
+**Tonight's tally (three builds, three passes, one script).** ED K=8,
+dense P=8, ED K=4 x8 — all first-try passes against pre-registered
+predictions; 22 predictions held, 1 (K=8 BRAM doubling) failed
+favourably. The Vivado flow went from a click list with three known
+failure modes to `git pull` + one Tcl line, and Mac<->VM transfer from
+Google Drive to the RDP-redirected folder.

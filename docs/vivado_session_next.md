@@ -94,8 +94,10 @@ Predictions on record (cycle model, 100 MHz, engine-only):
 
 ## If time remains, in order
 
-8. N_ENGINES=8 for one design (C0003): WNS, utilization, keep the .bit
-   for the meter session's replication measurement.
+8. DONE 2026-09-17 for ED K=4 (WNS +0.430, 86 tiles, pass 7:
+   experiments/board_ed_k4_x8_20260917.md). Still to do: dense P=4 x8 —
+   set ENGINE 0; set ED_K 4; set DENSE_P 4; set N_ENGINES 8; source ...
+   (expected ~22k LUT / ~40 tiles from the P=8 numbers).
 9. Two extra implementation seeds of the K=4 ED build (C0019):
    Implementation Settings -> Strategy variants (Performance_Explore,
    Congestion_SpreadLogic); keep all .bits, all WNS >= 0.
