@@ -35,3 +35,6 @@ sim/vectors/
 host/mac/build/
 host/mac/ps7_init.tcl
 host/mac/build/logs/
+
+# golden trace dumps of sweep runs: regenerable from the checkpoints on the AMD box; keep out of git
+experiments/rate_sweep/traces_*.npz
