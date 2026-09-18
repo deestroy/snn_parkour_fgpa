@@ -2719,3 +2719,30 @@ predictions; 22 predictions held, 1 (K=8 BRAM doubling) failed
 favourably. The Vivado flow went from a click list with three known
 failure modes to `git pull` + one Tcl line, and Mac<->VM transfer from
 Google Drive to the RDP-redirected folder.
+
+## 2026-09-17 — Board pass 8: dense P=4 replicated x8 (C0003) on silicon; C0003 builds complete
+
+**Result.** N_ENGINES=8 (builds/dense_p4_x8_20260917_2312, WNS +0.041,
+27,829 LUT = 52 % of the chip, 46 BRAM tiles): 16/16 bit-identical,
+4,800 inferences clean, **1048.9 us on every sample** — the N=1 record
+exactly. Pre-registration held on timing, correctness and latency;
+resources missed in detail (BRAM 46 vs ~38, LUT 3 % over range) and
+are recorded as such. Record: experiments/board_dense_p4_x8_20260917.md.
+
+**C0003 build half done.** Both engines at N=1 and N=8, all four with
+WNS >= 0 and per-engine latency unchanged by replication. The
+replicated pair for the meter: ED K=4 x8 (86 tiles, 11.7k LUT) and
+dense P=4 x8 (46 tiles, 27.8k LUT). The scaling ratio waits on the DMM.
+
+**The pre-write check earned its keep.** The first delivery for this
+pass was a BOOT.bin built from the previous (ED x8) bitstream plus the
+previous .xsa; the .hwh/partition checks rejected it before the card.
+Decision: the boot image moves into build_engine.tcl (FSBL_ELF/APP_ELF
+settings, bootgen) as soon as the two paths are known, so the
+bitstream partition is never chosen by hand again.
+
+**Tonight, closed.** Four builds, four first-try silicon passes
+(ED K=8, dense P=8, ED K=4 x8, dense P=4 x8), 32 pre-registered
+predictions: 29 held, 3 resource predictions missed (all recorded), 0
+correctness or latency misses. Crossover bracketed between K=P=4 and 8
+on silicon; both replicated meter bitstreams ready.

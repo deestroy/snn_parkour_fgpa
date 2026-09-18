@@ -94,10 +94,11 @@ Predictions on record (cycle model, 100 MHz, engine-only):
 
 ## If time remains, in order
 
-8. DONE 2026-09-17 for ED K=4 (WNS +0.430, 86 tiles, pass 7:
-   experiments/board_ed_k4_x8_20260917.md). Still to do: dense P=4 x8 —
-   set ENGINE 0; set ED_K 4; set DENSE_P 4; set N_ENGINES 8; source ...
-   (expected ~22k LUT / ~40 tiles from the P=8 numbers).
+8. DONE 2026-09-17, both engines (C0003 build half complete): ED K=4 x8
+   (WNS +0.430, 86 tiles) and dense P=4 x8 (WNS +0.041, 46 tiles, 52 %
+   LUT); per-engine latency unchanged by replication. Records:
+   experiments/board_ed_k4_x8_20260917.md, board_dense_p4_x8_20260917.md.
+   Meter session uses these two bitstreams + the N=1 K=4/P=4 ones.
 9. Two extra implementation seeds of the K=4 ED build (C0019):
    Implementation Settings -> Strategy variants (Performance_Explore,
    Congestion_SpreadLogic); keep all .bits, all WNS >= 0.

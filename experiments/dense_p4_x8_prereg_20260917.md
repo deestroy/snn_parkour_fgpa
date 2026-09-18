@@ -40,4 +40,13 @@ Pre-write checks as always, plus N_ENGINES=8 read from the .hwh.
 
 ## Outcome
 
-(to be filled in after the pass)
+(2026-09-17, 23:42; experiments/board_dense_p4_x8_20260917.md)
+
+1. Timing: **closed at WNS +0.041 / WHS +0.034** — inside "0 to +0.3", held.
+2. Correctness: **16/16 bit-identical**, 4,800 further inferences clean — held.
+3. Latency: **1048.9 us on every sample and the sweep** — held exactly.
+4. Resources: 27,829 LUT (52 %), 45,023 FF, **46 BRAM tiles**, DSP 0 —
+   LUTs 3 % above the predicted range (below the 30k falsification line),
+   BRAM 46 vs ~38 predicted: per-engine 5.5 tiles, not 4.5. Held in kind, missed in detail.
+5. Server overhead 117.5 us — held.
+Nothing falsified; two quantitative misses recorded.
