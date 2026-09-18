@@ -31,15 +31,23 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MEAN_NONZERO_COUNT = 3.06
 
 
+# dataset name -> (packed directory, input shape, number of classes)
+DATASETS = {
+    "nmnist":     ("packed",            (2, 34, 34), 10),
+    "dvsgesture": ("packed_dvsgesture", (2, 64, 64), 11),   # C0012, r1 geometry
+}
+
+
 class PackedNMNIST(torch.utils.data.Dataset):
-    """Reads the flat .npy pair written by train/04_pack_dataset.py.
+    """Reads the flat .npy pair written by train/04_pack_dataset.py (or
+    04b_pack_dvsgesture.py -- same layout, different directory).
 
     Exists so training environments need numpy+torch and nothing else --
     tonic and its heavy dependency tree stay confined to the pack step.
     """
 
-    def __init__(self, split: str):
-        pack = os.path.join(DATA_DIR, "packed")
+    def __init__(self, split: str, dataset: str = "nmnist"):
+        pack = os.path.join(DATA_DIR, DATASETS[dataset][0])
         self.frames = torch.from_numpy(
             __import__("numpy").load(os.path.join(pack, split + "_frames.npy")))
         self.labels = torch.from_numpy(
@@ -52,8 +60,8 @@ class PackedNMNIST(torch.utils.data.Dataset):
         return self.frames[i], int(self.labels[i])
 
 
-def _packed_available() -> bool:
-    pack = os.path.join(DATA_DIR, "packed")
+def _packed_available(dataset: str = "nmnist") -> bool:
+    pack = os.path.join(DATA_DIR, DATASETS[dataset][0])
     return all(os.path.exists(os.path.join(pack, f))
                for f in ("train_frames.npy", "train_labels.npy",
                          "test_frames.npy", "test_labels.npy"))
@@ -66,7 +74,7 @@ def _collate_packed(batch):
 
 
 def build_loaders(batch_size: int = 128, limit: int = 0, cache: bool = True,
-                  workers: int = 0):
+                  workers: int = 0, dataset: str = "nmnist"):
     """:param limit: if > 0, use only this many samples per split. Keeps smoke
         runs to seconds instead of hours on CPU.
     :return: (train_loader, test_loader), each yielding
@@ -74,9 +82,12 @@ def build_loaders(batch_size: int = 128, limit: int = 0, cache: bool = True,
 
     Prefers the packed .npy dataset when present (no tonic needed); falls back
     to tonic + DiskCachedDataset otherwise."""
-    if _packed_available():
-        make = lambda is_train: PackedNMNIST("train" if is_train else "test")
+    if _packed_available(dataset):
+        make = lambda is_train: PackedNMNIST("train" if is_train else "test", dataset)
         collate = _collate_packed
+    elif dataset != "nmnist":
+        raise FileNotFoundError("packed %s not found under data/%s -- run "
+                                "train/04b_pack_dvsgesture.py first" % (dataset, DATASETS[dataset][0]))
     else:
         import tonic
         _use_certifi_bundle()

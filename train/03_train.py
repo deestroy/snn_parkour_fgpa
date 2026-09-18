@@ -28,7 +28,7 @@ import torch
 import torch.nn as nn
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from data import build_loaders, encode  # noqa: E402
+from data import DATASETS, build_loaders, encode  # noqa: E402
 from model import ConvSNN, T_DEFAULT  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -84,6 +84,8 @@ def main() -> int:
                          " (the other arm of docs/decisions.md D0003)")
     ap.add_argument("--workers", type=int, default=0)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--dataset", choices=sorted(DATASETS), default="nmnist",
+                    help="nmnist (2x34x34, 10 classes) or dvsgesture (2x64x64, 11; C0012)")
     ap.add_argument("--device", default="auto",
                     help="cpu, cuda, or auto (cuda covers ROCm too)")
     ap.add_argument("--beta", type=float, default=None,
@@ -104,12 +106,13 @@ def main() -> int:
 
     print("encoding : %s   (D0003)" % tag)
     print("loading N-MNIST (first epoch also builds the frame cache)...")
-    train_loader, test_loader = build_loaders(batch_size=args.batch,
+    train_loader, test_loader = build_loaders(batch_size=args.batch, dataset=args.dataset,
                                               limit=args.limit,
                                               workers=args.workers)
     from model import BETA
     beta = args.beta if args.beta is not None else BETA
-    net = ConvSNN(in_shape=(2, 34, 34), n_classes=10, beta=beta,
+    in_shape, n_classes = DATASETS[args.dataset][1], DATASETS[args.dataset][2]
+    net = ConvSNN(in_shape=in_shape, n_classes=n_classes, beta=beta,
                   n_steps=T_DEFAULT).to(args.device)
     optimiser = torch.optim.Adam(net.parameters(), lr=args.lr)
     print("device: %s   train batches: %d   test batches: %d\n"
@@ -164,7 +167,8 @@ def main() -> int:
         # against these values before using the state dict.
         torch.save({
             "state_dict": {k: v.cpu() for k, v in net.state_dict().items()},
-            "config": {"in_shape": (2, 34, 34), "n_classes": 10,
+            "config": {"in_shape": in_shape, "n_classes": n_classes,
+                       "dataset": args.dataset,
                        "beta": beta, "n_steps": T_DEFAULT,
                        "binarise": binarise, "seed": args.seed,
                        "epochs": args.epochs},
