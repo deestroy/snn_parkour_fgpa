@@ -20,7 +20,7 @@
 # ---------------------------------------------------------------- settings
 set PROJECT   "C:/Users/dhritiaravind/m4_conv/m4_conv.xpr"
 set BD_CELL   "axis_conv_top_0"
-set JOBS      4
+set JOBS      2   ;# this VM's launcher is flaky with many parallel jobs
 # Boot-image inputs (optional). Leave "" to skip bootgen and use Vitis by hand.
 set FSBL_ELF  ""      ;# e.g. C:/Users/dhritiaravind/vitis_m4_loopback_zed/zed_board/export/zed_board/sw/.../fsbl.elf
 set APP_ELF   ""      ;# e.g. C:/Users/dhritiaravind/vitis_m4_loopback_zed/conv_server/build/conv_server.elf
@@ -88,13 +88,28 @@ foreach sp {Data_MM2S Data_S2MM} {
 }
 
 validate_bd_design
-save_bd_design
-generate_target all $bd
+# This VM intermittently reports "Spawn failed: No error" from the helper
+# process Vivado forks AFTER writing the .bd (seen 2026-09-17). Treat the
+# save as successful iff the file on disk is fresh.
+set bd_path [get_property NAME $bd]
+if {[catch {save_bd_design} msg]} { say "save_bd_design reported: $msg" }
+if {[clock seconds] - [file mtime $bd_path] > 120} { error "design_1.bd was NOT rewritten (mtime stale) -- save really failed" }
+say "  design_1.bd written [clock format [file mtime $bd_path] -format %H:%M:%S]"
+if {[catch {generate_target all $bd} msg]} {
+    say "generate_target reported: $msg -- retrying once"
+    after 5000
+    generate_target all $bd
+}
 
 # ---------------------------------------------------------------- build
 reset_run synth_1
 foreach r [get_runs -quiet *axis_conv_top*synth*] { reset_run $r }
-launch_runs impl_1 -to_step write_bitstream -jobs $JOBS
+if {[catch {launch_runs impl_1 -to_step write_bitstream -jobs $JOBS} msg]} {
+    say "launch_runs reported: $msg -- resetting and retrying once with 1 job"
+    after 5000
+    reset_run impl_1
+    launch_runs impl_1 -to_step write_bitstream -jobs 1
+}
 say "runs launched; waiting (this blocks the console)..."
 wait_on_run impl_1
 set status [get_property STATUS [get_runs impl_1]]
