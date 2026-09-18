@@ -2655,8 +2655,9 @@ Mac<->VM through the RDP-redirected Mac folder
 (\\tsclient\Users\dhritiaravind\...), no Google Drive; the VM has a git
 clone at C:/Users/dhritiaravind/snn_parkour_fpga (core.autocrlf false).
 
-**C0044 exposure, unconfirmed.** The ed_conv_layer.v fix was uncommitted
-in the Mac working tree when this build ran and the VM project copy's
-status is not established; the K=8 bitstream is treated as carrying the
-bug until the VM file shows `(C0044)`. N-MNIST results are unaffected by
-construction; do not reuse it for DVS-Gesture or robot data.
+**C0044 exposure, confirmed.** The VM project's ed_conv_layer.v had no
+`(C0044)` marker when checked at 22:14 (the fix was committed at 22:00,
+after the build), so the K=8 bitstream carries the bug like the K=4 one.
+N-MNIST results are unaffected by construction; not for DVS-Gesture or
+robot data. The VM copy was then overwritten from the clone; the dense
+P=8 build and every later build carry the fix.
