@@ -26,19 +26,22 @@ Development Kit**. Finish.
 
 Checkpoint: part bottom-right reads xc7z020clg484-1.
 
-## 2. Sources — the eight files, referenced in place
+## 2. Sources — the ten files, referenced in place
 
 Add Sources > Add or create design sources > Add Files. Select exactly
-these under `C:\Users\dhritiaravind\snn_parkour_fpga\hdl\`:
+these ten (the dependency closure of axis_conv_top, i.e. the list the
+Mac's lint ladder checks) under `C:\Users\dhritiaravind\snn_parkour_fpga\hdl\`:
 
     common\lif_update.v
     dense\axis_conv_top.v
     dense\axis_conv.v
     dense\conv_layer_p.v
     dense\conv_layer_p_c1.v
+    dense\conv_layer_p_g1.v        (DVS-Gesture table, DATASET=1; C0012)
     eventdriven\ed_conv_layer.v
     eventdriven\ed_scatter.v
     eventdriven\ed_scatter_c1.v
+    eventdriven\ed_scatter_g1.v    (DVS-Gesture table, DATASET=1; C0012)
 
 **Untick "Copy sources into project"** (this is the whole point: a
 `git pull` in the clone then updates the project). Finish. No .hex file:
@@ -105,6 +108,16 @@ missing: Address Editor > Assign All. (The script re-checks this and
 assigns if needed, but look once.)
 
 Validate (F6). Checkpoint: no errors.
+
+### 3e. Rule for a project that references the clone in place
+
+After ANY `git pull` that touches hdl/, before building: open the block
+design, right-click `axis_conv_top_0` > **Refresh Module Reference**,
+save. The block keeps a snapshot of the module's ports and parameters;
+a parameter added in the file (DATASET, 2026-09-18) is invisible to the
+block until refreshed, and the script's read-back stops on it
+("parameter DATASET reads back , wanted 0"). New files in the closure
+(check_all.sh's lint line lists it) must be added to the project too.
 
 ## 4. Wrapper
 
