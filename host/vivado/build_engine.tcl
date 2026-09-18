@@ -23,14 +23,32 @@
 set PROJECT   "C:/Users/dhritiaravind/m4_conv/m4_conv.xpr"
 set BD_CELL   "axis_conv_top_0"
 set JOBS      2   ;# this VM's launcher is flaky with many parallel jobs
-# Boot-image inputs (optional). Leave "" to skip bootgen and use Vitis by hand.
-set FSBL_ELF  ""      ;# e.g. C:/Users/dhritiaravind/vitis_m4_loopback_zed/zed_board/export/zed_board/sw/.../fsbl.elf
-set APP_ELF   ""      ;# e.g. C:/Users/dhritiaravind/vitis_m4_loopback_zed/conv_server/build/conv_server.elf
-set BOOTGEN   "C:/Xilinx/Vitis/2024.1/bin/bootgen.bat"
+# Boot-image inputs. Each is a list of candidate paths; the first that
+# exists is used, and its size must match the known-good file (the ELFs
+# inside the BOOT.bin validated on silicon 2026-09-17: fsbl.elf 607,080
+# bytes, conv_server.elf build 4 389,840 bytes). Update the size when the
+# app is rebuilt. Set FSBL_ELF {} to skip bootgen and use Vitis by hand.
+set FSBL_ELF {
+    C:/Users/dhritiaravind/vitis_m4_loopback_zed/zed_board/export/zed_board/sw/zed_board/boot/fsbl.elf
+    C:/Users/dhritiaravind/vitis_m4_loopback_zed/zed_board/zynq_fsbl/build/fsbl.elf
+    C:/Users/dhritiaravind/vitis_m4_loopback_zed/zed_board/zynq_fsbl/fsbl.elf
+}
+set FSBL_SIZE 607080
+set APP_ELF  {
+    C:/Users/dhritiaravind/vitis_m4_loopback_zed/conv_server/build/conv_server.elf
+}
+set APP_SIZE 389840
+# bootgen ships with both Vivado and Vitis; first that exists wins.
+set BOOTGEN {
+    C:/Xilinx/Vivado/2024.1/bin/bootgen.bat
+    C:/Xilinx/Vitis/2024.1/bin/bootgen.bat
+    C:/AMD/Vivado/2024.1/bin/bootgen.bat
+    C:/AMD/Vitis/2024.1/bin/bootgen.bat
+}
 # Mac folder redirected into this RDP session (Microsoft Remote Desktop ->
 # edit PC -> Folders). It shows up in the VM as \\tsclient\<folder name>.
 # Leave "" to skip; then copy builds/<tag>/ by hand.
-set MAC_DIR   ""      ;# e.g. //tsclient/build
+set MAC_DIR   "//tsclient/Users/dhritiaravind/git_projects/snn_parkour_fpga/host/mac/build"
 
 # parameters: from -tclargs if given, else from variables set before `source`
 if {[info exists argv] && [llength $argv] >= 3} {
@@ -242,16 +260,40 @@ write_hw_platform -fixed -include_bit -force $xsa
 say "exported $xsa"
 close_design
 
-# ---------------------------------------------------------------- optional bootgen
-if {$FSBL_ELF ne "" && $APP_ELF ne "" && [file exists $FSBL_ELF] && [file exists $APP_ELF] && [file exists $BOOTGEN]} {
+# ---------------------------------------------------------------- bootgen
+# Picks the first existing candidate and insists on the known size, so a
+# stale or wrong ELF (or the wrong bitstream -- $bit is this run's) can
+# never reach the card unnoticed. This replaced the Vitis dialog after a
+# BOOT.bin was hand-built from the previous build's bitstream (2026-09-17).
+proc pick_file {cands want_size what} {
+    foreach c $cands {
+        if {[file exists $c]} {
+            set sz [file size $c]
+            if {$want_size > 0 && $sz != $want_size} {
+                error "$what at $c is $sz bytes, expected $want_size -- wrong or stale file; fix the path or update the size in the settings"
+            }
+            return $c
+        }
+    }
+    return ""
+}
+set fsbl [pick_file $FSBL_ELF $FSBL_SIZE "FSBL"]
+set app  [pick_file $APP_ELF  $APP_SIZE  "conv_server.elf"]
+set bg   [pick_file $BOOTGEN  0          "bootgen"]
+if {$fsbl ne "" && $app ne "" && $bg ne ""} {
+    say "bootgen: FSBL $fsbl"
+    say "bootgen: APP  $app"
+    say "bootgen: BIT  $bit"
     set bif [open $out/boot.bif w]
-    puts $bif "the_ROM_image:\n{\n  \[bootloader\] $FSBL_ELF\n  $bit\n  $APP_ELF\n}"
+    puts $bif "the_ROM_image:\n{\n  \[bootloader\] $fsbl\n  $bit\n  $app\n}"
     close $bif
-    if {[catch {exec $BOOTGEN -arch zynq -image $out/boot.bif -o $out/BOOT.bin -w on} msg]} {
-        say "bootgen failed: $msg"
-    } else { say "BOOT.bin written to $out" }
+    if {[catch {exec $bg -arch zynq -image $out/boot.bif -o $out/BOOT.bin -w on} msg]} {
+        say "bootgen FAILED: $msg -- Create Boot Image in Vitis with $bit"
+    } else {
+        say "BOOT.bin written: $out/BOOT.bin ([file size $out/BOOT.bin] bytes)"
+    }
 } else {
-    say "bootgen skipped (FSBL_ELF/APP_ELF not set) -- Create Boot Image in Vitis with $bit"
+    say "bootgen skipped (missing: [expr {$fsbl eq "" ? "FSBL " : ""}][expr {$app eq "" ? "APP " : ""}][expr {$bg eq "" ? "bootgen" : ""}]) -- Create Boot Image in Vitis with $bit"
 }
 
 # ---------------------------------------------------------------- summary

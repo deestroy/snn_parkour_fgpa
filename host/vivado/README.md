@@ -24,14 +24,18 @@ What it does and refuses to skip:
    WHS is negative (the timing reports are still copied out);
 5. utilization (hierarchical), power, timing reports;
 6. `write_hw_platform -include_bit` -> the .xsa;
-7. optionally `bootgen` a BOOT.bin if FSBL_ELF / APP_ELF are filled in
-   at the top of the script; otherwise Create Boot Image in Vitis with
-   the bitstream path it prints;
+7. `bootgen` a BOOT.bin from this run's bitstream, the FSBL and the
+   build-4 conv_server.elf (candidate paths and known sizes at the top
+   of the script; a wrong-sized ELF is an error, not a warning). This
+   replaced the Vitis Create Boot Image dialog after a hand-built image
+   carried the previous build's bitstream (2026-09-17). When the app is
+   rebuilt, update APP_SIZE;
 8. `summary.txt` with parameters, timing, and paths.
 
-Output: `C:/Users/dhritiaravind/m4_conv/builds/<engine>_<YYYYmmdd_HHMM>/`.
-Copy that folder's BOOT.bin + design_1_wrapper.xsa to host/mac/build on
-the Mac as before; the Mac-side pre-write checks are unchanged.
+Output: `C:/Users/dhritiaravind/m4_conv/builds/<engine>_<YYYYmmdd_HHMM>/`,
+and a copy of BOOT.bin, .xsa, .bit, summary and reports into the Mac's
+host/mac/build/<tag>/ through the RDP-redirected folder (MAC_DIR). The
+Mac-side pre-write checks are unchanged and still run before the card.
 
 Replicated build for the meter (C0003): add `set N_ENGINES 8` before
 the `source` line. The tag gets `_x8`; the .hwh check on the Mac must
