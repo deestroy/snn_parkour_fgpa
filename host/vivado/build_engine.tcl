@@ -45,7 +45,7 @@ set NENG  1
 # The flag is consumed here and UNSET so it cannot leak into the next
 # `source` in the same Tcl console (it did: a dense P=8 build inherited
 # REUSE_RUN=1 from the ED K=8 re-export and refused on the read-back).
-if {[info exists REUSE_RUN]} { set REUSE [expr {$REUSE ? 1 : 0}]; unset REUSE_RUN } else { set REUSE 0 }
+if {[info exists REUSE_RUN]} { set REUSE [expr {$REUSE_RUN ? 1 : 0}]; unset REUSE_RUN } else { set REUSE 0 }
 if {$ENGINE} { set tag "ed_k${ED_K}" } else { set tag "dense_p${DENSE_P}" }
 set tag "${tag}_[clock format [clock seconds] -format %Y%m%d_%H%M]"
 set proj_dir [file dirname $PROJECT]
