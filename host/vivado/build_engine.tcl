@@ -100,6 +100,20 @@ set_property AUTO_INCREMENTAL_CHECKPOINT 0 [get_runs impl_1]
 set bd [get_files -quiet design_1.bd]
 if {$bd eq ""} { error "design_1.bd not in project" }
 open_bd_design $bd
+# The top must be the block design's wrapper. A fresh project (m4_conv2,
+# 2026-09-18) implemented axis_conv_top on its own -- no PS, no clock,
+# "WNS inf", a bitstream of nothing. Create the wrapper if missing and set
+# it as top every run.
+set wrapper [get_files -quiet *design_1_wrapper.v]
+if {$wrapper eq ""} {
+    say "  no design_1_wrapper.v -- creating the HDL wrapper"
+    set wrapper [make_wrapper -files $bd -top -import]
+}
+if {[get_property TOP [current_fileset]] ne "design_1_wrapper"} {
+    say "  top was [get_property TOP [current_fileset]] -- setting design_1_wrapper as top"
+    set_property top design_1_wrapper [current_fileset]
+    update_compile_order -fileset sources_1
+}
 set cell [get_bd_cells $BD_CELL]
 # Global synthesis: no out-of-context child run for the RTL block. With the
 # default (Hierarchical) mode Vivado spawns a separate synthesis for
@@ -259,6 +273,10 @@ if {$built} {
 
 # ---------------------------------------------------------------- timing gate
 say "WNS=$wns TNS=$tns WHS=$whs"
+if {![string is double -strict $wns] || [string match -nocase "*inf*" $wns] || $wns > 1000} {
+    if {$used_inprocess} { close_design }
+    error "WNS=$wns means NO timing constraints reached the run (wrong top, or the block design's clock is missing) -- nothing exported"
+}
 if {$wns < 0 || $whs < 0} {
     say "TIMING FAILED -- nothing exported. Top paths are in $out/*timing_summary_routed.rpt"
     if {$used_inprocess} { close_design }
