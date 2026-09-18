@@ -38,6 +38,27 @@ file with corner activity (ED K=4 and dense P=4 bit-identical) before any
 real frames existed; real frames arrive when the recorder runs on the free
 GPU after the smoke.
 
+## Evaluation wrapper (2026-09-18)
+
+`evaluate_parkour.py` reports the paper's Fig. 5 quantity -- success rate
+per parkour terrain (gap, step, hurdle, parkour) -- for `--policy teacher`
+(scandots, no camera), `student` (their stock depth student) or `fpga`
+(ours, `--fpga_run <exptid>`), under ONE protocol copied from their
+evaluate.py: 256 envs, 20 s episodes, the four terrains at equal share,
+random difficulty (`--max_difficulty` for the hardest rows), noise,
+friction randomisation and pushes on, no curriculum. Success = the
+episode ended by reaching all 8 waypoints; their code folds that into
+`time_outs`, and `eval_tally.py` separates it from a real time-out by the
+pre-step episode length (a time-out fires on the step after the limit).
+It also reports fall rate, time-out rate, waypoints reached / 8 (their
+"mean number of waypoints") and mean episode length, per terrain, as a
+markdown table plus a JSON file (`--out`). The tally is unit-tested in
+test_port.py; the IsaacGym part runs on the box after the GPU is free.
+The paper's numbers (Fig. 5: gap 45 %, step 60 %, hurdle 71 %, parkour
+29 %) are for its own protocol, which the paper does not fully specify;
+the like-for-like comparison is teacher vs stock student vs FPGA student
+under THIS protocol on THIS box.
+
 ## Choices made in the port (judgement calls, flagged)
 
 - **Window.** The recreation's student repeats ONE event frame over the

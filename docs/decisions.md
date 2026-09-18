@@ -2903,3 +2903,18 @@ corner activity -> export -> corner report -> ED K=4 and dense P=4 both
 bit-identical) ran on the Mac before the recorder has produced a real
 frame. The recorder itself waits on the box for the teacher to finish
 and the port smoke to pass, then records 64 teacher-driven frames.
+
+## 2026-09-18 — Evaluation wrapper: one protocol for teacher, stock student and FPGA student
+
+`robot/isaac/evaluate_parkour.py` measures success rate per parkour
+terrain under extreme-parkour's own evaluate.py protocol (256 envs, 20 s
+episodes, four terrains at equal share, random difficulty, noise/friction/
+pushes on, no curriculum) for any of the three policies, so the year-two
+comparison is like-for-like on this box. Success is "all 8 waypoints
+reached"; their code reports that inside `time_outs`, and the tally
+separates it from a real time-out by the pre-step episode length (their
+time-out fires on the step after the limit -- a detail that a first test
+got wrong by one step, now pinned by the unit test). The paper's Fig. 5
+numbers stay as context, not as the comparison: its protocol is not
+fully specified. The teacher evaluation is queued on the box behind the
+recorder; the student rows follow their training runs.

@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.join(HERE, "from_recreation"))
 
 from event_sim_torch import EventSimulatorTorch                        # noqa: E402
 from fpga_event_backbone import FPGAEventBackbone                      # noqa: E402
+from eval_tally import EpisodeTally                                    # noqa: E402
 
 
 def _numpy_original():
@@ -94,6 +95,30 @@ def test_backbone():
               % (window, tuple(lat.shape), bb.last_rate))
 
 
+def test_tally():
+    """4 envs on 4 terrains, max length 10, 8 goals: env0 reaches all goals at
+    step 6 (success), env1 falls at step 3 (fall), env2 times out at step 11
+    (the env's time-out fires on the step AFTER the limit, pre-step length
+    == max) with 5 goals (time-out, 5/8 waypoints), env3 never ends."""
+    t = EpisodeTally(4, 8, 10, "cpu")
+    goal = torch.tensor([0, 0, 0, 0]); ln = torch.tensor([0, 0, 0, 0])
+    cls = torch.tensor([15, 16, 18, 19])
+    for step in range(1, 12):
+        goal = torch.tensor([min(step, 7), 1, min(step // 2, 5), 2])
+        t.before_step(goal, ln)
+        done = torch.tensor([step == 6, step == 3, step == 11, False])
+        tout = torch.tensor([step == 6, False, step == 11, False])      # goal-cutoff folds into time_outs
+        t.after_step(done, tout, cls)
+        ln = torch.where(done, torch.zeros_like(ln), ln + 1)
+    sm = t.summary()
+    assert sm["parkour"]["success_rate"] == 1.0 and sm["parkour"]["waypoint_frac"] == 1.0, sm["parkour"]
+    assert sm["hurdle"]["fall_rate"] == 1.0 and sm["hurdle"]["success_rate"] == 0.0, sm["hurdle"]
+    assert sm["step"]["timeout_rate"] == 1.0 and abs(sm["step"]["waypoint_frac"] - 5 / 8) < 1e-9, sm["step"]
+    assert "gap" not in sm
+    assert sm["parkour"]["mean_len"] == 6 and sm["step"]["mean_len"] == 11
+    print("episode tally: success / fall / time-out / waypoint accounting -- OK")
+
+
 if __name__ == "__main__":
-    test_event_sim(); test_encoder_verbatim(); test_backbone()
+    test_event_sim(); test_encoder_verbatim(); test_backbone(); test_tally()
     print("PORT CHECKS PASS")
