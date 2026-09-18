@@ -46,8 +46,8 @@ class PackedNMNIST(torch.utils.data.Dataset):
     tonic and its heavy dependency tree stay confined to the pack step.
     """
 
-    def __init__(self, split: str, dataset: str = "nmnist"):
-        pack = os.path.join(DATA_DIR, DATASETS[dataset][0])
+    def __init__(self, split: str, dataset: str = "nmnist", pack_dir: str = ""):
+        pack = os.path.join(DATA_DIR, pack_dir or DATASETS[dataset][0])
         self.frames = torch.from_numpy(
             __import__("numpy").load(os.path.join(pack, split + "_frames.npy")))
         self.labels = torch.from_numpy(
@@ -60,8 +60,8 @@ class PackedNMNIST(torch.utils.data.Dataset):
         return self.frames[i], int(self.labels[i])
 
 
-def _packed_available(dataset: str = "nmnist") -> bool:
-    pack = os.path.join(DATA_DIR, DATASETS[dataset][0])
+def _packed_available(dataset: str = "nmnist", pack_dir: str = "") -> bool:
+    pack = os.path.join(DATA_DIR, pack_dir or DATASETS[dataset][0])
     return all(os.path.exists(os.path.join(pack, f))
                for f in ("train_frames.npy", "train_labels.npy",
                          "test_frames.npy", "test_labels.npy"))
@@ -74,20 +74,22 @@ def _collate_packed(batch):
 
 
 def build_loaders(batch_size: int = 128, limit: int = 0, cache: bool = True,
-                  workers: int = 0, dataset: str = "nmnist"):
-    """:param limit: if > 0, use only this many samples per split. Keeps smoke
+                  workers: int = 0, dataset: str = "nmnist", pack_dir: str = ""):
+    """:param pack_dir: packed directory name under data/ overriding the dataset's
+        default (the C0023 T sweep packs DVS-Gesture at other T values).
+    :param limit: if > 0, use only this many samples per split. Keeps smoke
         runs to seconds instead of hours on CPU.
     :return: (train_loader, test_loader), each yielding
         (x, y) with x shaped (T, batch, 2, 34, 34) of raw event counts.
 
     Prefers the packed .npy dataset when present (no tonic needed); falls back
     to tonic + DiskCachedDataset otherwise."""
-    if _packed_available(dataset):
-        make = lambda is_train: PackedNMNIST("train" if is_train else "test", dataset)
+    if _packed_available(dataset, pack_dir):
+        make = lambda is_train: PackedNMNIST("train" if is_train else "test", dataset, pack_dir)
         collate = _collate_packed
-    elif dataset != "nmnist":
+    elif dataset != "nmnist" or pack_dir:
         raise FileNotFoundError("packed %s not found under data/%s -- run "
-                                "train/04b_pack_dvsgesture.py first" % (dataset, DATASETS[dataset][0]))
+                                "train/04b_pack_dvsgesture.py first" % (dataset, pack_dir or DATASETS[dataset][0]))
     else:
         import tonic
         _use_certifi_bundle()

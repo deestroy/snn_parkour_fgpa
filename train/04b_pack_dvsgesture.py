@@ -31,10 +31,16 @@ import time
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from nmnist_raw import DATA_DIR, T, _use_certifi_bundle  # noqa: E402
+from nmnist_raw import DATA_DIR, T as T_DEFAULT, _use_certifi_bundle  # noqa: E402
 
+T = T_DEFAULT      # overridden by --T (C0023 sweep); the pack dir then carries the T
 PACK_DIR = os.path.join(DATA_DIR, "packed_dvsgesture")
 SIDE = 64          # 128 -> 64: the r1 geometry
+
+
+def pack_dir_for(t: int) -> str:
+    """packed_dvsgesture for the default T, packed_dvsgesture_t<T> otherwise."""
+    return os.path.join(DATA_DIR, "packed_dvsgesture" + ("" if t == T_DEFAULT else "_t%d" % t))
 
 
 def _split(train: bool):
@@ -80,7 +86,12 @@ def pack(train: bool) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--split", choices=("train", "test", "both"), default="both")
+    ap.add_argument("--T", type=int, default=T_DEFAULT,
+                    help="time bins per clip (C0023 sweep); T != %d packs into packed_dvsgesture_t<T>" % T_DEFAULT)
     args = ap.parse_args()
+    global T, PACK_DIR
+    T = args.T
+    PACK_DIR = pack_dir_for(T)
     _use_certifi_bundle()
     if args.split in ("test", "both"):
         pack(train=False)

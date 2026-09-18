@@ -94,7 +94,7 @@ def main() -> int:
 
     # --- check: accuracy with rounded weights, everything else untouched --
     _, test_loader = build_loaders(batch_size=256,
-                                   dataset=cfg.get("dataset", "nmnist"))
+                                   dataset=cfg.get("dataset", "nmnist"), pack_dir=cfg.get("pack_dir", ""))
 
     def accuracy():
         hits = n = 0

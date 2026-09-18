@@ -92,7 +92,14 @@ def main() -> int:
                     help="override the membrane decay (default: model.BETA)")
     ap.add_argument("--save", default="",
                     help="path to write a checkpoint of the final weights")
+    ap.add_argument("--T", type=int, default=T_DEFAULT,
+                    help="timesteps (C0023 sweep); DVS-Gesture at T != %d reads data/packed_dvsgesture_t<T>" % T_DEFAULT)
     args = ap.parse_args()
+    pack_dir = ""                                  # dataset default
+    if args.dataset == "dvsgesture" and args.T != T_DEFAULT:
+        pack_dir = "packed_dvsgesture_t%d" % args.T
+    elif args.dataset == "nmnist" and args.T != T_DEFAULT:
+        raise SystemExit("N-MNIST is packed at T=%d only" % T_DEFAULT)
 
     if args.device == "auto":
         args.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -108,18 +115,24 @@ def main() -> int:
     print("loading %s (first epoch also builds the frame cache)..." % args.dataset)
     train_loader, test_loader = build_loaders(batch_size=args.batch, dataset=args.dataset,
                                               limit=args.limit,
-                                              workers=args.workers)
+                                              workers=args.workers, pack_dir=pack_dir)
     from model import BETA
     beta = args.beta if args.beta is not None else BETA
     in_shape, n_classes = DATASETS[args.dataset][1], DATASETS[args.dataset][2]
     net = ConvSNN(in_shape=in_shape, n_classes=n_classes, beta=beta,
-                  n_steps=T_DEFAULT).to(args.device)
+                  n_steps=args.T).to(args.device)
     optimiser = torch.optim.Adam(net.parameters(), lr=args.lr)
     print("device: %s   train batches: %d   test batches: %d\n"
           % (args.device, len(train_loader), len(test_loader)))
 
     os.makedirs(OUT_DIR, exist_ok=True)
-    csv_path = os.path.join(OUT_DIR, "m0_firing_rates_%s.csv" % tag)
+    # N-MNIST keeps the M0 file name; other datasets get a unique name per
+    # (seed, T) so concurrent sweep runs on one machine cannot clobber it.
+    if args.dataset == "nmnist":
+        csv_path = os.path.join(OUT_DIR, "m0_firing_rates_%s.csv" % tag)
+    else:
+        csv_path = os.path.join(OUT_DIR, "m0_firing_rates_%s_%s_seed%d_t%d.csv"
+                                % (tag, args.dataset, args.seed, args.T))
     history = []
 
     with open(csv_path, "w", newline="") as fh:
@@ -168,8 +181,8 @@ def main() -> int:
         torch.save({
             "state_dict": {k: v.cpu() for k, v in net.state_dict().items()},
             "config": {"in_shape": in_shape, "n_classes": n_classes,
-                       "dataset": args.dataset,
-                       "beta": beta, "n_steps": T_DEFAULT,
+                       "dataset": args.dataset, "pack_dir": pack_dir,
+                       "beta": beta, "n_steps": args.T,
                        "binarise": binarise, "seed": args.seed,
                        "epochs": args.epochs},
             "test_accuracy": history[-1][1],

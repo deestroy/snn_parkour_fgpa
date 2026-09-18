@@ -53,7 +53,7 @@ def main() -> int:
     dataset = ckpt["config"].get("dataset", "nmnist")
     sys.path.insert(0, os.path.join(REPO, "train"))
     from data import DATASETS
-    pack = os.path.join(REPO, "data", DATASETS[dataset][0])
+    pack = os.path.join(REPO, "data", ckpt["config"].get("pack_dir") or DATASETS[dataset][0])
     frames = np.load(os.path.join(pack, "test_frames.npy"))
     labels = np.load(os.path.join(pack, "test_labels.npy"))
     if args.limit:
