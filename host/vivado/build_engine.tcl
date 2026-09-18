@@ -42,14 +42,17 @@ set NENG  1
 # REUSE_RUN 1: do NOT rebuild -- take the already-completed impl_1 (must be
 # "write_bitstream Complete" and not out of date) and only do the checks,
 # reports and export.  For re-exporting after a post-build script error.
-if {![info exists REUSE_RUN]} { set REUSE_RUN 0 }
+# The flag is consumed here and UNSET so it cannot leak into the next
+# `source` in the same Tcl console (it did: a dense P=8 build inherited
+# REUSE_RUN=1 from the ED K=8 re-export and refused on the read-back).
+if {[info exists REUSE_RUN]} { set REUSE [expr {$REUSE ? 1 : 0}]; unset REUSE_RUN } else { set REUSE 0 }
 if {$ENGINE} { set tag "ed_k${ED_K}" } else { set tag "dense_p${DENSE_P}" }
 set tag "${tag}_[clock format [clock seconds] -format %Y%m%d_%H%M]"
 set proj_dir [file dirname $PROJECT]
 set out "$proj_dir/builds/$tag"
 file mkdir $out
 proc say {msg} { puts "\[build_engine\] $msg" }
-say "configuration: ENGINE=$ENGINE ED_K=$ED_K DENSE_P=$DENSE_P BAKED=$BAKED N_ENGINES=$NENG -> $out"
+say "configuration: ENGINE=$ENGINE ED_K=$ED_K DENSE_P=$DENSE_P BAKED=$BAKED N_ENGINES=$NENG REUSE_RUN=$REUSE -> $out"
 
 # ---------------------------------------------------------------- project
 if {[catch {current_project}]} { open_project $PROJECT }
@@ -63,7 +66,7 @@ set bd [get_files -quiet design_1.bd]
 if {$bd eq ""} { error "design_1.bd not in project" }
 open_bd_design $bd
 set cell [get_bd_cells $BD_CELL]
-if {!$REUSE_RUN} {
+if {!$REUSE} {
     set_property -dict [list \
         CONFIG.ENGINE        $ENGINE \
         CONFIG.ED_K          $ED_K \
@@ -82,7 +85,7 @@ foreach {p want} [list ENGINE $ENGINE ED_K $ED_K DENSE_P $DENSE_P BAKED_WEIGHTS 
 foreach sp {Data_MM2S Data_S2MM} {
     set segs [get_bd_addr_segs -quiet -of_objects [get_bd_addr_spaces axi_dma_0/$sp]]
     if {[llength $segs] == 0} {
-        if {$REUSE_RUN} { error "$sp unassigned -- the completed run cannot be reused" }
+        if {$REUSE} { error "$sp unassigned -- the completed run cannot be reused" }
         say "  $sp has no address assignment -- running assign_bd_address"
         assign_bd_address
         set segs [get_bd_addr_segs -quiet -of_objects [get_bd_addr_spaces axi_dma_0/$sp]]
@@ -98,7 +101,7 @@ foreach sp {Data_MM2S Data_S2MM} {
     if {[llength $excl]} { error "$sp has excluded segments: $excl" }
 }
 
-if {$REUSE_RUN} {
+if {$REUSE} {
     say "REUSE_RUN: block design left untouched (no validate/save/generate)"
 } else {
 validate_bd_design
@@ -159,7 +162,7 @@ proc try_project_runs {jobs} {
     return 0
 }
 
-if {$REUSE_RUN} {
+if {$REUSE} {
     set st [get_property STATUS [get_runs impl_1]]
     if {![string match "*write_bitstream Complete*" $st]} { error "REUSE_RUN: impl_1 status is '$st', not complete" }
     if {[get_property NEEDS_REFRESH [get_runs synth_1]] || [get_property NEEDS_REFRESH [get_runs impl_1]]} {
