@@ -10,6 +10,8 @@
 #
 # Run from the Vivado Tcl Console with the project open:
 #     set ENGINE 1; set ED_K 8; set DENSE_P 4; source C:/Users/dhritiaravind/snn_parkour_fpga/host/vivado/build_engine.tcl
+#   optional before `source`:  set N_ENGINES 8   (C0003 replication; tag gets _x8)
+#                              set REUSE_RUN 1   (re-export a finished run, no rebuild)
 # or from a Vivado Tcl shell / batch:
 #     vivado -mode batch -source build_engine.tcl -tclargs ENGINE ED_K DENSE_P
 #     e.g.  vivado -mode batch -source build_engine.tcl -tclargs 0 4 8    (dense P=8)
@@ -38,7 +40,9 @@ foreach v {ENGINE ED_K DENSE_P} {
     if {![info exists $v]} { error "set $v before sourcing (e.g. set ENGINE 1; set ED_K 8; set DENSE_P 4)" }
 }
 set BAKED 1
-set NENG  1
+# N_ENGINES (C0003 replication for the meter): set before `source`, default 1.
+# Consumed and unset like REUSE_RUN so it cannot leak into the next build.
+if {[info exists N_ENGINES]} { set NENG $N_ENGINES; unset N_ENGINES } else { set NENG 1 }
 # REUSE_RUN 1: do NOT rebuild -- take the already-completed impl_1 (must be
 # "write_bitstream Complete" and not out of date) and only do the checks,
 # reports and export.  For re-exporting after a post-build script error.
@@ -47,6 +51,7 @@ set NENG  1
 # REUSE_RUN=1 from the ED K=8 re-export and refused on the read-back).
 if {[info exists REUSE_RUN]} { set REUSE [expr {$REUSE_RUN ? 1 : 0}]; unset REUSE_RUN } else { set REUSE 0 }
 if {$ENGINE} { set tag "ed_k${ED_K}" } else { set tag "dense_p${DENSE_P}" }
+if {$NENG > 1} { append tag "_x${NENG}" }
 set tag "${tag}_[clock format [clock seconds] -format %Y%m%d_%H%M]"
 set proj_dir [file dirname $PROJECT]
 set out "$proj_dir/builds/$tag"

@@ -33,6 +33,10 @@ Output: `C:/Users/dhritiaravind/m4_conv/builds/<engine>_<YYYYmmdd_HHMM>/`.
 Copy that folder's BOOT.bin + design_1_wrapper.xsa to host/mac/build on
 the Mac as before; the Mac-side pre-write checks are unchanged.
 
+Replicated build for the meter (C0003): add `set N_ENGINES 8` before
+the `source` line. The tag gets `_x8`; the .hwh check on the Mac must
+then read N_ENGINES=8. The flag is consumed per run like REUSE_RUN.
+
 Re-export without rebuilding: if the run finished but the script failed
 afterwards (or you want the reports/.xsa of the run already on disk),
 add `set REUSE_RUN 1` before the `source` line. The script then leaves
