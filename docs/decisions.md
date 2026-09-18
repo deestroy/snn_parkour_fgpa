@@ -2568,3 +2568,95 @@ to two more days. Gotchas recorded: `--debug` silently forces 64 envs
 (use `--no_wandb` instead); the env needs an `LD_LIBRARY_PATH` hook for
 libpython3.8 (added as an activation script). The go/no-go on the
 multi-day teacher run is the user's.
+
+## 2026-09-17 — C0012 lands, and the second benchmark finds a real bug (C0044)
+
+**DVS-Gesture through the whole chain.** Trained on the NVIDIA box
+(seed 0, beta 0.875, 30 epochs): 63.26 % test / 100 % train at T = 4
+over the whole clip — the encoding's ceiling for this network, recorded
+as such, not tuned. int8 65.15 %, golden integer 63.26 % (0.00 pp),
+membranes fit int16 (fc uses 16 bits, 60 % of the budget). Dense P=4
+bit-identical on the C1 vectors on first run. `experiments/dvsgesture/`.
+
+**The event-driven engine was NOT bit-identical on first run**, and the
+failure is the most useful thing this benchmark has produced so far.
+Neuron 0 alone diverged, by one input-current's worth more each
+timestep. The sweep zeroes each neuron's input current at its read
+beat, but that write sat inside the `if (up_valid)` block, and
+`up_valid` is false on the first read beat of every sweep — so I[0] was
+never cleared and the next timestep's scatter accumulated onto it. The
+epilogue's "final zero" only re-zeroed the last neuron, which its own
+read beat had already cleared. Fix: the zero is unconditional; the
+duplicate is gone. Verified g1/r1/c1 at K=1 and K=4 and the full
+ladder.
+
+**Why every earlier check passed.** Output neuron 0's receptive field is
+input rows/cols 0-1. On the 16 N-MNIST check samples that field is
+empty in all 64 timesteps (digits are centred), so I[0] was always zero
+and the bug had no effect. Every N-MNIST number — the K sweep, both
+board passes, the 1.52x verdict — is numerically unaffected, and the
+bit-identity claims for that data were true. What was NOT true was the
+inference "bit-identical on the check set => the sweep is correct". The
+synthetic r1 set (13 of 32 timesteps with corner activity) fails on the
+current tree, so the C0030 note that it passed did not survive; the
+ladder only ever ran c1. The ladder should carry a set with corner
+activity — added to the C0044 action list rather than done tonight,
+because r1 at K=1 is 90 s and the ladder's budget is the user's call.
+
+**Consequences.** The ED K=4 bitstream on the board carries the bug;
+its N-MNIST results stand, but it must not be reused for DVS-Gesture or
+robot data. Build 3 (ED K=8) picks the fix up once the VM's
+`ed_conv_layer.v` is re-copied (`docs/vivado_session_next.md`, marker
+`(C0044)`). No timing exposure: the change removes a gate term.
+
+**Judgement call recorded.** The paper-review passes (C0001-C0043) said
+the next class of problem "is the kind only measurement finds". This
+one was found by verification on a second dataset, not by measurement
+and not by review — three passes over the RTL notes did not see it.
+That is the C0012 argument in its strongest form: a benchmark is a
+verification instrument before it is a reviewer-pleasing number.
+
+**Teacher run.** The extreme-parkour A1 teacher (15k iterations, 6,144
+envs) started on the 1080 Ti at 21:32 EDT at the user's word; ~13.7-16
+s/iteration, ~8 GB, ETA ~2.5 days. Nothing else should be scheduled on
+that GPU until it finishes.
+
+## 2026-09-17 — Board pass 5: ED K=8 on silicon, the first scripted build
+
+**Result.** ENGINE=1 K=8 (builds/ed_k8_20260917_2106, WNS +0.332): 16/16
+bit-identical, then 4,800 inferences with zero mismatches. Engine-only
+mean **575.5 us** (494.1-653.1, spread 1.32x), sweep 575.6. Every
+pre-registered latency prediction (experiments/ed_k8_prereg_20260917.md,
+commit 416944a, written before power-on) held; record in
+experiments/board_ed_k8_20260917.md. K=4 -> K=8 on silicon: 1.196x
+(sim 1.20x). The cycle model's K-independent floor is confirmed on
+hardware; the K = P = 8 verdict waits on Build 4 (dense P=8).
+
+**The resource prediction failed.** I predicted ~2x BRAM for K=8; the
+routed design uses 13.5 tiles vs 12.5 at K=4 (+108 logic LUTs, DSP 0).
+Banking partitions the same bits; the tile count is set by RAMB18
+rounding, not by K. Recorded as a wrong prediction, favourable to ED:
+the K axis is nearly free in BRAM, so its cost is energy (C0025).
+
+**Cycle-model correction.** Board exceeds simulation by an almost
+constant ~10.9 us per inference at both K=4 (10.5) and K=8 (10.9): an
+additive ~1.1k-cycle per-pass cost outside the harness (DMA
+setup/teardown), not a percentage. Predictions from here on add it —
+dense P=8 expected ~543 us, not 532.
+
+**Build provenance — first build the script made.** build_engine.tcl
+needed four fixes on this VM before completing (excluded-segment query
+scope; post-save "Spawn failed"; runs stuck at "Scripts Generated" ->
+in-process fallback; open_run refused while the GUI held implemented-
+design tabs -> close_all_designs + a REUSE_RUN mode). The export was a
+re-export of the completed run with Vivado's out-of-date flag clear, so
+the summary's timing belongs to the exported bitstream. Files now move
+Mac<->VM through the RDP-redirected Mac folder
+(\\tsclient\Users\dhritiaravind\...), no Google Drive; the VM has a git
+clone at C:/Users/dhritiaravind/snn_parkour_fpga (core.autocrlf false).
+
+**C0044 exposure, unconfirmed.** The ed_conv_layer.v fix was uncommitted
+in the Mac working tree when this build ran and the VM project copy's
+status is not established; the K=8 bitstream is treated as carrying the
+bug until the VM file shows `(C0044)`. N-MNIST results are unaffected by
+construction; do not reuse it for DVS-Gesture or robot data.

@@ -202,17 +202,22 @@ module ed_conv_layer #(
             //     one-read-one-write port discipline holds per memory.
             S_SW_RD: begin                          // beat A
                 v_r <= vmem[n];                     // latch neuron n_rd
+                i_we <= 1'b1; i_wdata <= 0;         // zero I[n_rd] AT THE READ
+                // edge: the bank is read-first, so the latch captures I[n_rd]
+                // and the same edge clears it -- each neuron's I is zeroed
+                // when read, one beat before its update, and nothing else
+                // writes I during the sweep (scatter idle). UNCONDITIONAL
+                // (C0044): this write used to sit inside `if (up_valid)`,
+                // so neuron 0 -- whose read beat is the only one with no
+                // update in flight -- was never zeroed and its current
+                // accumulated across timesteps. Invisible on N-MNIST (the
+                // corner neuron never receives input); caught by DVS-Gesture.
                 if (up_valid) begin
                     vmem[n_up]    <= v_next;        // update neuron n_rd-1
                     out_mem[n_up] <= spike_next;
                     out_words[ow_w][ow_b] <= spike_next;   // word file (C0035)
                     if (ow_b == 31) begin ow_b <= 0; ow_w <= ow_w + 1; end
                     else ow_b <= ow_b + 1;
-                    i_we <= 1'b1; i_wdata <= 0;     // zero I[n_rd] AT THE READ
-                    // edge: the bank is read-first, so the latch captures
-                    // I[n_rd] and the same edge clears it -- each neuron's I
-                    // is zeroed when read, one beat before its update, and
-                    // nothing else writes I during the sweep (scatter idle).
                 end
                 state <= S_SW_WAIT;
             end
@@ -234,14 +239,13 @@ module ed_conv_layer #(
                 end
             end
             S_SW_UPD: begin                         // epilogue beat A (no new read)
-                vmem[n_up]    <= v_next;
-                out_mem[n_up] <= spike_next;
+                vmem[n_up]    <= v_next;            // last neuron's I was already
+                out_mem[n_up] <= spike_next;        // zeroed at its read beat
                 out_words[ow_w][ow_b] <= spike_next;
-                i_we <= 1'b1; i_wdata <= 0;
                 up_valid <= 1'b0;
                 state <= S_SW_ZERO;
             end
-            S_SW_ZERO: begin                        // final zero lands; done
+            S_SW_ZERO: begin                        // final update lands; done
                 state <= S_IDLE; done <= 1'b1;
             end
             endcase

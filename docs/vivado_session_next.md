@@ -6,21 +6,34 @@ dense P=4 1048.9 us flat, ED 1.52x at matched parallelism, both
 bit-identical (experiments/board_ed_k4_20260905.md,
 experiments/board_dense_p4_20260906.md). Server is build 4.
 
-## Files on the VM: current — nothing to copy this session
+## Files on the VM: ONE file to re-copy before Build 3 (revised 2026-09-17)
+
+`hdl/eventdriven/ed_conv_layer.v` changed on 2026-09-17 (C0044: the
+sweep never zeroed neuron 0's input current; invisible on N-MNIST,
+caught by DVS-Gesture). Copy it over the VM's copy before Build 3 and
+check: Ctrl+F `(C0044)` finds one hit in ed_conv_layer.v. The K=4
+bitstream on the board predates the fix — its N-MNIST results stand
+(the check set never puts a spike in neuron 0's receptive field), but
+do not reuse that bitstream for DVS-Gesture or robot data.
 
 The three dense files from commit 822990c (single-stage weight init)
-are what the P=4 board pass used, so the VM copy is current. Nothing
-else has changed in hdl/ since. Before any build, run the copy-check
-ritual anyway: line 19 of conv_layer_p_c1.v reads `module
-conv_layer_p_c1 #(`, Ctrl+F `wrom_all[wa[g]]` finds one hit, `#0;`
-finds nothing.
+are what the P=4 board pass used, so that part of the VM copy is
+current. Before any build, run the copy-check ritual anyway: line 19 of
+conv_layer_p_c1.v reads `module conv_layer_p_c1 #(`, Ctrl+F
+`wrom_all[wa[g]]` finds one hit, `#0;` finds nothing.
+
+## Build 3 DONE 2026-09-17 — ED K=8: 575.5 us mean, 16/16, 13.5 BRAM tiles (experiments/board_ed_k8_20260917.md)
+## -> confirm its C0044 status: Ctrl+F `(C0044)` in the VM project's ed_conv_layer.v.
+## Build 4 next, dense P=8, from the Tcl console (no REUSE_RUN):
+##   set ENGINE 0; set ED_K 4; set DENSE_P 8; source C:/Users/dhritiaravind/snn_parkour_fpga/host/vivado/build_engine.tcl
+## expected engine ~543 us flat (532 from the cycle model + the ~11 us per-pass offset both ED builds showed)
 
 ## Build 3 + 4 — the K = P = 8 pair (brackets the parallelism crossover)
 
 Why: on C1 at this activity the cycle models cross at K = P ~ 6.6
 (experiments/latency_sim/ksweep_c0035): ED wins at 4 (measured 1.52x),
 dense should win at 8 (sim 0.94x). Two builds put both sides of the
-crossover on silicon. No new RTL: K and P are parameters of the same
+crossover on silicon. No new RTL beyond the C0044 line: K and P are parameters of the same
 baked files (ed_scatter_c1 / conv_layer_p_c1 are K- and P-generic).
 Both exact synthesis configurations were run through the AXIS harness
 in baked form with the hostile handshake on 2026-09-06 (BW=1 ENGINE=1

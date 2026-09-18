@@ -105,7 +105,7 @@ def main() -> int:
     torch.manual_seed(args.seed)
 
     print("encoding : %s   (D0003)" % tag)
-    print("loading N-MNIST (first epoch also builds the frame cache)...")
+    print("loading %s (first epoch also builds the frame cache)..." % args.dataset)
     train_loader, test_loader = build_loaders(batch_size=args.batch, dataset=args.dataset,
                                               limit=args.limit,
                                               workers=args.workers)

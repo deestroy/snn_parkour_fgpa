@@ -238,6 +238,11 @@ through the existing golden-model path. The engines are geometry-clean
 (D0024 addendum), so the retarget cost is parameters and vectors only.
 **Done when:** DVS-Gesture accuracy and firing rates are recorded and at
 least one engine is verified against golden on it.
+**Resolved 2026-09-17.** Trained on the NVIDIA box (63.26 % float,
+65.15 % int8, 63.26 % golden integer — 0.00 pp drop; membranes fit
+int16), and BOTH engines verified bit-identical on its C1 vectors
+(dense P=4; event-driven K=1 and K=4). Doing so exposed C0044.
+`experiments/dvsgesture/README.md`.
 ---
 ## C0013 — Statistical treatment of the energy measurements (P2)
 **Problem.** Latency is deterministic and single runs are fine. Energy
@@ -863,6 +868,47 @@ promises.
   examiner can see the promise is kept rather than quietly narrowed.
 **Done when:** the thesis outline maps the stated metric to specific
 experiments, and the HIL loop has the FPGA behind its `perceive` hook.
+---
+## C0044 — The event-driven sweep never zeroed neuron 0's input current (P1, RTL bug, fixed)
+**Problem.** In `ed_conv_layer.v` the pipelined sweep (C0030) zeroes each
+neuron's accumulated input current I[n] at the beat that reads it, through
+the banks' write port. That write sat inside the `if (up_valid)` block —
+the block that also writes back the PREVIOUS neuron's update — and
+`up_valid` is false on the very first read beat of every sweep. So I[0]
+was read but never cleared, and the next timestep's scatter added on top
+of it: neuron 0's current accumulated across timesteps (the epilogue's
+"final zero" only re-zeroed the LAST neuron, which its own read beat had
+already cleared).
+**Why it was invisible.** Output neuron 0 is channel 0 at output (0,0);
+its receptive field is input rows/cols 0-1 of both polarities. On the
+16 N-MNIST check samples that field is empty in all 64 timesteps (digits
+are centred), so I[0] was always 0 and the bug had no effect: every
+N-MNIST check, every board pass and the K sweep were genuinely
+bit-identical — for that data. The DVS-Gesture C1 vectors put spikes
+there in 3 of 32 timesteps and the synthetic Bernoulli set in 13 of 32,
+and both failed at neuron 0 only, with the error compounding by one
+extra I per timestep (V -15/-21/-26 against -7/-6/-5). The "synthetic
+r1 set passes" claim in the C0030 notes did not survive a re-run on the
+current tree; whether it ever held is not worth reconstructing — the
+mechanism is unambiguous from the RTL.
+**Fix (this commit).** The I-zero write is unconditional in the read
+beat; the epilogue's duplicate write is removed. One fewer gate term, no
+timing exposure. Verified: DVS-Gesture g1 K=1 and K=4 (1,048,576
+comparisons each, 8 samples), synthetic r1 K=1 and K=4, N-MNIST c1 K=1
+and K=4, full ladder.
+**Consequences for results already recorded.** None are numerically
+affected (N-MNIST exposure is zero on the check set), but the ED K=4
+bitstream on the board carries the bug, and any board run on data with
+corner activity — DVS-Gesture, the robot depth stream — needs a rebuild.
+Build 3 (ED K=8) picks the fix up automatically once the VM copy of
+`ed_conv_layer.v` is refreshed (`docs/vivado_session_next.md`).
+**Lesson for the methodology chapter.** A check set can be bit-identical
+and still exercise nothing at a boundary neuron. The second benchmark
+earned its keep before producing an energy number: this is the argument
+for C0012 stated in verification terms rather than reviewer terms. A
+cheap guard is now on the list: the vector exporters should report the
+per-neuron exposure of the receptive-field corners, and a synthetic set
+with corner activity (r1 has it) belongs in the ladder.
 ---
 ## Closing note on this review
 Three passes have been made: methodology (C0001–C0017), measurement
