@@ -23,7 +23,7 @@
 # Project: the clean m4_conv2 (docs/vivado_new_project.md). To build the
 # old m4_conv once more:  set PROJECT C:/Users/dhritiaravind/m4_conv/m4_conv.xpr
 # before `source` (consumed per run).
-if {[info exists PROJECT]} { set PROJ $PROJ; unset PROJECT } else { set PROJ "C:/Users/dhritiaravind/m4_conv2/m4_conv2.xpr" }
+if {[info exists PROJECT]} { set PROJ $PROJECT; unset PROJECT } else { set PROJ "C:/Users/dhritiaravind/m4_conv2/m4_conv2.xpr" }
 set BD_CELL   "axis_conv_top_0"
 set JOBS      2   ;# this VM's launcher is flaky with many parallel jobs
 # Boot-image inputs. Each is a list of candidate paths; the first that
@@ -84,7 +84,13 @@ proc say {msg} { puts "\[build_engine\] $msg" }
 say "configuration: ENGINE=$ENGINE ED_K=$ED_K DENSE_P=$DENSE_P BAKED=$BAKED N_ENGINES=$NENG DATASET=$DS REUSE_RUN=$REUSE -> $out"
 
 # ---------------------------------------------------------------- project
-if {[catch {current_project}]} { open_project $PROJ }
+# Open the target project -- and refuse to build whichever OTHER project
+# happens to be open in the GUI (m4_conv vs m4_conv2 both exist).
+if {[catch {set cur_dir [get_property DIRECTORY [current_project]]}]} {
+    open_project $PROJ
+} elseif {[file normalize $cur_dir] ne [file normalize [file dirname $PROJ]]} {
+    error "project [current_project] is open but the script targets $PROJ -- run close_project first, or set PROJECT to the open one"
+}
 # deterministic runs: the auto-incremental reference checkpoint made two
 # implementations of the same netlist differ by 300k config bytes
 set_property AUTO_INCREMENTAL_CHECKPOINT 0 [get_runs synth_1]
