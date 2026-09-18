@@ -25,6 +25,10 @@ set JOBS      2   ;# this VM's launcher is flaky with many parallel jobs
 set FSBL_ELF  ""      ;# e.g. C:/Users/dhritiaravind/vitis_m4_loopback_zed/zed_board/export/zed_board/sw/.../fsbl.elf
 set APP_ELF   ""      ;# e.g. C:/Users/dhritiaravind/vitis_m4_loopback_zed/conv_server/build/conv_server.elf
 set BOOTGEN   "C:/Xilinx/Vitis/2024.1/bin/bootgen.bat"
+# Mac folder redirected into this RDP session (Microsoft Remote Desktop ->
+# edit PC -> Folders). It shows up in the VM as \\tsclient\<folder name>.
+# Leave "" to skip; then copy builds/<tag>/ by hand.
+set MAC_DIR   ""      ;# e.g. //tsclient/build
 
 # parameters: from -tclargs if given, else from variables set before `source`
 if {[info exists argv] && [llength $argv] >= 3} {
@@ -241,3 +245,17 @@ puts $s "xsa        $xsa"
 puts $s "built      [clock format [clock seconds]]"
 close $s
 say "DONE -> copy $out (BOOT.bin/.xsa + summary.txt) to the Mac"
+
+# ---------------------------------------------------------------- optional: drop it straight onto the Mac
+if {$MAC_DIR ne ""} {
+    if {![file isdirectory $MAC_DIR]} {
+        say "MAC_DIR $MAC_DIR not reachable (RDP folder redirection off?) -- copy by hand"
+    } else {
+        set dst "$MAC_DIR/$tag"
+        file mkdir $dst
+        foreach f [list $xsa $bit $out/summary.txt $out/BOOT.bin $out/design_1_wrapper_timing_summary_routed.rpt $out/power.rpt $out/utilization_hier.rpt] {
+            if {[file exists $f]} { file copy -force $f $dst }
+        }
+        say "copied to the Mac: $dst"
+    }
+}
