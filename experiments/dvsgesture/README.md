@@ -88,8 +88,11 @@ and must not be reused for data with corner activity.
 
 ## Files
 
-- `train_seed0.log`, `m0_firing_rates_binarised.csv` — training
-- `quantise_seed0.log`, `golden_check_seed0.log` — M1 chain (box re-runs, 2026-09-17 21:48 EDT)
+- `m0_firing_rates_binarised.csv` — per-epoch training record (committed)
+- `train_seed0.log`, `quantise_seed0.log`, `golden_check_seed0.log` — local only
+  (`*.log` is gitignored, as for the beta sweep); every number they hold is
+  quoted above, and all three regenerate from the checkpoint on the box
+  (M1 chain re-runs 2026-09-17 21:48 EDT)
 - checkpoint `dvsgesture_beta0875_seed0.pt` and packed frames stay on the box (`~/snn_parkour_fpga/experiments/dvsgesture/`, `data/packed_dvsgesture/`)
 
 ## Not yet done
