@@ -186,7 +186,6 @@ say "exported $xsa"
 close_design
 
 # ---------------------------------------------------------------- optional bootgen
-set bit [glob -nocomplain $impl_dir/design_1_wrapper.bit]
 if {$FSBL_ELF ne "" && $APP_ELF ne "" && [file exists $FSBL_ELF] && [file exists $APP_ELF] && [file exists $BOOTGEN]} {
     set bif [open $out/boot.bif w]
     puts $bif "the_ROM_image:\n{\n  \[bootloader\] $FSBL_ELF\n  $bit\n  $APP_ELF\n}"
