@@ -84,12 +84,21 @@ def main() -> int:
 
     print("\nmembrane ranges over the run (hardware budget: int16, +-32767):")
     ok16 = True
+    worst = (None, 0.0)
     for name, (lo, hi) in net.v_extremes.items():
         bits = int(np.ceil(np.log2(max(hi, -lo, 1) + 1))) + 1
         fits = -32768 <= lo and hi <= 32767
         ok16 &= fits
-        print("  %-3s V in [%7d, %6d]  -> %2d bits  %s"
-              % (name, lo, hi, bits, "fits int16" if fits else "DOES NOT FIT"))
+        used = max(hi / 32767.0, -lo / 32768.0)          # fraction of the int16 range used
+        if used > worst[1]:
+            worst = (name, used)
+        print("  %-3s V in [%7d, %6d]  -> %2d bits  %s  (%3.0f %% of int16%s)"
+              % (name, lo, hi, bits, "fits int16" if fits else "DOES NOT FIT",
+                 100 * used, "" if fits else ", over by %.0f %%" % (100 * (used - 1))))
+    # C0046: the margin is seed- and activity-dependent near the edge, so it is
+    # reported as a number, not only as a verdict
+    print("  membrane headroom: worst layer %s uses %.0f %% of int16 -> %.0f %% headroom"
+          % (worst[0], 100 * worst[1], 100 * (1 - worst[1])))
 
     rng = __import__("numpy").random.default_rng(TRACE_SEED)
     pick = __import__("numpy").sort(rng.choice(len(frames), N_TRACE_SAMPLES, replace=False))

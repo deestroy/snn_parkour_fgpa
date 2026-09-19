@@ -943,8 +943,10 @@ the golden-drop column mixes rounding at different resolutions.
 activity axis holds the ARCHITECTURE fixed, not the integer scaling; if a
 fixed-threshold comparison is wanted, add a `--fixed_k` option to
 05_quantise that clips instead of re-scaling and report the clipping.
-**Done when:** the sweep write-ups carry the shifts per point (done) and
-the thesis text says which is held fixed.
+**Tool half done 2026-09-19:** `05_quantise.py --fixed_k <k|k1,k2,k3,k4>`
+saturates at +-127 and reports/stores the clipped fraction per layer
+(N-MNIST seed 0: k = 5 clips nothing, k = 7 clips conv1).
+**Done when:** the thesis text says which is held fixed (open).
 ---
 ## C0046 — The int16 membrane margin is seed- and activity-dependent on DVS-Gesture (P1)
 **Problem.** Three separate runs hit the fc membrane's int16 ceiling on
@@ -960,8 +962,10 @@ cost; a quantiser option), (c) DVS-Gesture stays at T = 4 and below ~20 %
 activity, with the margin reported per seed. Until then, every DVS-Gesture
 number carries its fc |V|max next to it, and any board build of a
 DVS-Gesture network is preceded by a golden check on THAT checkpoint.
-**Done when:** one of (a)-(c) is chosen in decisions.md and the golden
-check reports the margin as a percentage, not only a pass/fail.
+**Golden-check half done 2026-09-19:** every layer's line now carries
+"% of int16" and a summary line gives the worst layer's headroom.
+**Done when:** one of (a)-(c) is chosen in decisions.md (open, the
+user's call).
 ---
 ## C0047 — Direct coding makes the event-driven engine scatter the same frame four times (P2)
 **Problem.** The year-two student uses the paper's direct coding: one

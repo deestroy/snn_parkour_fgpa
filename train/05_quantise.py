@@ -47,10 +47,17 @@ def choose_k(w: np.ndarray) -> int:
     return k
 
 
-def quantise_layer(w: np.ndarray, k: int) -> np.ndarray:
+def quantise_layer(w: np.ndarray, k: int, clip: bool = False):
+    """int8 weights at shift k. clip=False: k came from choose_k, nothing can
+    clip. clip=True (C0045 --fixed_k): saturate at +-127 and return the
+    fraction of weights that were clipped, so a fixed-threshold comparison
+    across networks reports what it cost."""
     q = np.round(w * 2.0 ** k)
-    assert np.abs(q).max() <= 127, "clipping despite choose_k"
-    return q.astype(np.int8)
+    if not clip:
+        assert np.abs(q).max() <= 127, "clipping despite choose_k"
+        return q.astype(np.int8), 0.0
+    clipped = float((np.abs(q) > 127).mean())
+    return np.clip(q, -127, 127).astype(np.int8), clipped
 
 
 def main() -> int:
@@ -58,6 +65,10 @@ def main() -> int:
     ap.add_argument("--ckpt", default=os.path.join(
         REPO, "train", "checkpoints", "m1_beta0875_seed0.pt"))
     ap.add_argument("--device", default="auto")
+    ap.add_argument("--fixed_k", default=None,
+                    help="C0045: fixed shifts instead of choose_k, e.g. '6' for all layers or "
+                         "'6,6,6,6' per conv1,conv2,conv3,fc; weights beyond +-127 are clipped and the "
+                         "clipped fraction is reported and stored as <layer>_clip_frac")
     ap.add_argument("--out", default=OUT_PATH,
                     help="weights .npz to write (default: the N-MNIST golden file)")
     args = ap.parse_args()
@@ -78,16 +89,24 @@ def main() -> int:
 
     # --- quantise ---------------------------------------------------------
     packed = {}
-    print("\nlayer  max|w|    k   scale     rms rounding err")
+    fixed = None
+    if args.fixed_k is not None:
+        ks = [int(x) for x in args.fixed_k.split(",")]
+        fixed = dict(zip(HW_LAYERS, ks * len(HW_LAYERS) if len(ks) == 1 else ks))
+        assert len(fixed) == len(HW_LAYERS), "--fixed_k takes 1 or %d values" % len(HW_LAYERS)
+        print("\nC0045 fixed shifts: %s (clipping allowed and reported)" % fixed)
+    print("\nlayer  max|w|    k   scale     rms rounding err   clipped")
     for name in HW_LAYERS:
         w = getattr(net, name).weight.detach().cpu().numpy()
-        k = choose_k(w)
-        q = quantise_layer(w, k)
+        k = choose_k(w) if fixed is None else fixed[name]
+        q, clip_frac = quantise_layer(w, k, clip=fixed is not None)
         err = w - q.astype(np.float64) * 2.0 ** -k
         packed[name] = q
         packed[name + "_k"] = np.int64(k)
-        print("%-6s %.4f   %2d   2^-%-2d    %.2e"
-              % (name, np.abs(w).max(), k, k, np.sqrt((err ** 2).mean())))
+        packed[name + "_clip_frac"] = np.float64(clip_frac)
+        print("%-6s %.4f   %2d   2^-%-2d    %.2e   %s"
+              % (name, np.abs(w).max(), k, k, np.sqrt((err ** 2).mean()),
+                 "--" if fixed is None else "%.3f %%" % (100 * clip_frac)))
         if name == "fc":
             print("       -> pool /4 folds in: FC effective shift k+2 = %d" % (k + 2))
         print("       -> integer threshold for this layer = 2^%d = %d" % (k, 2 ** k))
