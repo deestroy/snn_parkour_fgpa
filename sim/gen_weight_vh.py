@@ -73,12 +73,29 @@ emit_inlined_ed_scatter_c1()
 # vectors exist (P1). Same anchor-replacement approach as the c1 variants:
 # conv_layer_r1.v / ed_scatter_r1.v with the DISTILLED quantised weights
 # inlined, ready for the next Vivado session's 64x64 bitstream.
-def gen_conv_p(name, w_hex_path):
+def conv1_vals_from_npz(npz_path):
+    """The conv1 table in wrom order (oc, ic, ky, kx), from a TRACKED weight
+    file. Added 2026-09-19 after sim/vectors/conv_c1_w.hex (untracked, shared
+    scratch) was found holding a different network's weights: the baked
+    files must derive from git-tracked inputs, never from the scratch hex."""
+    import numpy as np
+    w = np.load(npz_path)['conv1'].astype(int)
+    return ["%02x" % (int(w[oc, ic, ky, kx]) & 0xFF)
+            for oc in range(w.shape[0]) for ic in range(w.shape[1])
+            for ky in range(3) for kx in range(3)]
+
+
+def gen_conv_p(name, w_hex_path, npz_path=None):
     """Baked conv_layer_p variant: module conv_layer_p_<name> with the
-    weight table inlined (wrom_all), same anchor discipline as the others."""
-    if not os.path.exists(w_hex_path):
-        return
-    vals = [l.strip() for l in open(w_hex_path) if l.strip()]
+    weight table inlined (wrom_all), same anchor discipline as the others.
+    With npz_path the values come from the tracked file (c1, g1); the hex
+    path is only used for r1 (checkpoint-derived, no tracked npz)."""
+    if npz_path is not None:
+        vals = conv1_vals_from_npz(npz_path)
+    else:
+        if not os.path.exists(w_hex_path):
+            return
+        vals = [l.strip() for l in open(w_hex_path) if l.strip()]
     src = open(os.path.join(REPO, 'hdl', 'dense', 'conv_layer_p.v')).read()
     init = ("    // BAKED weights (%s), inlined -- no $readmemh for Vivado to lose\n"
             "    initial begin\n" % name) +         "".join("        wrom_all[%d] = 8'h%s;\n" % (i, v) for i, v in enumerate(vals)) + "    end\n"
@@ -89,9 +106,9 @@ def gen_conv_p(name, w_hex_path):
     print("conv_layer_p_%s.v: inlined (%d entries)" % (name, len(vals)))
 
 
-gen_conv_p('c1', os.path.join(REPO, 'sim', 'vectors', 'conv_c1_w.hex'))
+gen_conv_p('c1', None, os.path.join(REPO, 'golden', 'm1_weights_int8.npz'))
 gen_conv_p('r1', os.path.join(REPO, 'sim', 'vectors', 'conv_r1_w.hex'))
-gen_conv_p('g1', os.path.join(REPO, 'sim', 'vectors', 'conv_g1_w.hex'))   # DVS-Gesture C1 (C0012)
+gen_conv_p('g1', None, os.path.join(REPO, 'golden', 'dvsgesture_weights_int8.npz'))   # DVS-Gesture C1 (C0012)
 
 
 def gen_r1():
@@ -122,8 +139,17 @@ def gen_r1():
 gen_r1()
 
 
-def gen_scatter(name, wt_hex, note):
-    """Baked ed_scatter variant: module ed_scatter_<name> with W_T inlined."""
+def gen_scatter(name, wt_hex, note, npz_path=None):
+    """Baked ed_scatter variant: module ed_scatter_<name> with W_T inlined.
+    With npz_path the table comes from the tracked file (order ic,ky,kx,oc)."""
+    if npz_path is not None:
+        import numpy as np
+        z = np.load(npz_path)
+        wt = np.ascontiguousarray(z['conv1'].transpose(1, 2, 3, 0)).ravel()
+        import tempfile
+        tmp = os.path.join(tempfile.mkdtemp(), 'wt_%s_from_npz.hex' % name)
+        open(tmp, 'w').write("".join("%02x\n" % (int(v) & 0xFF) for v in wt))
+        wt_hex = tmp
     if not os.path.exists(wt_hex):
         return
     vals = [l.strip() for l in open(wt_hex) if l.strip()]
@@ -139,4 +165,4 @@ def gen_scatter(name, wt_hex, note):
 
 
 # DVS-Gesture C1 (C0012): selected on the board by axis_conv_top DATASET=1
-gen_scatter('g1', os.path.join(REPO, 'sim', 'vectors', 'ed_g1_wt.hex'), 'DVS-Gesture C1, C0012')
+gen_scatter('g1', None, 'DVS-Gesture C1, C0012', os.path.join(REPO, 'golden', 'dvsgesture_weights_int8.npz'))
