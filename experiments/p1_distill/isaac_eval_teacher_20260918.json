@@ -1,0 +1,42 @@
+{
+ "policy": "teacher",
+ "run": "100-00-teacher",
+ "steps": 1500,
+ "num_envs": 256,
+ "max_difficulty": false,
+ "window": null,
+ "terrains": {
+  "parkour": {
+   "episodes": 316,
+   "success_rate": 0.9715189873417721,
+   "fall_rate": 0.028481012658227847,
+   "timeout_rate": 0.0,
+   "waypoint_frac": 0.9861550632911392,
+   "mean_len": 423.1107594936709
+  },
+  "gap": {
+   "episodes": 107,
+   "success_rate": 0.9532710280373832,
+   "fall_rate": 0.04672897196261682,
+   "timeout_rate": 0.0,
+   "waypoint_frac": 0.977803738317757,
+   "mean_len": 564.4672897196261
+  },
+  "step": {
+   "episodes": 122,
+   "success_rate": 0.9918032786885246,
+   "fall_rate": 0.00819672131147541,
+   "timeout_rate": 0.0,
+   "waypoint_frac": 0.9948770491803278,
+   "mean_len": 510.327868852459
+  },
+  "hurdle": {
+   "episodes": 76,
+   "success_rate": 0.9605263157894737,
+   "fall_rate": 0.013157894736842105,
+   "timeout_rate": 0.02631578947368421,
+   "waypoint_frac": 0.993421052631579,
+   "mean_len": 762.2368421052631
+  }
+ }
+}

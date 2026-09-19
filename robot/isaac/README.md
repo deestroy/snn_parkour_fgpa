@@ -13,12 +13,14 @@ NVIDIA box, without modifying extreme-parkour.
 | launcher | `scripts/distill_fpga.py` | `train_fpga_student.py` (mirrors their train.py, then swaps the backbone and recreates the optimisers) |
 
 Checks: `python3 robot/isaac/test_port.py` (CPU, no IsaacGym): PASS on
-2026-09-18. The end-to-end smoke on the box (`--num_envs 8 --iters 2`, see
-the launcher docstring) is PENDING: attempted 2026-09-18 11:32 beside the
-running teacher, PhysX failed at sim creation with CUDA out-of-memory
-(~3 GB free of 11); to be re-run on the free GPU after the teacher exits.
-Until it passes, the launcher and backbone are "compiles and unit-tested,
-untested against IsaacGym".
+2026-09-18. **End-to-end smoke on the box: PASSED 2026-09-18 23:48** (8
+camera envs, 2 iterations of their learn_vision with the FPGA backbone
+in place: 4.5-4.7 s per iteration, depth-actor loss 4.59, yaw loss 2.03,
+event-bit rate 0.094 at the last tick). The first attempt beside the
+teacher failed at PhysX sim creation (CUDA out-of-memory, 3 GB free);
+the second, on the free GPU, failed at their wandb.log() because the
+launcher had not called wandb.init() as their train.py does (fixed);
+the third passed.
 
 ## Recorder and vector export (2026-09-18, window = repeat)
 
