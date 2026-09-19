@@ -107,33 +107,38 @@ def gen_conv_p(name, w_hex_path, npz_path=None):
 
 
 gen_conv_p('c1', None, os.path.join(REPO, 'golden', 'm1_weights_int8.npz'))
-gen_conv_p('r1', os.path.join(REPO, 'sim', 'vectors', 'conv_r1_w.hex'))
+gen_conv_p('r1', None, os.path.join(REPO, 'golden', 'r1_student_weights_int8.npz'))
 gen_conv_p('g1', None, os.path.join(REPO, 'golden', 'dvsgesture_weights_int8.npz'))   # DVS-Gesture C1 (C0012)
 
 
+R1_NPZ = os.path.join(REPO, 'golden', 'r1_student_weights_int8.npz')   # tracked (2026-09-19)
+
+
+def r1_scatter_vals():
+    import numpy as np
+    wt = np.ascontiguousarray(np.load(R1_NPZ)['conv1'].astype(int).transpose(1, 2, 3, 0)).ravel()
+    return ["%02x" % (int(v) & 0xFF) for v in wt]
+
+
 def gen_r1():
-    wt_hex = os.path.join(REPO, 'sim', 'vectors', 'ed_r1_wt.hex')
-    w_hex = os.path.join(REPO, 'sim', 'vectors', 'conv_r1_w.hex')
-    if not (os.path.exists(wt_hex) and os.path.exists(w_hex)):
-        return
-    def hexvals(path):
-        return [l.strip() for l in open(path) if l.strip()]
+    """r1 (robot geometry, distilled student) baked variants from the TRACKED
+    golden/r1_student_weights_int8.npz -- never from sim/vectors, whose r1
+    hex is rewritten with SYNTHETIC weights by the ladder's corner check."""
     src = open(os.path.join(REPO, 'hdl', 'dense', 'conv_layer.v')).read()
-    vals = hexvals(w_hex)
+    vals = conv1_vals_from_npz(R1_NPZ)
     init = "    // DISTILLED r1 weights (P1), inlined -- no $readmemh\n    initial begin\n" + \
         "".join("        wrom[%d] = 8'h%s;\n" % (i, v) for i, v in enumerate(vals)) + "    end\n"
     src = src.replace("module conv_layer #(", "module conv_layer_r1 #(")
     src = src.replace("    initial $readmemh(WEIGHT_FILE, wrom);\n", init)
     open(os.path.join(REPO, 'hdl', 'dense', 'conv_layer_r1.v'), 'w').write(src)
     src = open(os.path.join(REPO, 'hdl', 'eventdriven', 'ed_scatter.v')).read()
-    vals = hexvals(wt_hex)
+    vals = r1_scatter_vals()
     init = "    // DISTILLED r1 W_T (P1), inlined -- no $readmemh\n    initial begin\n" + \
         "".join("        wt[%d] = 8'h%s;\n" % (i, v) for i, v in enumerate(vals)) + "    end\n"
     src = src.replace("module ed_scatter #(", "module ed_scatter_r1 #(")
     src = src.replace("    initial $readmemh(WT_FILE, wt);\n", init)
     open(os.path.join(REPO, 'hdl', 'eventdriven', 'ed_scatter_r1.v'), 'w').write(src)
-    print("conv_layer_r1.v / ed_scatter_r1.v: inlined (%d / %d entries)"
-          % (len(hexvals(w_hex)), len(vals)))
+    print("conv_layer_r1.v / ed_scatter_r1.v: inlined (%d / %d entries)" % (len(conv1_vals_from_npz(R1_NPZ)), len(vals)))
 
 
 gen_r1()
