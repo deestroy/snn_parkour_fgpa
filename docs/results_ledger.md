@@ -49,8 +49,16 @@ validated to 0.3 % per sample on a second dataset.
 - T sweep (one seed): 63.3 / 65.2 / 68.9 % at T = 4 / 8 / 16 — but the fc
   membrane overflows int16 at T = 16, and at T = 8 for 1 of 3 seeds
   (C0046). T = 4 is the only setting with margin on every seed.
-- Board-ready: DATASET=1 builds (g1 tables baked, both engines through
-  the baked wrapper, hostile handshake) — `docs/vivado_session_next.md`.
+- **On silicon (board, 2026-09-19 13:27 build, parallel session):** ED K=4
+  DATASET=1, 8/8 clips bit-identical, mean 2,970.8 us, spread 2.24x
+  (2,084.6-4,663.9), **board = sim + 92.9 us constant** on every clip
+  (offset recorded as measured, not explained: neither the ~38 us
+  streaming nor the ~10 us fixed hypothesis); clips 1 and 5 above the
+  dense P=4 prediction, so the per-clip crossover is visible on hardware
+  pending the dense P=4 build. WNS +0.190, server build 5. The PING
+  DATASET check rejected a mis-built image first.
+  `experiments/dvsgesture/board_ed_k4_20260919.md`.
+- Dense P=4 DATASET=1 build: next on the Vivado list.
 
 ## 4. Activity axis by training (gpu + sim), K = P = 4
 
@@ -90,7 +98,7 @@ geometry: in progress (2026-09-19). Seeds 1-2 for both sweeps: running.
 - **Seeds** on the sweeps and on DVS-Gesture's T points (running / one seed).
 - **A student on the real stack** (training); the MuJoCo recreation's
   58k student is the placeholder for weights.
-- **Board runs of anything but N-MNIST C1** (DVS-Gesture pair is ready).
+- **Board runs beyond N-MNIST C1 and DVS-Gesture ED K=4** (the DVS-Gesture dense P=4 build is next).
 
 ## Verification state
 
