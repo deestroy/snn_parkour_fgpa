@@ -69,4 +69,7 @@ clip order as predicted; ED below the dense prediction on 6 of 8 — all held.
 Offset: **+92.9 us, constant to +-0.8 us** — NEITHER hypothesis held (streaming
 ~38 us, fixed ~10 us). Recorded as measured; the g1 sim column excludes the
 wrapper's input streaming, unlike the N-MNIST comparison, so the bases differ.
-Dense P=4: pending (Build B).
+Dense P=4 (Build B, dense_p4_dvsg_20260919_1405): **does not close timing at
+100 MHz — WNS -0.696 ns, WHS +0.028**. Nothing exported, no card, as pre-registered.
+The failing path and the choice of remedy (RTL fix / lower fabric clock for both
+DATASET=1 builds / P=8) are recorded in docs/decisions.md once decided.
