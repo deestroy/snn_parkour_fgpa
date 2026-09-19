@@ -433,13 +433,31 @@ module conv_layer_p_r1 #(
         reg [BN-1:0]           obits;   // this bank's spikes, one flop each
         reg signed [WIDTH-1:0] v_lat, v_r2;
         reg                    s_lat;
+        // C0035 rev 3 (2026-09-19): the obits write is REGISTERED one cycle
+        // behind vmem/smem. At 16,384 neurons (DVS-Gesture) each bank's bit
+        // file is 4,096 flops spread across the die, and the path
+        // v_r2 -> lif_update -> obits[waddr].D failed at WNS -0.70 ns with
+        // 70 % of it routing (N-MNIST's 1,156-flop banks had closed at
+        // +0.30). Registering the enable/address/bit here ends the LIF
+        // path at a local flop; the fan-out to the bit file becomes its own
+        // cycle (and a flop Vivado may replicate). Safe because every
+        // reader of obits is the word port, which the wrapper starts
+        // reading at word 0 only after `done` and reaches the last-written
+        // word WORDS_OUT-1 cycles later; and after S_CLEAR the next pass
+        // cannot write for dozens of cycles. Cycle counts are unchanged.
+        reg [AB-1:0] ob_waddr_q;
+        reg          ob_we_q, ob_clr_q, ob_spk_q;
         always @(posedge clk) begin
             w_r[g] <= wrom_all[wa[g]];
             if (we_upd || we_clr) begin
                 vmem[mem_waddr] <= we_clr ? {WIDTH{1'b0}} : v_next[g];
                 smem[mem_waddr] <= we_clr ? 1'b0 : spike_next[g];
-                obits[mem_waddr] <= we_clr ? 1'b0 : spike_next[g];
             end
+            ob_we_q    <= we_upd || we_clr;
+            ob_clr_q   <= we_clr;
+            ob_waddr_q <= mem_waddr;
+            ob_spk_q   <= spike_next[g];
+            if (ob_we_q) obits[ob_waddr_q] <= ob_clr_q ? 1'b0 : ob_spk_q;
             v_lat <= vmem[(state == S_TAIL || state == S_VRD) ? n_off : x_off_v[AB-1:0]];
             v_r2  <= v_lat;
             s_lat <= smem[x_off_o[AB-1:0]];
