@@ -53,10 +53,11 @@ def main() -> int:
     if wkey + "_k" in zw.files:                       # the layer's threshold is 2^k for THIS network
         thr = 2 ** int(zw[wkey + "_k"])
     z = np.load(args.traces)
-    src = {"c1": "in", "c2": "c1_S", "c3": "c2_S"}[args.layer]
+    src = {"c1": "in", "c2": "c1_S", "c3": "c2_S", "g1": "in", "g2": "c1_S", "g3": "c2_S"}[args.layer]
+    tl = {"g1": "c1", "g2": "c2", "g3": "c3"}.get(args.layer, args.layer)   # trace keys carry the network's layer names
     spikes_in = (z[src] != 0)
-    exp_s = (z[args.layer + "_S"] != 0)
-    exp_v = z[args.layer + "_V"]
+    exp_s = (z[tl + "_S"] != 0)
+    exp_v = z[tl + "_V"]
     b, t = spikes_in.shape[:2]
 
     os.makedirs(OUT, exist_ok=True)

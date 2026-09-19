@@ -39,3 +39,4 @@ host/mac/build/logs/
 # golden trace dumps of sweep runs: regenerable from the checkpoints on the AMD box; keep out of git
 experiments/rate_sweep/traces_*.npz
 experiments/rate_sweep_dvsg/traces_*.npz
+golden/traces_dvsgesture.npz

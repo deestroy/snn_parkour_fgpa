@@ -27,6 +27,9 @@ SHAPES = {  # layer: (weights key, C_IN, H_IN, W_IN, C_OUT, H_OUT, W_OUT)
     "c1": ("conv1", 2, 34, 34, 16, 17, 17),
     "c2": ("conv2", 16, 17, 17, 32, 9, 9),
     "c3": ("conv3", 32, 9, 9, 64, 5, 5),
+    "g1": ("conv1", 2, 64, 64, 16, 32, 32),      # DVS-Gesture geometry (C0012)
+    "g2": ("conv2", 16, 32, 32, 32, 16, 16),
+    "g3": ("conv3", 32, 16, 16, 64, 8, 8),
 }
 
 
@@ -43,10 +46,11 @@ def main() -> int:
 
     # Input spikes: for c1 the binarised frames; for c2/c3 the previous
     # layer's spike trace. Output: this layer's spike + membrane traces.
-    src = {"c1": "in", "c2": "c1_S", "c3": "c2_S"}[args.layer]
+    src = {"c1": "in", "c2": "c1_S", "c3": "c2_S", "g1": "in", "g2": "c1_S", "g3": "c2_S"}[args.layer]
+    tl = {"g1": "c1", "g2": "c2", "g3": "c3"}.get(args.layer, args.layer)   # trace keys carry the network's layer names
     spikes_in = traces[src]              # (B, T, C_IN, H_IN, W_IN), 0/1
-    exp_s = traces[args.layer + "_S"]    # (B, T, C_OUT, H_OUT, W_OUT)
-    exp_v = traces[args.layer + "_V"]    # same, int32
+    exp_s = traces[tl + "_S"]    # (B, T, C_OUT, H_OUT, W_OUT)
+    exp_v = traces[tl + "_V"]    # same, int32
 
     assert spikes_in.shape[2:] == (c_in, h_in, w_in), spikes_in.shape
     assert exp_s.shape[2:] == (c_out, h_out, w_out), exp_s.shape

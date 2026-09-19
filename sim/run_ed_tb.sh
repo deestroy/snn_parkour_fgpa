@@ -15,6 +15,8 @@ case "$layer" in
     r1) ci=2;  hi=64; wi=64; co=16; ho=32; wo=32; ns=8 ;;   # robot-era geometry (D0024), synthetic golden
     g1) ci=2;  hi=64; wi=64; co=16; ho=32; wo=32; ns=8; thr=128 ;;   # DVS-Gesture C1 (C0012): same geometry, real weights
     i1) ci=2;  hi=64; wi=64; co=16; ho=32; wo=32; ns=8; thr=0 ;;     # IsaacGym-port frames + student weights (year two); thr from the exporter
+    g2) ci=16; hi=32; wi=32; co=32; ho=16; wo=16; ns=16; thr=0 ;;   # DVS-Gesture C2/C3: trace-driven like c2/c3; thr from the exporter
+    g3) ci=32; hi=16; wi=16; co=64; ho=8;  wo=8;  ns=16; thr=0 ;;
     *) echo "unknown layer"; exit 2 ;;
 esac
 THRESH="${THRESH:-$thr}"
@@ -31,6 +33,7 @@ elif [ "$layer" = r1 ]; then
         python3 sim/export_robot_vectors.py > /dev/null          # synthetic
     fi
 else
+    case "$layer" in g2|g3) VEC_WEIGHTS="${VEC_WEIGHTS:-golden/dvsgesture_weights_int8.npz}"; VEC_TRACES="${VEC_TRACES:-golden/traces_dvsgesture.npz}" ;; esac
     vec=""; [ -n "${VEC_WEIGHTS:-}" ] && vec="--weights $VEC_WEIGHTS --traces $VEC_TRACES"   # another network's weights + traces (rate sweep)
     python3 sim/export_conv_vectors.py --layer "$layer" $vec > /dev/null   # dense weight hex (shim)
     python3 sim/export_ed_vectors.py --layer "$layer" $vec > /dev/null     # address lists + expected + W_T

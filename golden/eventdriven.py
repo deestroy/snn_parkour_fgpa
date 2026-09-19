@@ -33,6 +33,11 @@ GEOM = {
     "c1": (2, 34, 34, 16, 17, 17, 64, "conv1"),
     "c2": (16, 17, 17, 32, 9, 9, 64, "conv2"),
     "c3": (32, 9, 9, 64, 5, 5, 64, "conv3"),
+    # DVS-Gesture (C0012) at the 2x64x64 geometry; thresholds are the seed-0
+    # network's 2^k and the exporters override them from the weights file
+    "g1": (2, 64, 64, 16, 32, 32, 128, "conv1"),
+    "g2": (16, 32, 32, 32, 16, 16, 128, "conv2"),
+    "g3": (32, 16, 16, 64, 8, 8, 256, "conv3"),
 }
 
 
