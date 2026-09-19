@@ -107,6 +107,16 @@ set_property AUTO_INCREMENTAL_CHECKPOINT 0 [get_runs impl_1]
 set bd [get_files -quiet design_1.bd]
 if {$bd eq ""} { error "design_1.bd not in project" }
 open_bd_design $bd
+# DATASET=1 needs the DVS-Gesture weight-table modules in the project
+# (2026-09-19: "module 'ed_scatter_g1' not found" ten minutes into a run).
+if {$DS == 1} {
+    foreach f {ed_scatter_g1.v conv_layer_p_g1.v} {
+        if {[get_files -quiet *$f] eq ""} {
+            error "$f is not in the project -- Add Sources (no copy) hdl/eventdriven/ed_scatter_g1.v and hdl/dense/conv_layer_p_g1.v from the clone, then rerun"
+        }
+    }
+    say "  DATASET=1 sources present (ed_scatter_g1, conv_layer_p_g1)"
+}
 # The top must be the block design's wrapper. A fresh project (m4_conv2,
 # 2026-09-18) implemented axis_conv_top on its own -- no PS, no clock,
 # "WNS inf", a bitstream of nothing. Create the wrapper if missing and set
