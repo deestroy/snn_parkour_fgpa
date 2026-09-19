@@ -1,4 +1,4 @@
-# Results so far — one page, with provenance (2026-09-19)
+# Results ledger — every measured and simulated number, with provenance (kept current; last revised 2026-09-19)
 
 Every number here is either **measured on silicon** (board), **simulated
 bit-identically against the golden model** (sim), or **trained/evaluated
