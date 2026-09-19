@@ -110,3 +110,51 @@ temperature, bitstream tag and PING build/dataset, N, elapsed, the 15
 readings per run, flags. One `measure/runs/<timestamp>_<label>.json` per
 run from `manual_meter.py`; the session summary table goes in
 `experiments/metering_<date>.md` next to this pre-registration.
+
+## 7. Revision 2026-09-19 15:00 -- the tool estimates arrived (before any measurement)
+
+The board session committed routed power reports for seven builds
+(experiments/power_estimates/README.md, commit 732905e; report_power,
+default vectorless, same setting for all). Fabric = clocks + logic +
+signals + BRAM (DSP 0); PS7 1.533 W in every build:
+
+| build | fabric mW | total W | tool energy per inference (fabric x engine latency) |
+|---|---|---|---|
+| ED K=4 N=1 (C0044) | 48 | 1.724 | 33.0 uJ |
+| ED K=4 x8 | 241 (30.1 per engine) | 1.933 | 20.7 uJ per engine |
+| dense P=4 x8 | 501 (62.6 per engine) | 2.196 | 65.7 uJ per engine |
+| ED K=8 | 54 | 1.731 | 31.1 uJ |
+| dense P=8 | 83 | 1.761 | 44.8 uJ |
+| ED K=4 DVS-Gesture | 72 | 1.750 | 214 uJ |
+| dense P=4 DVS-Gesture | 135 | 1.814 | ~499 uJ (latency predicted 3,697 us) |
+| dense P=4 N=1 N-MNIST | (rebuilding for its report) | | |
+
+What this changes and what it does not:
+- **P1 revised numerically, not in kind:** single ED engine ~48 mW ->
+  ~4.7 mA at 12 V / 0.85; ED x8 ~24 mA; dense x8 ~49 mA. Shunt + mV
+  still required for N=1; both x8 builds resolvable by any bench meter.
+- **P2 stands as MY prediction, and the tool disagrees with it.** The
+  tool says the dense engine burns ~2.1x the ED engine's fabric power
+  (62.6 vs 30.1 mW per engine) on top of being 1.52x slower, i.e. a
+  tool-predicted energy ratio of **3.2x** in ED's favour at K=P=4. My
+  P2 (1.1-1.4x) assumed the opposite sign of the per-cycle difference.
+  Both are now on record before the meter; the meter adjudicates. If
+  the measured ratio is >= 2x, the tool's ranking is right and my
+  physical intuition about the ED engine's state switching was wrong;
+  if it is 1.0-1.5x, the tool over-estimates dense switching (its
+  vectorless activity cannot see that the dense datapath's inputs are
+  mostly zeros).
+- **New P7 (parallelism crossover in energy):** the tool predicts ED
+  STILL wins energy at K=P=8 (31.1 vs 44.8 uJ, 1.44x) although it loses
+  latency there (0.939x). So the tool places the energy crossover
+  beyond K=P=8, the latency crossover between 4 and 8. Measuring
+  builds 7-8 tests this directly; if the measured K=P=8 energy ratio is
+  below 1.0x, the crossovers coincide.
+- **New P8 (DVS-Gesture):** tool ratio 2.3x in ED's favour on the mean;
+  per clip, the two densest clips lose to dense in latency by 1.27x /
+  1.11x, so under the tool's 2.1x per-cycle advantage ED would still
+  win ENERGY on every clip. My P4 (energy crossover at the same clips
+  as latency) therefore contradicts the tool as well; recorded as such.
+- P3, P5, P6 unchanged. The x8 fabric numbers also give the fixed
+  wrapper/DMA share: 48 - 30 = ~18 mW of the N=1 ED estimate is not the
+  engine; this is why per-engine energy is quoted from the x8 delta.

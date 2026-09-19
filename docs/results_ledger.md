@@ -93,8 +93,11 @@ geometry: in progress (2026-09-19). Seeds 1-2 for both sweeps: running.
 
 ## 6. What is NOT here, and why
 
-- **Energy.** Nothing above is a joule. The tool estimate exists (ED K=4
-  fabric ~49 mW), the meter does not yet; C0001-C0003 hold.
+- **Energy.** Nothing above is a joule. Tool estimates now exist for seven
+  builds (experiments/power_estimates/: fabric 48 mW ED K=4, 62.6 mW per
+  dense P=4 engine from the x8 build, 135 mW dense DVS-Gesture ...) and
+  predict ED 3.2x in energy at K=P=4; the meter does not yet exist;
+  C0001-C0003 hold. Pre-registered: measure/metering_prereg_2026-09-19.md.
 - **Seeds** on the sweeps and on DVS-Gesture's T points (running / one seed).
 - **A student on the real stack** (training); the MuJoCo recreation's
   58k student is the placeholder for weights.
