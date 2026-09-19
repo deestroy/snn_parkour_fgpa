@@ -1,147 +1,77 @@
 # snn_parkour_fpga
 
-Measuring, rather than estimating, the energy of event-driven vs dense spiking
-neural network hardware on an FPGA. See the project brief for the full description
-and `docs/decisions.md` for the running log of design decisions.
+Spiking-neural-network hardware on a ZedBoard (Zynq XC7Z020), in two
+datapaths behind one wrapper: **dense** (every neuron and synapse every
+timestep) and **event-driven** (a spike queue and scatter-accumulate that
+touch only what fired). The thesis question is where the event-driven
+design stops winning as activity rises, answered with **energy measured at
+the board's power input**, not a synthesis-tool estimate. The workload is a
+learned quadruped perception network (ES-Parkour, Zhang et al., ICME 2025);
+N-MNIST and DVS-Gesture are the benchmarks.
 
-## Next steps (as of 2026-08-19)
+## How it is built
 
-Written down so nobody has to remember them. Ordered by critical path.
+1. **Golden model first.** A Python fixed-point reference (`golden/`) is the
+   source of truth; every hardware module must be **bit-identical** to it,
+   never merely close. Trained networks (`train/`, snnTorch) are quantised
+   to int8 weights with power-of-two scales and int16 membranes, and the
+   golden model emits the traces the testbenches check against.
+2. **One engine at a time, verified in simulation** (`hdl/`, `sim/`): the LIF
+   neuron, the dense conv engine (P lanes), the event-driven conv engine
+   (K banks), the FC layer, and the AXIS wrapper that feeds both engines
+   identically. `bash check_all.sh` runs every check (30, ~15 min).
+3. **Onto the board** with the exact configuration that was simulated: baked
+   weights, bare-metal server over UART/DMA, a pre-write checklist on the
+   exported hardware description, and a pre-registered prediction before
+   every silicon pass (`experiments/*prereg*.md`).
+4. **Sweep the axes**: parallelism (K = P), activity (data, encoding, and
+   networks trained to target firing rates), timesteps T, and the dataset.
+5. **Measure energy** (M5, meter pending) and put the learned robot
+   network on the same hardware (year two: `robot/isaac/`).
 
-1. **Power meter on the 12 V input -> first measured energy-per-inference.**
-   Professor's suggestion: try a lab DMM (>= 1 mA resolution, ideally 0.1 mA)
-   before buying the INA226. Procedure: board booted, engine idle -> read
-   current; `python3 host/uart_client.py --burst-only --burst 12000` gives an
-   18 s window at ~100 % engine duty -> read current; idle again after.
-   delta_W x 18.17 s / 12000 = uJ per inference. If the DMM cannot resolve
-   the delta, that fact justifies the INA226 (list in
-   docs/m5_power_meter_shopping.md). Report next to Vivado's estimate
-   (1.73 W total on-chip for the ED build).
-2. **Dense engine back on the board (ENGINE=0 rebuild)** with the same
-   BURST command, for its latency and energy numbers, and to replace the
-   "provisional" dense row in the resource table (docs/decisions.md,
-   2026-08-18 resource section) with the exact post-implementation
-   utilisation. Then M7's sweep has both engines behind one wrapper.
+Design decisions and their reasons are logged in `docs/decisions.md`; the
+standing review of what could be wrong is `docs/corrections.md`; every
+number with its provenance is in **`docs/results_ledger.md`**.
 
-Later, not now: sweep K (banks: 1/2/4/8/16 — K=4 was the first banking
-step, not an optimum; latency known from simulation, energy and area per K
-from the board once the meter exists — see D0017 note 2026-08-19);
-word-parallel pack/unpack in the AXIS wrapper (~30 % of the
-ED latency figure, shared by both engines); pipelined sweep (4 -> ~2
-cycles/neuron);  rename the GitHub repo to
-snn_parkour_fpga; delete ~/git_projects/snn_parkour_fpga_backup_pre_rewrite.
+## Major results so far (2026-09-19)
+
+All latencies are engine-only at 100 MHz, measured on silicon unless marked
+sim, and every silicon or simulated run is bit-identical to the golden model.
+
+| result | value | where |
+|---|---|---|
+| Matched parallelism, N-MNIST C1, silicon | **ED K=4 beats dense P=4 by 1.52x** (688.5 vs 1048.9 us); at K=P=8 **dense wins** (540.3 vs 575.5 us) | `experiments/board_*.md` |
+| Parallelism crossover | K = P ~ 6.6 (N-MNIST), 5.8 (DVS-Gesture); cycle model `2NT + 5.0 s + 71.7 s/K` vs dense `88 N/P`, within 0.3 % of simulation and ~1 % of silicon | `experiments/latency_sim/`, `experiments/dvsgesture/latency_sim/` |
+| Activity crossover on real data (sim) | DVS-Gesture at K=P=4: ED wins on clips below ~30 % input density and loses on the two densest; **2.88 ms mean vs 3.60 ms dense, but 4.57 ms on the worst clip** | `experiments/dvsgesture/latency_sim/` |
+| DVS-Gesture on silicon | ED K=4: 8/8 bit-identical, 2,970.8 us mean, board = sim + 92.9 us on every clip; dense build next | `experiments/dvsgesture/board_ed_k4_20260919.md` |
+| Activity by training (sim) | N-MNIST networks at 2-30 % conv rates, accuracy flat to 16 %; ED over dense on C2/C3 from 10-14x at 2 % to 1.6-1.9x at 30 %, crossovers ~48 % / ~57 % | `experiments/rate_sweep/` |
+| Accuracy | N-MNIST 96.6-97.0 % (3 seeds), DVS-Gesture 63-69 % (3 seeds, T=4, 2x64x64); quantisation drop within noise | `experiments/dvsgesture/` |
+| Hardware limit found | the int16 FC membrane overflows on DVS-Gesture at T=16, at T=8 for one seed in three, and at 34 % activity | C0046 |
+| Year two on the paper's stack | teacher trained in IsaacGym (95-99 % success per terrain); the 58k spiking encoder distils inside extreme-parkour's own loop (running); on 64 real robot event frames ED K=4 is 1.94x faster than dense on the mean, 1.43x on the worst frame | `robot/isaac/`, `experiments/p1_distill/` |
+| Verification result | the second benchmark exposed a sweep bug invisible to N-MNIST (neuron 0's current never zeroed, C0044): fixed, guarded in the ladder | `docs/corrections.md` |
+| Energy | **not yet measured** (meter pending); tool estimate only | `docs/results_ledger.md` §6 |
 
 ## Layout
 
 | Path | Contents |
 |---|---|
-| `golden/` | Python fixed-point reference model — the source of truth |
-| `train/` | snnTorch training, quantisation, firing-rate logging |
-| `hdl/` | HDL sources (`common/`, `dense/`, `eventdriven/`) |
-| `sim/` | Testbenches and simulation scripts |
-| `host/` | board<->Mac link: bare-metal C servers (`board/`), Mac-side JTAG loader + UART tools (`mac/`), framed protocol + client + golden mock |
-| `measure/` | INA226 driver, idle-run-idle protocol, report (M5) |
-| `experiments/` | Result data, plots, notebooks |
-| `docs/` | Notes, decisions, thesis material |
+| `golden/` | fixed-point reference model, the Python event-driven engine |
+| `train/` | training, quantisation, golden check, dataset packing |
+| `hdl/` | Verilog: `common/` (LIF), `dense/` (P-lane engine, AXIS wrapper, top), `eventdriven/` (scatter, K-bank engine) |
+| `sim/` | testbenches, vector exporters, bench runners, lint |
+| `host/` | bare-metal board server, Mac-side client and card tools, Vivado build script |
+| `measure/` | meter protocol and report (M5) |
+| `robot/` | year two: IsaacGym port of the event simulator, encoder, distillation, evaluation |
+| `experiments/` | every result: board records, pre-registrations, sweeps, logs |
+| `docs/` | decisions, corrections, results ledger, Vivado session notes, environment |
 
-## Environment (verified 2026-08-15)
+## Running the checks
 
-- Python 3.9.0, `torch` 2.2.2, `snntorch` 1.0.0, `tonic` 1.6.0,
-  `numpy` 1.23.5, `matplotlib` 3.4.1
-- `iverilog` and `verilator` available locally — HDL can be simulated on this
-  machine without Vivado
-- Vivado/Vitis 2024.1 live on a Windows machine reached over RDP; the
-  **ZedBoard is plugged into this Mac** and is programmed over its Digilent
-  JTAG with OpenOCD (`host/mac/program.sh`) and observed over USB UART. Build
-  outputs travel Windows -> Mac via Google Drive (RDP clipboard corrupts
-  binaries; RDP folder redirection is blocked by the school).
-- Board is a **ZedBoard (rev C)**, not the PYNQ-Z2 the brief planned for; no
-  PYNQ image exists for it, hence bare metal. **Boot from SD** (BootROM ->
-  FSBL -> app in DDR) is the normal run mode; JTAG from the Mac is for
-  debugging. The block design MUST carry the ZedBoard preset (correct DDR
-  part) and have HP0 enabled — see `docs/decisions.md` D0014/D0015 and
-  `docs/m4_vivado_walkthrough.md`.
-- N-MNIST test split cached in `data/` (396 MB, gitignored). The train split is
-  a separate ~1 GB download: `python3 train/01_nmnist_peek.py --train`
-- This python.org build has no linked CA certificates, so downloads fail with
-  `CERTIFICATE_VERIFY_FAILED`. Scripts fall back to certifi's bundle
-  automatically. Permanent fix, run once:
-  `open "/Applications/Python 3.9/Install Certificates.command"`
-
-## Progress
-
-- [x] **M0** repo skeleton + single-neuron golden model cross-check
-- [x] **M0** N-MNIST loading, input sparsity measured (13.8% non-zero over a random sample; see D0009)
-- [x] **M0** network defined, resource budget reconciled against the project brief
-- [x] **M0** trained on N-MNIST (96.9-97.6%); per-layer rates logged and
-      plotted. Conv layers fire at 6-11%, FC at 30%.
-- [x] **M1** golden model: all-integer network at 96.75% vs 96.60% float
-      (−0.15 pp); membranes fit int16 with 3 bits headroom; HDL reference
-      traces emitted by `train/06_golden_check.py`
-- [x] **M2** one LIF neuron in Verilog, bit-identical to the golden model in
-      simulation (4,060 checks, 0 mismatches; `bash sim/run_lif_tb.sh`).
-      Simulation only — not yet synthesised.
-- [x] **M3** dense conv engine, bit-identical on c1/c2/c3 (1.13M comparisons,
-      0 mismatches; `bash sim/run_conv_tb.sh c1 c2 c3`). Simulation only.
-- [x] **M4** C1 engine on the ZedBoard: **BOARD PASS, 16 samples, 9,280 words bit-identical to the golden model** (2026-08-18). SD boot, bare metal, framed UART to the Mac (`python3 host/uart_client.py`). DDR works (block design needed the ZedBoard preset — D0015).
-- [ ] **M5** power measurement rig — first thesis result
-- [x] **M6** event-driven conv engine (`hdl/eventdriven/`), **bit-identical to the dense engine** on c1/c2/c3 in the same harness (1.13M checks) at **both K=1 and K=4** (`K=4 bash sim/run_ed_tb.sh c1 ed_conv_layer`). Banking measured: scatter 3.45-3.84x faster. Cycle model already shows the crossover: K=1 loses to dense on C2/C3, K=4 wins everywhere. Simulation only — not yet on the board.
-- [ ] **M7** crossover experiment
-- [ ] **M8** robot (year two)
-
-## GPU training (gpu-host)
-
-An AMD Instinct MI210 is reachable at the `gpu-host` SSH host. Setup that
-already exists there — do not reinstall:
-
-- `~/esparkour_venv` — torch 2.10+rocm7.0 with the GPU working, plus snntorch.
-  This venv belongs to the parkour project; **never let pip touch its numpy**
-  (tonic would downgrade it, which is why tonic is not installed there).
-- `~/nmnist_prep_venv` — tonic only, used once to pack the dataset.
-- `~/snn_parkour_fpga` — rsync'd copy of this repo, packed dataset in
-  `data/packed/`.
-
-Sync and train:
-
-```
-rsync -az --exclude data --exclude .git --exclude __pycache__ --exclude 'experiments/*' ./ gpu-host:~/snn_parkour_fpga/
+```bash
+bash check_all.sh
 ```
 
-```
-ssh gpu-host 'cd ~/snn_parkour_fpga && ~/esparkour_venv/bin/python train/03_train.py --epochs 10'
-```
-
-## Checks
-
-Every component ships with something that proves it works. The full set:
-
-```
-python3 train/00_lif_demo.py && python3 train/02_model_check.py   # M0
-python3 train/06_golden_check.py                                   # M1 (full split; --limit is biased, D0009)
-bash sim/run_lif_tb.sh                                             # M2 neuron
-bash sim/run_conv_tb.sh c1 c2 c3 && bash sim/run_fc_tb.sh          # M3 dense engines
-bash sim/run_axis_tb.sh c1                                         # M4 AXIS wrapper
-bash sim/run_ed_tb.sh c1 ed_conv_layer                             # M6 event-driven engine vs golden
-bash sim/run_ed_scatter_tb.sh c1                                   # M6 scatter unit vs Python I-dump
-python3 -c "from golden.eventdriven import verify_event_driven as v; print(v('c1', k=4))"   # M6 python engine
-python3 host/mock_server.py --selftest                             # Stage B host side vs golden mock
-python3 measure/protocol.py --mock                                 # M5 protocol vs mock meter
-```
-
-Board-side (needs the ZedBoard on USB): after an SD boot,
-`python3 host/uart_client.py` is the M4 hardware check (BOARD PASS). JTAG
-alternatives: `bash host/mac/program.sh <bit> <elf>`, `bash host/mac/stage_b.sh`.
-
-## The network
-
-`train/model.py`. Encoder = C1/C2/C3 convs + 2x2 pool + FC to 128, every layer
-LIF. The readout `Linear(128, n_classes)` is training scaffolding and does
-**not** go on the FPGA. Two variants, both verified by `02_model_check.py`:
-
-| | input | params | neurons | on-chip |
-|---|---|---|---|---|
-| N-MNIST (what M0 trains) | 2x34x34 | 56,096 | 8,944 | 72.2 KB (11.8% BRAM) |
-| Target (what the FPGA implements) | 2x48x64 | 121,632 | 21,632 | 161.0 KB (26.3% BRAM) |
-
-The FC layer holds **81%** of the target's weights. Whatever the event-driven
-engine does about the FC layer will dominate the M7 energy result.
+Board-side runs need the ZedBoard on USB after an SD boot:
+`python3 host/uart_client.py` (see `docs/vivado_session_next.md` for the
+build and card-writing procedure). Environment, hosts and the network
+definition: `docs/environment.md`.
