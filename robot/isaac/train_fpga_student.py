@@ -54,6 +54,11 @@ def main():
     log_pth = os.path.join(LEGGED_GYM_ROOT_DIR, "logs", args.proj_name, args.exptid)
     os.makedirs(log_pth, exist_ok=True)
 
+    # their runner calls wandb.log() inside learn_vision; train.py initialises wandb first
+    import wandb
+    wandb.init(project=args.proj_name, name=args.exptid, group=args.exptid[:3],
+               mode="disabled" if args.no_wandb else "online", dir=os.path.join(LEGGED_GYM_ROOT_DIR, "logs"))
+
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     env_cfg.depth.resized = (ours.side, ours.side)           # (W, H): square, the encoder's geometry
     env, env_cfg = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
