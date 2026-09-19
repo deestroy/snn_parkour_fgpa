@@ -3045,3 +3045,56 @@ alike. The three options stand; still none taken, because which one is
 right depends on whether the thesis wants DVS-Gesture at T = 4 (fits
 as built) or a wider sweep (needs the RTL change). C2/C3 benches for
 this sweep wait on the DVS-Gesture-geometry runner cases.
+
+## 2026-09-19 — DVS-Gesture on silicon: ED K=4 passes; dense P=4 fails timing; C0035 rev 3; a weight-provenance near miss
+
+**ED K=4, DATASET=1 (pass 10).** 8/8 clips bit-identical, 1,600 burst
+inferences clean; mean 2,970.8 us, 2,084.6-4,663.9 (spread 2.24x, sim
+2.30x), board = 0.9998 x sim + 93.5 us with residuals under 1 us. The
+cycle model transfers to the second dataset exactly up to a per-pass
+constant; the constant (92.9 us) matched neither pre-registered
+hypothesis (~38 us streaming, ~10 us fixed) and is recorded as
+measured, not explained -- the g1 sim column excludes the wrapper's
+input streaming, so the bases differ from the N-MNIST comparison.
+Two densest clips sit above the dense prediction: the within-dataset
+activity crossover is visible on the ED side. Record:
+experiments/dvsgesture/board_ed_k4_20260919.md.
+
+**The first DATASET=1 boot image was refused by the client** ("server
+is a DATASET=0 build ... nothing sent"): a renamed copy of the N-MNIST
+ELF had been packed as the DVS-Gesture server because the Vitis
+Symbols setting had not reached that build. Fix: the DVS-Gesture
+server is its own Vitis component (host/board/conv_server_g1.c pins
+DATASET=1 in code and includes the one server source); the build
+script packs it by path; host/vivado/make_boot.tcl remakes a boot
+image for an existing build folder. The PING dataset word, added one
+day earlier, is what caught it.
+
+**Dense P=4, DATASET=1: WNS -0.696 at 100 MHz.** Worst path: bank 2's
+registered membrane read -> lif_update -> obits_reg[2474].D, 10.4 ns
+of which 7.3 ns routing: the per-bank output bit file is 4,096 flops
+at 16,384 neurons (1,156 on N-MNIST, where the same path closed at
++0.30). Judgement call, options laid out (RTL fix / lower fabric clock
+for both DATASET=1 builds / P=8); user chose the RTL fix.
+
+**C0035 rev 3.** conv_layer_p registers the obits write (enable,
+address, clear flag, spike bit) one cycle behind vmem/smem; the LIF
+path now ends at a local flop and the fan-out to the bit file is its
+own cycle. Safe because the only reader is the word port, read from
+word 0 after `done`, reaching the last-written word WORDS_OUT-1 cycles
+later; cycle counts unchanged. Ladder 30/30 (c1/r1/g1, baked and
+unbaked, P=1/P=4, N-MNIST and DVS-Gesture). Rebuild of dense P=4 g1
+pending on the VM.
+
+**Weight-provenance near miss.** Regenerating the baked variants read
+sim/vectors/conv_c1_w.hex -- an UNTRACKED scratch file that another
+session's rate-sweep exporter had overwritten with a different
+network's conv1 the day before. The regenerated conv_layer_p_c1.v
+differed from the committed (silicon-validated) table in 576 lines.
+Caught by the diff before commit; the committed table was shown equal
+to golden/m1_weights_int8.npz (tracked, 2026-08-15) entry for entry.
+Fix: sim/gen_weight_vh.py now reads the tracked npz for c1 and g1 (r1
+stays checkpoint-derived, untouched), and check_all.sh gained
+sim/check_baked_weights.py: every baked table must equal its tracked
+source (31 checks). Rule: baked RTL derives from tracked inputs only;
+sim/vectors is scratch shared between sessions and proves nothing.
