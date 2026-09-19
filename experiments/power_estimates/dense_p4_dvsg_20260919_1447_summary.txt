@@ -1,0 +1,6 @@
+tag        dense_p4_dvsg_20260919_1447
+params     ENGINE=0 ED_K=4 DENSE_P=4 BAKED=1 N_ENGINES=1
+timing     WNS=1.091015 TNS=0.000000 WHS=0.045005
+bitstream  C:/Users/dhritiaravind/m4_conv2/m4_conv2.runs/impl_1/design_1_wrapper.bit
+xsa        C:/Users/dhritiaravind/m4_conv2/builds/dense_p4_dvsg_20260919_1447/design_1_wrapper.xsa
+built      Sat Sep 19 14:53:26 -0400 2026

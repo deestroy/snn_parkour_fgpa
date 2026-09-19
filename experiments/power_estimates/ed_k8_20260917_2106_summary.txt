@@ -1,0 +1,6 @@
+tag        ed_k8_20260917_2106
+params     ENGINE=1 ED_K=8 DENSE_P=4 BAKED=1 N_ENGINES=1
+timing     WNS=0.331689 TNS=0.000000 WHS=0.024985
+bitstream  C:/Users/dhritiaravind/m4_conv/m4_conv.runs/impl_1/design_1_wrapper.bit
+xsa        C:/Users/dhritiaravind/m4_conv/builds/ed_k8_20260917_2106/design_1_wrapper.xsa
+built      Thu Sep 17 21:07:02 -0400 2026
