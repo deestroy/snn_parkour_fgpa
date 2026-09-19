@@ -39,6 +39,21 @@ Files: `train_rate<r>.log`, `quantise_rate<r>.log`, `golden_rate<r>.log`,
 (committed, 60 KB each); `traces_rate<r>.npz` local + on the AMD box
 (regenerable from the checkpoints there, `runs` under experiments/rate_sweep).
 
+## Seeds (2026-09-19, seeds 1-2 added on the MI210; `*_seed1*`, `*_seed2*`)
+
+| target | float test acc, seeds 0 / 1 / 2 | mean +- sd |
+|---|---|---|
+| 0.02 | 96.9 / 97.3 / 97.2 | **97.1** +- 0.2 |
+| 0.04 | 97.2 / 97.5 / 97.2 | **97.3** +- 0.2 |
+| 0.08 | 96.9 / 97.3 / 97.5 | **97.2** +- 0.3 |
+| 0.16 | 96.8 / 96.5 / 96.9 | **96.7** +- 0.2 |
+| 0.30 | 95.6 / 94.6 / 95.6 | **95.3** +- 0.6 |
+
+With three seeds the shape is confirmed: **flat from 2 % to 8 % (97.1-97.3 %),
+-0.5 pp at 16 %, -1.9 pp at 30 %**; the seed sd is 0.2-0.6 pp, so the 30 %
+drop is real and the 16 % one is at the edge. All 15 runs quantise and
+pass golden (seed-1/2 logs alongside seed 0's).
+
 ## Engine cycles vs activity (both engines, K = P = 4, 16 check samples)
 
 All 18 runs bit-identical to the golden model (6 networks x 3 layers, ED

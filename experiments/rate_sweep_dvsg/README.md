@@ -16,6 +16,26 @@ the penalty lands 0.01-0.04 ABOVE target on this dataset at lambda 100
 | 0.16 | .206 / .194 / .190 / .366 | 65.53 % | 65.53 % | 65.15 % | -0.38 pp | 6/7/8/8 | fc 16 bits (62 %) | pass |
 | 0.30 | .342 / .376 / .354 / .369 | 66.29 % | 65.91 % | 66.67 % | +0.38 pp | 6/8/8/8 | **fc 17 bits: -49,002, DOES NOT FIT** | FAIL (membrane) |
 
+## Seeds (2026-09-19, seeds 1-2 added; `*_seed1*`, `*_seed2*`)
+
+| target | float test acc, seeds 0 / 1 / 2 | mean +- sd | golden integer mean | fc |V|max as % of int16, per seed |
+|---|---|---|---|---|
+| 0.02 | 63.3 / 63.6 / 60.6 | **62.5** +- 1.7 | 60.4 | 22% / 19% / 28% |
+| 0.04 | 64.4 / 63.3 / 58.7 | **62.1** +- 3.0 | 62.8 | 24% / 23% / 30% |
+| 0.08 | 65.5 / 66.7 / 63.3 | **65.2** +- 1.7 | 63.1 | 38% / 39% / 50% |
+| 0.16 | 65.5 / 64.0 / 67.0 | **65.5** +- 1.5 | 64.9 | 62% / 85% / 73% |
+| 0.30 | 66.3 / 63.6 / 65.9 | **65.3** +- 1.5 | 65.4 | 150% / 138% / 186% |
+
+Three seeds sharpen the one-seed reading into a step, not a slope: **the
+2-5 % networks average 62.3 %, the 10-35 % networks 65.3 %** (sd 1.4-3.0 pp
+per point, 264 test samples), i.e. the low-activity regime costs ~3 pp
+on DVS-Gesture, and above ~10 % activity buys nothing more. The int16
+verdict is now unambiguous at the top: **the 34 % network overflows the fc
+membrane on all three seeds** (138-186 % of int16), while the 21 %
+networks use 62-85 % -- the usable band as built is roughly 5-20 %
+activity at T = 4. Golden gate failures by accuracy on 264 samples
+remain frequent (6 of 15 runs) and are noise, not a bias.
+
 ## Reading it
 
 - **Unlike N-MNIST, DVS-Gesture uses its activity a little.** Float
