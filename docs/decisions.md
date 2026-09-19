@@ -3028,3 +3028,20 @@ waiter does not stop its remote shell.
 **Open decision (the user's):** launch the FPGA-student distillation
 now (10k iterations, ~39 h), with the stock student to follow (another
 ~39 h); both fit before the GPU access ends on 2026-10-01.
+
+## 2026-09-19 — DVS-Gesture activity sweep: the second benchmark is not free
+
+Five DVS-Gesture networks trained to target rates (achieved 3 / 5 / 10 /
+21 / 34 %, lambda 100 lands high here), `experiments/rate_sweep_dvsg/`.
+Float accuracy rises with activity (63.3 -> 66.3 %) where N-MNIST's was
+flat: on the harder dataset the event-driven engine's easy regime costs
+accuracy, though the 3 pp span is inside the seed spread and needs
+seeds before it is quoted. Quantisation noise is 5x N-MNIST's (264 vs
+10,000 samples): two of five points fail the ~1 pp gate, one by
+accuracy, one because **the 34 % network's fc membrane reaches -49,002
+at T = 4** — the int16 fc budget is the binding constraint on this
+dataset, hit by more timesteps (T = 8 seed 1, T = 16) or more activity
+alike. The three options stand; still none taken, because which one is
+right depends on whether the thesis wants DVS-Gesture at T = 4 (fits
+as built) or a wider sweep (needs the RTL change). C2/C3 benches for
+this sweep wait on the DVS-Gesture-geometry runner cases.
