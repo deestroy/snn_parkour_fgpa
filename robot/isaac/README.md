@@ -80,6 +80,25 @@ The paper's numbers (Fig. 5: gap 45 %, step 60 %, hurdle 71 %, parkour
 the like-for-like comparison is teacher vs stock student vs FPGA student
 under THIS protocol on THIS box.
 
+## GIF recorder (2026-09-19)
+
+`record_gifs.py` writes one GIF per parkour terrain of the robot
+COMPLETING the course: a follow camera per environment (headless
+camera sensors, read back each control step), episodes that fall or
+time out discarded, the first successful episode per terrain saved at
+25 fps (`<policy>_<terrain>.gif`). Same three policies as the evaluator.
+Status: compiles; its IsaacGym run is queued behind the distillation
+(a second PhysX simulation cannot be created beside the 9 GB the
+distillation holds -- the same failure the first smoke had).
+
+## Distillation run (launched 2026-09-19 13:10)
+
+`200-00-fpga`: 10,000 iterations, 192 camera envs, repeat window,
+binarised frames, resumed from the teacher; 13.5 s per iteration, ETA
+~37.5 h. `~/post_distill.sh` on the box waits for it and then records
+teacher and student GIFs, evaluates the student under the shared
+protocol, and records student-driven event frames.
+
 ## Choices made in the port (judgement calls, flagged)
 
 - **Window.** The recreation's student repeats ONE event frame over the
