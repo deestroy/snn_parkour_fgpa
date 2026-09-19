@@ -63,4 +63,10 @@ cost it stays ~10 us. The dense build's flat number decides which.
 
 ## Outcome
 
-(to be filled in after the passes)
+ED K=4 (2026-09-19, 14:00; experiments/dvsgesture/board_ed_k4_20260919.md):
+8/8 bit-identical; mean 2,970.8 us, 2,084.6-4,663.9, spread 2.24x (pred. 2.30x),
+clip order as predicted; ED below the dense prediction on 6 of 8 — all held.
+Offset: **+92.9 us, constant to +-0.8 us** — NEITHER hypothesis held (streaming
+~38 us, fixed ~10 us). Recorded as measured; the g1 sim column excludes the
+wrapper's input streaming, unlike the N-MNIST comparison, so the bases differ.
+Dense P=4: pending (Build B).
