@@ -94,6 +94,10 @@ Predictions on record (cycle model, 100 MHz, engine-only):
   cycle model's K-independent floor (45.2k) is wrong and the crossover
   analysis is retracted.
 
+## DVS-Gesture pair DONE 2026-09-19 — both on silicon, verdict ED 1.248x / 6 of 8 (records in experiments/dvsgesture/board_*_20260919.md).
+## Dense P=4 needed C0035 rev 3 (registered obits write) to close: rev 2 failed at WNS -0.696, rev 3 closed at +1.091.
+## Queued: dense P=4 N=1 N-MNIST rebuild (rev 3 validation + power estimate) -- set ENGINE 0; set ED_K 4; set DENSE_P 4; source ...
+
 ## DVS-Gesture pair — the second benchmark on silicon (ready 2026-09-18, DATASET=1)
 
 Why: on DVS-Gesture C1 the simulated matched-parallelism verdict at

@@ -3098,3 +3098,32 @@ stays checkpoint-derived, untouched), and check_all.sh gained
 sim/check_baked_weights.py: every baked table must equal its tracked
 source (31 checks). Rule: baked RTL derives from tracked inputs only;
 sim/vectors is scratch shared between sessions and proves nothing.
+
+## 2026-09-19 (later) — DVS-Gesture dense P=4 on silicon (pass 11): the within-dataset crossover is measured; rev 3 is on silicon
+
+**Result.** dense_p4_dvsg_20260919_1447 (rev 3, WNS +1.091): 8/8
+bit-identical, **3,706.5 us on every clip**, offset +102.0 us over
+sim. With ED K=4's 2,970.8 us mean: **ED 1.248x at the mean, 6 of 8
+clips, losing the two densest** -- the pre-registered verdict, exactly.
+On one dataset at one matched parallelism the sign of the event-driven
+advantage flips with input density between clip 4 and clip 5. This is
+the second-dataset half of the M7 latency result; with N-MNIST's
+K = P crossover it gives both axes on hardware. Record:
+experiments/dvsgesture/board_dense_p4_20260919.md.
+
+**Rev 3 on silicon.** First bitstream with the registered bit-file
+write: bit-identical, and WNS went from -0.696 (rev 2) to +1.091 on
+the same design. The queued dense P=4 N=1 N-MNIST rebuild (for its
+power estimate) will be rev 3's N-MNIST validation (expect 1,048.9 us).
+
+**Offsets.** Four measured: dense 8.3 / 102.0 us, ED 10.7 / 92.9 us
+(N-MNIST 872 words / DVS-Gesture 3,072 words). Grows ~12x for 3.5x
+the words; not modelled yet (wrapper-inclusive g1 cycle count and a
+server-side DMA timestamp would split it). Verdicts do not depend on
+the split.
+
+**Power estimates.** experiments/power_estimates/ (732905e): every
+silicon build's report_power (default vectorless), the thesis estimate
+column; fabric 48 mW (ED K=4 N=1) to 501 mW (dense P=4 x8), PS7 1.533 W
+throughout. The sim session folded them into the metering
+pre-registration as the tool's prediction.
