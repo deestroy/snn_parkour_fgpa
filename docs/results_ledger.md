@@ -58,7 +58,14 @@ validated to 0.3 % per sample on a second dataset.
   pending the dense P=4 build. WNS +0.190, server build 5. The PING
   DATASET check rejected a mis-built image first.
   `experiments/dvsgesture/board_ed_k4_20260919.md`.
-- Dense P=4 DATASET=1 build: next on the Vivado list.
+- **Dense P=4 DATASET=1 on silicon (board, 2026-09-19, parallel session):**
+  8/8 bit-identical, **3,706.5 us on every clip** (rev 3 engine, WNS
+  +1.091). Against ED K=4's 2,970.8 us mean: **ED 1.248x at the mean,
+  wins 6 of 8 clips, loses clips 1 and 5** -- the pre-registered per-clip
+  activity crossover, on hardware. Board-minus-sim offsets now all
+  measured: dense 8.3 / 102.0 us, ED 10.7 / 92.9 us (N-MNIST /
+  DVS-Gesture); recorded, not modelled.
+  `experiments/dvsgesture/board_dense_p4_20260919.md`.
 
 ## 4. Activity axis by training (gpu + sim), K = P = 4
 
@@ -104,7 +111,7 @@ fitted crossovers ~43 % / ~48 %; per-spike constants match N-MNIST's
 - **Seeds** on the sweeps and on DVS-Gesture's T points (running / one seed).
 - **A student on the real stack** (training); the MuJoCo recreation's
   58k student is the placeholder for weights.
-- **Board runs beyond N-MNIST C1 and DVS-Gesture ED K=4** (the DVS-Gesture dense P=4 build is next).
+- **Board runs beyond C1** on either dataset (both DVS-Gesture builds are now on silicon).
 
 ## Verification state
 
