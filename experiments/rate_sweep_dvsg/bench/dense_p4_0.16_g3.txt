@@ -1,1 +1,1 @@
-    raise KeyError("%s is not a file in the archive" % key)
+TB_PASS 786432 comparisons bit-identical over 16 samples x 4 timesteps, 1196028 engine cycles/sample (P=4)

@@ -59,7 +59,49 @@ remain frequent (6 of 15 runs) and are noise, not a bias.
 - Firing rates are per timestep over the 64x64 maps; the fc rate barely
   moves (0.30-0.37) because it is not penalised.
 
-Engine benches: C1's input is the data (unchanged across the sweep); the
-C2/C3 benches at the DVS-Gesture geometry are not yet wired into the
-runners (item 3 of the 2026-09-19 list). Weights `dvsg_rate<r>_int8.npz`
+## Engine cycles vs activity on C2 and C3 (K = P = 4, 16 check samples, 2026-09-19)
+
+C1's input is the data (unchanged across the sweep). C2/C3 at the
+DVS-Gesture geometry (`g2`, `g3` in both runners; trace-driven like the
+N-MNIST c2/c3). All 12 sweep runs + 4 baseline runs bit-identical to the
+golden model. Per-sample ED cycle files `bench/ed_k4_<net>_<layer>.txt`.
+
+### G2 (DVS-Gesture C2: 16384 input bits, 8,192 neurons; dense P=4 constant 1,212,412 cycles/sample)
+
+| network | input rate (bench) | input spikes / sample | ED K=4 mean | min | max | spread | dense / ED |
+|---|---|---|---|---|---|---|---|
+| seed-0 baseline | 0.068 | 4,480 | 245,522 | 167,724 | 351,361 | 2.09x | 4.94x |
+| target 0.02 | 0.031 | 1,999 | 145,136 | 120,597 | 165,740 | 1.37x | 8.35x |
+| target 0.04 | 0.046 | 3,033 | 186,961 | 141,670 | 236,791 | 1.67x | 6.48x |
+| target 0.08 | 0.095 | 6,252 | 317,397 | 186,454 | 504,829 | 2.71x | 3.82x |
+| target 0.16 | 0.193 | 12,649 | 576,345 | 265,327 | 1,018,067 | 3.84x | 2.10x |
+| target 0.30 | 0.320 | 20,980 | 912,405 | 400,269 | 1,611,806 | 4.03x | 1.33x |
+
+Fit `ED = 64,464 + 40.4 x spikes` (max residual 0.1 %; sweep floor 2 x 8,192 x 4 = 65,536); **crossover at 28,393 input spikes per sample = 43 % input rate** (beyond the swept range; extrapolated)
+
+### G3 (DVS-Gesture C3: 8192 input bits, 4,096 neurons; dense P=4 constant 1,196,028 cycles/sample)
+
+| network | input rate (bench) | input spikes / sample | ED K=4 mean | min | max | spread | dense / ED |
+|---|---|---|---|---|---|---|---|
+| seed-0 baseline | 0.134 | 4,407 | 358,813 | 205,188 | 574,974 | 2.80x | 3.33x |
+| target 0.02 | 0.032 | 1,040 | 109,021 | 79,219 | 144,188 | 1.82x | 10.97x |
+| target 0.04 | 0.048 | 1,564 | 147,954 | 105,213 | 204,457 | 1.94x | 8.08x |
+| target 0.08 | 0.092 | 3,018 | 255,481 | 154,885 | 390,649 | 2.52x | 4.68x |
+| target 0.16 | 0.181 | 5,937 | 471,421 | 267,530 | 746,590 | 2.79x | 2.54x |
+| target 0.30 | 0.349 | 11,426 | 877,602 | 483,723 | 1,414,455 | 2.92x | 1.36x |
+
+Fit `ED = 32,222 + 74.0 x spikes` (max residual 0.2 %; sweep floor 2 x 4,096 x 4 = 32,768); **crossover at 15,727 input spikes per sample = 48 % input rate** (beyond the swept range; extrapolated)
+
+Reading: the same shape as N-MNIST, one geometry up. Dense P=4 pays
+1,212,412 / 1,196,028 cycles per sample on C2 / C3 (144 / 288 taps per
+neuron), the ED engine pays per spike, so the advantage runs from 8.4x /
+11.0x at ~3 % activity to 1.33x / 1.36x at 32-35 %, with fitted
+crossovers at ~43 % (C2) and ~48 % (C3) input activity -- beyond every
+network in the sweep, though closer than N-MNIST's 48 % / 57 % because
+DVS-Gesture's per-clip spread is wider. The per-spike constants transfer
+across datasets: 40.4 vs 41.0 cycles per spike on C2 and 74.0 vs 76.4 on
+C3 (N-MNIST fits), intercepts on the sweep floor within 2 %. The
+per-sample spread grows with activity (up to 4.0x at 32 %): the deadline
+reading is worse here than the mean reading, as on C1. The int16 fc
+overflow at 34 % (above) bites before the ED engine loses a conv layer. Weights `dvsg_rate<r>_int8.npz`
 committed; traces local + on the AMD box (checkpoints there too).

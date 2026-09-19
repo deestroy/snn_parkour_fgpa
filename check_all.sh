@@ -25,6 +25,8 @@ run "C0029 P-wide dense engine, P=4 (fair baseline)" env P=4 bash sim/run_conv_p
 run "M6 AXIS wrapper, ED K=4 (BAKED, synth path)" env BW=1 ENGINE=1 K=4 bash sim/run_axis_tb.sh c1
 run "C0012 AXIS DVS-Gesture, ED K=4 (BAKED, DATASET=1)" env BW=1 ENGINE=1 K=4 bash sim/run_axis_tb.sh g1
 run "C0012 AXIS DVS-Gesture, dense P=4 (BAKED, DATASET=1)" env BW=1 DP=4 bash sim/run_axis_tb.sh g1
+run "C0012 ED engine, DVS-Gesture C2 (g2) vs golden, K=4" env K=4 bash sim/run_ed_tb.sh g2 ed_conv_layer
+run "C0012 ED engine, DVS-Gesture C3 (g3) vs golden, K=4" env K=4 bash sim/run_ed_tb.sh g3 ed_conv_layer
 run "M6 event-driven engine vs golden, K=1"   bash sim/run_ed_tb.sh c1 ed_conv_layer
 run "M6 event-driven engine vs golden, K=4"   env K=4 bash sim/run_ed_tb.sh c1 ed_conv_layer
 run "C0044 ED engine, r1 corner-activity set, K=4" env K=4 bash sim/run_ed_tb.sh r1 ed_conv_layer

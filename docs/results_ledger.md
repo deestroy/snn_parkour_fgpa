@@ -71,10 +71,13 @@ accuracy flat 96.8-97.2 % to 16 %, 95.6 % at 30 %; all golden-clean.
 | C2 | 10.0x | 1.60x | ~48 % |
 | C3 | 14.1x | 1.92x | ~57 % |
 
-DVS-Gesture (`experiments/rate_sweep_dvsg/`): accuracy RISES with
-activity (63.3 -> 66.3 % float, one seed, inside the seed spread); the
-34 % network overflows int16 in fc at T = 4. C2/C3 benches at this
-geometry: in progress (2026-09-19). Seeds 1-2 for both sweeps: running.
+DVS-Gesture (`experiments/rate_sweep_dvsg/`, 3 seeds): a 3 pp accuracy
+step between the 2-5 % and 10-35 % regimes; the 34 % network overflows
+int16 in fc at T = 4 on every seed. C2 / C3 benches (12/12 bit-identical):
+ED over dense 8.4x / 11.0x at 3 % activity, 1.33x / 1.36x at 32-35 %,
+fitted crossovers ~43 % / ~48 %; per-spike constants match N-MNIST's
+(40.4 vs 41.0, 74.0 vs 76.4 cycles). N-MNIST seeds: accuracy flat 2-8 %,
+-0.5 / -1.9 pp at 16 / 30 % (sd 0.2-0.6).
 
 ## 5. Year two on the paper's own stack (gpu; `robot/isaac/`, `experiments/p1_distill/`)
 
