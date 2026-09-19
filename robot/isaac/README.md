@@ -37,8 +37,27 @@ plus `i1_thresh.txt`, and the bench runners (`run_ed_tb.sh i1`,
 `run_conv_p_tb.sh i1`, env `I1_FRAMES` / `I1_CKPT`) read the threshold
 from that file. The export path was proven end to end on a fake recorder
 file with corner activity (ED K=4 and dense P=4 bit-identical) before any
-real frames existed; real frames arrive when the recorder runs on the free
-GPU after the smoke.
+real frames existed; real frames arrived 2026-09-18 23:48: 64 teacher-driven tick frames
+(`robot/artifacts/isaac_event_frames.npz`), mean event-bit rate 5.7 %,
+per-frame 0.9-19.5 %. Exported as `i1` with the recreation's student
+weights (threshold 16): corner exposure TL 0 / TR 0 / BL 24 / BR 20 of
+32 -- the top corners are blind here as they were on the MuJoCo frames
+(the camera's top rows see beyond the 2 m clip, so nothing changes
+there), which is why the synthetic r1 set stays the ladder's guard.
+Both engines bit-identical on the real frames (ED K=4: 1,048,576
+comparisons, 19,372 input spikes; dense P=4: 1,572,864 comparisons).
+ED K=4 per sample: mean 185,616 cycles (1.86 ms), min 147,472, max
+251,872 (spread 1.71x) against dense P=4 at 360,444 cycles (3.60 ms):
+ED 1.94x on the mean, 1.43x on the worst frame. These are the year-two
+workload's C1 numbers with placeholder (MuJoCo-distilled) weights; the
+cycles are weight-independent for a given frame set, the accuracy is not.
+
+## Distillation cost, measured (2026-09-18 23:53)
+
+Stock 192 camera envs, 3 iterations: **13.6-14.0 s per iteration**
+(losses 4.59 -> 3.39 actor, 2.03 -> 1.47 yaw over three iterations).
+5k iterations = 19 h, 10k = 39 h on the 1080 Ti; the GPU is otherwise
+idle now that the teacher has finished.
 
 ## Evaluation wrapper (2026-09-18)
 

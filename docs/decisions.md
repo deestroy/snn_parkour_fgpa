@@ -2993,3 +2993,38 @@ unchanged (18-bit membranes, fc k = 7, or T = 4); none taken.
 
 Both GPUs were in use for this: the MI210 trained the sweep and the
 seeds (9-14 s per N-MNIST epoch) while the 1080 Ti finishes the teacher.
+
+## 2026-09-18 (night) — Teacher done; the port runs on the real stack; the first year-two numbers
+
+**Teacher:** 15,000 iterations in 83,964 s (23.3 h), final checkpoint
+model_14500, no errors. Evaluated under extreme-parkour's own protocol
+(`experiments/p1_distill/isaac_eval_README.md`): success gap 95.3 %,
+hurdle 96.1 %, parkour 97.2 %, step 99.2 % at random difficulty. Far
+above the paper's student numbers, as expected of a scandots teacher;
+the comparison rows are the students.
+
+**Port smoke passed** on the third attempt (OOM beside the teacher, then
+their wandb.log() without an init, then clean): env + backbone swap +
+two learn_vision iterations at 8 envs. Timing at the stock 192 envs:
+13.6-14.0 s per iteration, so 10k iterations is ~39 h.
+
+**Real frames, real benches.** 64 teacher-driven tick frames recorded
+with the port's own event simulator (mean rate 5.7 %, per-frame 0.9 to
+19.5 %); both engines bit-identical on them; ED K=4 1.86 ms mean, 2.52
+ms worst frame, dense P=4 3.60 ms flat: ED 1.94x on the mean, 1.43x on
+the worst frame. Corner exposure: the top corners are blind on the real
+depth stream (sky beyond the 2 m clip), so the C0044 class of bug at
+neuron 0 would be invisible to robot data too; the synthetic guard in
+the ladder stays.
+
+**Monitoring lesson, recorded so it is not repeated:** every liveness
+check written today used `pgrep -f <pattern>` over ssh, which matches
+the checking shell's own command line; three waiters would have waited
+forever, and one orphaned remote loop then matched the bracketed check
+too. Liveness checks must use `ps -eo args | grep "[p]attern"` from a
+script whose own text does not contain the pattern, and a stopped local
+waiter does not stop its remote shell.
+
+**Open decision (the user's):** launch the FPGA-student distillation
+now (10k iterations, ~39 h), with the stock student to follow (another
+~39 h); both fit before the GPU access ends on 2026-10-01.
