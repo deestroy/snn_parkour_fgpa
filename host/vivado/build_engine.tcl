@@ -50,7 +50,7 @@ set APP_SIZE 389864       ;# build 5 (DATASET=0), 2026-09-18
 set APP_ELF_G1 {
     C:/Users/dhritiaravind/vitis_m4_loopback_zed/conv_server_g1/build/conv_server_g1.elf
 }
-set APP_SIZE_G1 0         ;# fill in once the component is built (0 = accept any size, print it)
+set APP_SIZE_G1 389976    ;# conv_server_g1 component, 2026-09-19
 # bootgen ships with both Vivado and Vitis; first that exists wins.
 set BOOTGEN {
     C:/Xilinx/Vivado/2024.1/bin/bootgen.bat
