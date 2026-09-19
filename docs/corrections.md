@@ -929,6 +929,62 @@ the recorded rollout). Only the synthetic set covers all four, which is
 why it is the ladder's guard; a data set's own vectors are evidence
 about the data, not about the boundary logic.
 ---
+## C0045 — Rate-penalised networks run at different quantisation thresholds (P2)
+**Problem.** The activity sweeps (`experiments/rate_sweep/`,
+`rate_sweep_dvsg/`) compare engine cycles across networks trained to
+different firing rates, but each network's D0008 shift k (hence its
+threshold 2^k) is chosen from ITS max |w|, and the shifts move with the
+rate (N-MNIST c1/c2/c3: 5/6/5 at 2 %, 6/7/6 at 16 %; DVS-Gesture 6/7/7 to
+7/8/8). Cycle counts do not depend on the threshold, so the cycle axis is
+clean; but any energy-per-cycle argument about "the same layer at
+different activities" silently compares different integer scalings, and
+the golden-drop column mixes rounding at different resolutions.
+**Action.** State in the sweep READMEs (done) and in the thesis that the
+activity axis holds the ARCHITECTURE fixed, not the integer scaling; if a
+fixed-threshold comparison is wanted, add a `--fixed_k` option to
+05_quantise that clips instead of re-scaling and report the clipping.
+**Done when:** the sweep write-ups carry the shifts per point (done) and
+the thesis text says which is held fixed.
+---
+## C0046 — The int16 membrane margin is seed- and activity-dependent on DVS-Gesture (P1)
+**Problem.** Three separate runs hit the fc membrane's int16 ceiling on
+DVS-Gesture: T = 16 (seed 0, -34,472), T = 8 (seed 1 of 3, -33,013; seeds
+0 and 2 fit with 12 % and 5 % headroom), and the 34 %-activity network at
+T = 4 (-49,002). "Fits int16" is therefore not a property of a
+configuration but of a (configuration, seed) pair near the edge, and the
+golden check's PASS on one seed says nothing about the next.
+**Action.** Decide, as a recorded design decision, between (a) 18-bit
+membranes (RTL width change; +12 % membrane BRAM; every engine bench and
+board build re-verified), (b) fc k = 7 (halves the range at a rounding
+cost; a quantiser option), (c) DVS-Gesture stays at T = 4 and below ~20 %
+activity, with the margin reported per seed. Until then, every DVS-Gesture
+number carries its fc |V|max next to it, and any board build of a
+DVS-Gesture network is preceded by a golden check on THAT checkpoint.
+**Done when:** one of (a)-(c) is chosen in decisions.md and the golden
+check reports the margin as a percentage, not only a pass/fail.
+---
+## C0047 — Direct coding makes the event-driven engine scatter the same frame four times (P2)
+**Problem.** The year-two student uses the paper's direct coding: one
+event frame repeated over T = 4 spiking timesteps. On the event-driven
+engine every timestep re-scatters the identical spike list, so 75 % of
+its scatter work per inference carries no new information; the dense
+engine's cost is the same either way. The recreation's vector recorder
+exported CONSECUTIVE tick frames instead, so the earlier r1 numbers were
+for a window the student never saw (fixed: the port makes the window
+explicit and the exporter refuses a mismatch; the real i1 vectors are
+repeat-window).
+**Action.** Report the year-two ED numbers as "direct coding" and add the
+consecutive-window variant as an experiment, not a default: train a
+second student with `--window consecutive` (same cost), record its frames
+the same way, and bench both. If accuracy holds, the consecutive window
+is the honest configuration for the hardware comparison and the paper's
+choice becomes a stated deviation. Alternatively, an engine-side
+optimisation (skip the scatter when the spike list is unchanged) would
+make the ED cost of direct coding T-independent, which is worth a
+decision entry before it is built.
+**Done when:** both windows have a trained student and a bench row, or the
+decision log says why only one is reported.
+---
 ## Closing note on this review
 Three passes have been made: methodology (C0001–C0017), measurement
 accuracy and missing experiments (C0018–C0027), design and internal
