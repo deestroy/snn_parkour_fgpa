@@ -3138,3 +3138,14 @@ DATASET=0 confirmed by PING. Tally 2026-09-17..19: 12 board passes, 0
 correctness misses; three builds rejected before the card by checks
 written days earlier; one RTL revision forced by a timing failure and
 proven by silicon the same day.
+
+## 2026-09-19 (late) — The DVS-Gesture offset was the comparison basis
+
+Wrapper-inclusive AXIS-harness cycle counts (experiments/dvsgesture/
+latency_sim/axis_total/) put the board-over-sim offsets at ED 29.4 us
+(constant +-0.7 over 8 clips) and dense 20.0 us, not 92.9 / 102.0: the
+per-engine sim column had excluded 6.3k-8.2k wrapper cycles per
+inference. With N-MNIST's 10.7 / 8.3 us on 872 words, offset ~ 3.5 us
++ 5-9 ns per DMA word. Lesson recorded: compare board numbers only to
+the harness's wrapper-inclusive total; the per-engine column is for
+engine models. Pre-registrations for future builds use that basis.

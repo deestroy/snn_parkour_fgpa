@@ -12,6 +12,7 @@ DP="${DP:-1}"        # C0029 dense lanes
 BW="${BW:-0}"        # 1: exercise the BAKED (synthesis) engine variants
 NOGAP="${NOGAP:-0}"     # 1: no gaps/backpressure (latency measurement)
 CYCLES="${CYCLES:-}"    # optional: write per-sample cycle counts to this file
+SEED="${SEED:-7}"       # handshake random seed (hostile mode); vary it for stress runs
 case "$layer" in
     c1) ci=2; hi=34; wi_=34; co=16; ho=17; wo_=17; ns=16; ds=0 ;;
     g1) ci=2; hi=64; wi_=64; co=16; ho=32; wo_=32; ns=8;  ds=1 ;;   # DVS-Gesture C1 (C0012): DATASET=1 on the top
@@ -48,5 +49,5 @@ iverilog -g2012 -I hdl/dense -o sim/work/tb_axis.vvp \
 
 vvp sim/work/tb_axis.vvp \
     +in="$AXIS_IN" +out="$AXIS_OUT" \
-    +nsamples=$NS +wi="$wi" +wo="$wo" +seed=7 +nogap=$NOGAP ${CYCLES:++cycles=$CYCLES} \
+    +nsamples=$NS +wi="$wi" +wo="$wo" +seed=${SEED:-7} +nogap=$NOGAP ${CYCLES:++cycles=$CYCLES} \
     | grep -E "TB_|MISMATCH" | head -8
