@@ -3226,3 +3226,20 @@ give, so (a) buys no accuracy over (b). The decision between (a), (b),
 (b) as a per-dataset quantiser default `fc k = min(choose_k, 7)`, which
 moves the usable T x activity band from ~1.2 to ~2.4 (k = 6: ~4.8) with
 no RTL change.
+
+## 2026-09-20 — N-MNIST C2/C3 at K = P = 8 and 16; the crossover-vs-parallelism law holds on both datasets
+
+24 more bit-identical runs (K = 8 / 16 x six networks x C2 / C3) on the Mac.
+Crossover activity C2 48 / 40 / 29 %, C3 57 / 52 / 44 % at K = P = 4 / 8 /
+16 (DVS-Gesture: 43 / 36 / 26 and 48 / 44 / 37). Per-spike constants at
+each K agree between the datasets to within 2-4 %, so the cycle model
+`2NT + b1 s + b2 s/K` transfers across datasets at every parallelism
+tested. The 29 %-activity N-MNIST C2 network is exactly at the crossover
+at K = P = 16 (1.00x). The crossover figure now carries both datasets at
+all three K, and a new heat-map figure draws the dense = ED contour of
+all four fitted layers over (activity, K = P). Also today: four new
+figures (per-sample latency vs spikes with board points, resources per
+build, the crossover heat map, the three input sources) and seven thesis
+tables generated from repository files (docs/thesis_tables/). The ED
+testbench's sample capacity became a parameter (MAX_SAMPLES, default 16,
+behaviour unchanged) so the 64 robot frames can be benched in one run.

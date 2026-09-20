@@ -22,7 +22,7 @@ module tb_ed_conv;
     localparam T = 4;
     localparam IN_BITS = C_IN * H_IN * W_IN;
     localparam NEURONS = C_OUT * H_OUT * W_OUT;
-    localparam MAX_SAMPLES = 16;
+    parameter MAX_SAMPLES = 16;                     // overridable: NS > 16 (e.g. the 64 robot frames) needs -P
     localparam MAX_SPK = MAX_SAMPLES * T * IN_BITS;   // upper bound on list
 
     reg clk = 0, rst = 1, clear = 0, start = 0, spk_we = 0;

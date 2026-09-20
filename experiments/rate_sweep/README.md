@@ -129,3 +129,48 @@ Fit `ED = 13,105 + 76.4 x spikes` (max residual 0.6 %; sweep floor 2 x 1,600 x 4
   applies here too.
 - One seed per point; the cycle numbers are exact for these networks,
   the accuracy column carries the ~0.4 pp seed spread.
+
+## Parallelism x activity: ED at K = 4 / 8 / 16 vs dense P = 4 / 8 / 16 on C2 and C3 (2026-09-20)
+
+Same six networks and the 16-sample check set as the K = 4 bench above; ED K = 8
+and K = 16 runs all bit-identical (24/24, `bench/ed_k8_*`, `bench/ed_k16_*`).
+Dense P = 4 is the measured reference; P = 8 / 16 are that constant divided by
+2 / 4 (the dense cost is exactly 1/P). Input rate is the fraction of the
+layer's input bits set on the check set.
+### C2 (dense P=4 383,612 cycles; P=8 191,806; P=16 95,903)
+
+| network | input rate | ED K=4 | ED K=8 | ED K=16 | dense/ED at K=P=4 | at K=P=8 | at K=P=16 |
+|---|---|---|---|---|---|---|---|
+| baseline | 0.069 | 72,885 | 49,994 | 38,548 | 5.26x | 3.84x | 2.49x |
+| target 0.02 | 0.023 | 38,297 | 30,592 | 26,739 | 10.02x | 6.27x | 3.59x |
+| target 0.04 | 0.041 | 51,550 | 38,029 | 31,268 | 7.44x | 5.04x | 3.07x |
+| target 0.08 | 0.078 | 80,259 | 54,132 | 41,069 | 4.78x | 3.54x | 2.34x |
+| target 0.16 | 0.156 | 139,222 | 87,201 | 61,191 | 2.76x | 2.20x | 1.57x |
+| target 0.30 | 0.290 | 240,475 | 144,011 | 95,779 | 1.60x | 1.33x | 1.00x |
+
+Fits `ED = a + b x spikes` and matched-parallelism crossovers: K=P=4: a=20,803, b=41.0, crossover 48 %; K=P=8: a=20,778, b=23.0, crossover 40 %; K=P=16: a=20,765, b=14.0, crossover 29 %
+
+### C3 (dense P=4 467,196 cycles; P=8 233,598; P=16 116,799)
+
+| network | input rate | ED K=4 | ED K=8 | ED K=16 | dense/ED at K=P=4 | at K=P=8 | at K=P=16 |
+|---|---|---|---|---|---|---|---|
+| baseline | 0.082 | 78,214 | 47,643 | 32,358 | 5.97x | 4.90x | 3.61x |
+| target 0.02 | 0.025 | 33,084 | 23,611 | 18,874 | 14.12x | 9.89x | 6.19x |
+| target 0.04 | 0.042 | 45,978 | 30,473 | 22,720 | 10.16x | 7.67x | 5.14x |
+| target 0.08 | 0.079 | 75,168 | 46,027 | 31,457 | 6.22x | 5.08x | 3.71x |
+| target 0.16 | 0.156 | 136,827 | 78,859 | 49,875 | 3.41x | 2.96x | 2.34x |
+| target 0.30 | 0.292 | 243,776 | 135,854 | 81,893 | 1.92x | 1.72x | 1.43x |
+
+Fits `ED = a + b x spikes` and matched-parallelism crossovers: K=P=4: a=13,105, b=76.4, crossover 57 %; K=P=8: a=12,960, b=40.7, crossover 52 %; K=P=16: a=12,888, b=22.8, crossover 44 %
+
+Reading: the same law as on DVS-Gesture -- the ED sweep floor (a ~ 2NT) does
+not shrink with K while the dense reference halves with P, so the crossover
+activity falls with parallelism: C2 48 / 40 / 29 %, C3 57 / 52 / 44 % at
+K = P = 4 / 8 / 16. At K = P = 16 the 29 %-activity C2 network sits exactly on
+the crossover (1.00x). The per-spike constants match DVS-Gesture's at every K
+(C2 41.0 / 23.0 / 14.0 vs 40.4 / 22.7 / 13.9; C3 76.4 / 40.7 / 22.8 vs 74.0 /
+39.5 / 22.2 cycles per spike): the cost model transfers across datasets at
+every parallelism, not only at K = 4. Figure:
+`experiments/figures/fig_crossover_vs_kp.png` (now both datasets at all three
+K) and `fig_crossover_heatmap.png`.
+

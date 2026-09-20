@@ -99,7 +99,10 @@ N-MNIST's (40.4 vs 41.0, 74.0 vs 76.4 cycles). At K=P=8 / 16 (24 more
 bit-identical runs) the crossover activity falls to ~36 / ~26 % (C2) and
 ~44 / ~37 % (C3), and at K=P=16 the 32 %-activity network is past it on
 C2 (0.85x) -- the first real-data point where dense wins a conv layer. N-MNIST seeds: accuracy flat 2-8 %,
--0.5 / -1.9 pp at 16 / 30 % (sd 0.2-0.6).
+-0.5 / -1.9 pp at 16 / 30 % (sd 0.2-0.6). N-MNIST at K=P=8 / 16 (24/24 bit-identical, 2026-09-20): crossover
+C2 48 / 40 / 29 %, C3 57 / 52 / 44 % at K=P=4 / 8 / 16; the 29 %-activity
+C2 network is exactly at the crossover at K=P=16 (1.00x); per-spike constants
+equal DVS-Gesture's at every K (`experiments/rate_sweep/README.md`).
 
 ## 5. Year two on the paper's own stack (gpu; `robot/isaac/`, `experiments/p1_distill/`)
 

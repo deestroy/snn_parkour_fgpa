@@ -23,6 +23,11 @@ def cycles_file(path):
     return np.array([int(l.split()[1]) for l in open(path) if not l.startswith("#")])
 
 
+def has_cycles(path):
+    """A bench file that exists AND has data rows (a running bench leaves a header-only file)."""
+    return os.path.exists(path) and len(cycles_file(path)) > 0
+
+
 def dense_cycles(path):
     return int(re.search(r"(\d+) engine cycles", open(path).read()).group(1))
 
@@ -206,7 +211,7 @@ def fig_crossover_surface():
                 for t in tags:
                     f = os.path.join(d, "bench", "ed_k%d_%s_%s.txt" % (K, t, L))
                     tr = base_tr if t == "base" else os.path.join(d, "traces_rate%s.npz" % t)
-                    if not (os.path.exists(f) and os.path.exists(tr)):
+                    if not (has_cycles(f) and os.path.exists(tr)):
                         continue
                     xs.append(int((np.load(tr)[key] != 0).sum()) / 16); ys.append(cycles_file(f).mean())
                 if len(xs) < 3:
@@ -224,8 +229,176 @@ def fig_crossover_surface():
     fig.tight_layout(); fig.savefig(os.path.join(OUT, "fig_crossover_vs_kp.png")); plt.close(fig)
 
 
+# ---------------------------------------------------------------- 7. per-sample latency vs input spikes, board points on the cycle model
+def _popcount_words(words):
+    return np.array([int(np.unpackbits(np.frombuffer(np.asarray(w, dtype="<u4").tobytes(), dtype=np.uint8)).sum()) for w in words])
+
+
+def fig_per_sample():
+    """ED latency is a line in the input spike count (cycles = 2 N T + 5.0 s + 71.7 s / K, constants
+    from experiments/dvsgesture/latency_sim/README.md); dense is a constant. Board points where they
+    exist (N-MNIST K=4 and K=8, DVS-Gesture K=4), simulation for the robot frames (not yet on the board)."""
+    fig, axes = plt.subplots(1, 3, figsize=(13, 4))
+    model = lambda s, n_out, K: (2 * n_out * 4 + 5.0 * s + 71.7 * s / K) / 100.0
+    # N-MNIST: 16 check samples; per-sample K=8 and K=4 engine-only board latency from the K=8 record
+    spk = _popcount_words(np.load("host/conv_test_data.npz")["tx_words"])
+    k8, k4 = {}, {}
+    for l in open("experiments/board_ed_k8_20260917.md"):
+        m = re.match(r"\| (\d+) \| \d \| ([\d.]+) \| ([\d.]+) \| \+[\d.]+ % \| ([\d.]+) \|", l)
+        if m:
+            k8[int(m.group(1))] = float(m.group(2)); k4[int(m.group(1))] = float(m.group(4))
+    ax = axes[0]; idx = sorted(k4)
+    ss = np.linspace(spk.min() * 0.9, spk.max() * 1.1, 50)
+    ax.plot(ss, model(ss, 16 * 17 * 17, 4), "-", color="C0", lw=1, label="cycle model, K=4")
+    ax.plot(ss, model(ss, 16 * 17 * 17, 8), "-", color="C2", lw=1, label="cycle model, K=8")
+    ax.plot(spk[idx], [k4[i] for i in idx], "o", color="C0", label="ED K=4, board")
+    ax.plot(spk[idx], [k8[i] for i in idx], "^", color="C2", label="ED K=8, board")
+    ax.axhline(1048.9, color="C1", ls="--", label="dense P=4, board"); ax.axhline(540.3, color="C3", ls="--", label="dense P=8, board")
+    ax.set_title("N-MNIST C1 (16 check samples, board)"); ax.set_xlabel("input spikes per inference (T = 4)")
+    ax.set_ylabel("latency per inference (us, engine-only)"); ax.grid(alpha=.3); ax.legend(fontsize=7)
+    # DVS-Gesture: 8 clips; spikes from the latency_sim README table, board from the ED K=4 record
+    dspk = {}
+    for l in open("experiments/dvsgesture/latency_sim/README.md"):
+        m = re.match(r"\| (\d) \| ([\d,]+) \| [\d.]+ % \| [\d,]+ \|", l)
+        if m:
+            dspk[int(m.group(1))] = int(m.group(2).replace(",", ""))
+    dboard = {}
+    for l in open("experiments/dvsgesture/board_ed_k4_20260919.md"):
+        m = re.match(r"\| (\d) \| \d+ \| ([\d.]+) \| ([\d.]+) \|", l)
+        if m:
+            dboard[int(m.group(1))] = float(m.group(2))
+    ax = axes[1]; idx = sorted(dboard)
+    ss = np.linspace(2000, 15500, 50)
+    ax.plot(ss, model(ss, 16 * 32 * 32, 4), "-", color="C0", lw=1, label="cycle model, K=4")
+    ax.plot([dspk[i] for i in idx], [dboard[i] for i in idx], "o", color="C0", label="ED K=4, board")
+    ax.axhline(3706.5, color="C1", ls="--", label="dense P=4, board")
+    for i in idx:
+        ax.annotate("clip %d" % i, (dspk[i], dboard[i]), textcoords="offset points", xytext=(4, 4), fontsize=7)
+    ax.set_title("DVS-Gesture C1 (8 clips, board)"); ax.set_xlabel("input spikes per inference (T = 4)"); ax.grid(alpha=.3); ax.legend(fontsize=7)
+    # robot event frames: 64 frames, direct coding (frame repeated over T), simulation only
+    fr = np.load("robot/artifacts/isaac_event_frames.npz")["frames"]
+    rspk = 4 * np.array([int((f != 0).sum()) for f in fr])
+    f64 = "experiments/p1_distill/isaac_i1_ed_k4_cycles_64.txt"
+    rcyc = cycles_file(f64 if has_cycles(f64) else "experiments/p1_distill/isaac_i1_ed_k4_cycles.txt") / 100.0
+    rspk = rspk[:len(rcyc)]
+    ax = axes[2]
+    ss = np.linspace(rspk.min() * 0.9, rspk.max() * 1.1, 50)
+    ax.plot(ss, model(ss, 16 * 32 * 32, 4), "-", color="C0", lw=1, label="cycle model, K=4")
+    ax.plot(rspk, rcyc, "o", color="C0", ms=4, label="ED K=4, sim")
+    ax.axhline(1441788 / 4 / 100.0, color="C1", ls="--", label="dense P=4, sim")
+    ax.axhline(rcyc.max(), color="C0", ls=":", lw=1, label="ED worst frame (%.2f ms)" % (rcyc.max() / 1000))
+    ax.set_title("Robot event frames, 64x64 (%d frames, sim)" % len(rcyc)); ax.set_xlabel("input spikes per inference (T = 4, frame repeated)"); ax.grid(alpha=.3); ax.legend(fontsize=7)
+    fig.suptitle("Per-sample latency vs input activity: ED is a line in the spike count, dense a constant")
+    fig.tight_layout(); fig.savefig(os.path.join(OUT, "fig_per_sample.png")); plt.close(fig)
+
+
+# ---------------------------------------------------------------- 8. resources per build, from the Vivado power reports (utilisation columns)
+def _rpt_util(path):
+    txt = open(path).read()
+    g = lambda name: float(re.search(r"\|\s+%s\s+\|\s+[<\d.]+\s+\|\s+([\d.]+)\s+\|" % re.escape(name), txt).group(1))
+    return {"lut": g("LUT as Logic") + g("LUT as Distributed RAM") + g("LUT as Shift Register"), "ff": g("Register"), "bram": g("Block RAM")}
+
+
+def fig_resources():
+    builds = [  # (tag, label, group)
+        ("ed_k4_20260918_1300", "ED K=4\nN-MNIST", "N=1"), ("dense_p4_20260919_2323", "dense P=4\nN-MNIST", "N=1"),
+        ("ed_k8_20260917_2106", "ED K=8\nN-MNIST", "N=1"), ("dense_p8_20260917_2221", "dense P=8\nN-MNIST", "N=1"),
+        ("ed_k4_dvsg_20260919_1324", "ED K=4\nDVS-G", "N=1"), ("dense_p4_dvsg_20260919_1447", "dense P=4\nDVS-G", "N=1"),
+        ("ed_k4_x8_20260917_2251", "ED K=4 x8\nN-MNIST", "rep"), ("dense_p4_x8_20260917_2312", "dense P=4 x8\nN-MNIST", "rep"),
+        ("ed_k4_dvsg_x4_20260920_0010", "ED K=4 x4\nDVS-G", "rep"), ("dense_p4_dvsg_x2_20260920_1127", "dense P=4 x2\nDVS-G", "rep")]
+    rows = []
+    for tag, label, grp in builds:
+        f = "experiments/power_estimates/%s_power.rpt" % tag
+        if os.path.exists(f):
+            rows.append((label, grp, _rpt_util(f)))
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.8))
+    x = np.arange(len(rows)); cols = ["C0" if "ED" in r[0] else "C1" for r in rows]
+    for ax, key, total, name in zip(axes, ("lut", "ff", "bram"), (53200, 106400, 140), ("LUTs (logic + LUTRAM + SRL)", "flip-flops", "block RAM tiles (36 Kb)")):
+        vals = [r[2][key] for r in rows]
+        ax.bar(x, vals, color=cols)
+        for xi, v in zip(x, vals):
+            ax.text(xi, v, "%.0f\n(%.0f %%)" % (v, 100 * v / total) if key != "bram" else "%.1f\n(%.0f %%)" % (v, 100 * v / total), ha="center", va="bottom", fontsize=6)
+        ax.set_xticks(x); ax.set_xticklabels([r[0].replace("\n", " ") for r in rows], fontsize=6.5, rotation=45, ha="right"); ax.set_title(name + " (whole design)", fontsize=9); ax.grid(axis="y", alpha=.3)
+        ax.axvline(len([r for r in rows if r[1] == "N=1"]) - 0.5, color="k", lw=0.8, ls=":")
+    axes[0].set_ylabel("count, whole design incl. wrapper and DMA")
+    fig.suptitle("Resources per silicon build (Vivado post-route utilisation; blue = event-driven, orange = dense; right of the dotted line = replicated engines)")
+    fig.tight_layout(); fig.savefig(os.path.join(OUT, "fig_resources.png")); plt.close(fig)
+
+
+# ---------------------------------------------------------------- 9. crossover surface: dense/ED over (activity, K = P) from the per-K fits
+def fig_crossover_heatmap():
+    cfg = [("N-MNIST", "experiments/rate_sweep", "golden/traces_m1.npz", {"c2": ("c1_S", 16 * 17 * 17), "c3": ("c2_S", 32 * 9 * 9)}),
+           ("DVS-Gesture", "experiments/rate_sweep_dvsg", "golden/traces_dvsgesture.npz", {"g2": ("c1_S", 16 * 32 * 32), "g3": ("c2_S", 32 * 16 * 16)})]
+    tags = ["base", "0.02", "0.04", "0.08", "0.16", "0.30"]
+    fits = []   # (label, inbits, a, b1, b2, dense4)  with ED(s, K) = a + (b1 + b2 / K) s
+    for name, d, base_tr, layers in cfg:
+        for L, (key, inbits) in layers.items():
+            per_k = {}
+            for K in (4, 8, 16):
+                xs, ys = [], []
+                for t in tags:
+                    f = os.path.join(d, "bench", "ed_k%d_%s_%s.txt" % (K, t, L))
+                    tr = base_tr if t == "base" else os.path.join(d, "traces_rate%s.npz" % t)
+                    if has_cycles(f) and os.path.exists(tr):
+                        xs.append(int((np.load(tr)[key] != 0).sum()) / 16); ys.append(cycles_file(f).mean())
+                if len(xs) >= 3:
+                    A = np.vstack([np.ones(len(xs)), xs]).T; per_k[K] = np.linalg.lstsq(A, np.array(ys), rcond=None)[0]
+            if len(per_k) < 2:
+                print("crossover heatmap: skipping %s %s (need >= 2 K points)" % (name, L)); continue
+            Ks = np.array(sorted(per_k)); bs = np.array([per_k[k][1] for k in Ks]); a = np.mean([per_k[k][0] for k in Ks])
+            B = np.vstack([np.ones(len(Ks)), 1.0 / Ks]).T; b1, b2 = np.linalg.lstsq(B, bs, rcond=None)[0]
+            fits.append(("%s %s" % (name, L.upper().replace("G", "C")), inbits, a, b1, b2, dense_cycles(os.path.join(d, "bench", "dense_p4_base_%s.txt" % L))))
+    if not fits:
+        raise RuntimeError("no fits")
+    act = np.linspace(1, 80, 320); Kg = np.logspace(0, 5, 120, base=2)
+    A_, K_ = np.meshgrid(act, Kg)
+    fig, ax = plt.subplots(figsize=(8, 4.8))
+    ref = [f for f in fits if f[0].startswith("DVS-Gesture C2")] or fits
+    lab, inbits, a, b1, b2, d4 = ref[0]
+    s = A_ / 100.0 * 4 * inbits
+    ratio = (d4 / (K_ / 4)) / (a + (b1 + b2 / K_) * s)
+    im = ax.pcolormesh(A_, K_, np.log2(ratio), cmap="RdBu", vmin=-2, vmax=2, shading="auto")
+    cb = fig.colorbar(im, ax=ax); cb.set_label("log2(dense / ED cycles) for %s   (blue: ED faster, red: dense faster)" % lab, fontsize=8)
+    for i, (lab, inbits, a, b1, b2, d4) in enumerate(fits):
+        s = A_ / 100.0 * 4 * inbits
+        r = (d4 / (K_ / 4)) / (a + (b1 + b2 / K_) * s)
+        if (r.min() < 1.0) and (r.max() > 1.0):
+            ax.contour(A_, K_, r, levels=[1.0], colors=["C%d" % i], linewidths=1.5)
+        ax.plot([], [], color="C%d" % i, label="%s: dense = ED (crossover)" % lab)
+    ax.set_yscale("log", base=2); ax.set_yticks([1, 2, 4, 8, 16, 32]); ax.set_yticklabels([1, 2, 4, 8, 16, 32])
+    ax.set_xlabel("input activity of the layer (% of input bits set)"); ax.set_ylabel("K = P (matched parallelism)")
+    ax.set_title("The crossover is a surface: where dense catches up in (activity, K = P), from the fitted cycle models (sim)", fontsize=9)
+    ax.legend(fontsize=7, loc="upper right"); ax.grid(alpha=.2, which="both")
+    fig.tight_layout(); fig.savefig(os.path.join(OUT, "fig_crossover_heatmap.png")); plt.close(fig)
+
+
+# ---------------------------------------------------------------- 10. the three input sources, one sample each, at the same scale
+def fig_inputs():
+    panels = []
+    if os.path.exists("data/packed/test_frames.npy"):
+        x = np.load("data/packed/test_frames.npy", mmap_mode="r")[0]      # (T, 2, 34, 34)
+        panels.append(("N-MNIST sample 0 (2x34x34, T = 4)", np.asarray(x)))
+    if os.path.exists("data/packed_dvsgesture/test_frames.npy"):
+        x = np.load("data/packed_dvsgesture/test_frames.npy", mmap_mode="r")[0]
+        panels.append(("DVS-Gesture clip 0 (2x64x64, T = 4)", np.asarray(x)))
+    fr = np.load("robot/artifacts/isaac_event_frames.npz")["frames"][0]   # (2, 64, 64), repeated over T
+    panels.append(("robot event frame 0 (2x64x64, repeated over T)", np.repeat(fr[None], 4, axis=0)))
+    fig, axes = plt.subplots(len(panels), 5, figsize=(12, 2.4 * len(panels)))
+    axes = np.atleast_2d(axes)
+    for r, (title, x) in enumerate(panels):
+        x = (x > 0).astype(int)
+        for t in range(4):
+            img = np.zeros(x.shape[2:] + (3,)); img[..., 0] = x[t, 0]; img[..., 2] = x[t, 1]
+            axes[r, t].imshow(img, interpolation="nearest"); axes[r, t].set_title("t = %d" % t, fontsize=8); axes[r, t].axis("off")
+        img = np.zeros(x.shape[2:] + (3,)); img[..., 0] = x[:, 0].max(0); img[..., 2] = x[:, 1].max(0)
+        axes[r, 4].imshow(img, interpolation="nearest"); axes[r, 4].set_title("OR over T  (density %.1f %%)" % (100 * x.mean()), fontsize=8); axes[r, 4].axis("off")
+        axes[r, 0].set_title(title + "   t = 0", fontsize=8, loc="left")
+    fig.suptitle("Binarised inputs as the engines see them (red = ON polarity, blue = OFF), one sample per source")
+    fig.tight_layout(); fig.savefig(os.path.join(OUT, "fig_inputs.png")); plt.close(fig)
+
+
 if __name__ == "__main__":
-    for fn in (fig_kp_sweep, fig_perclip, fig_activity, fig_accuracy, fig_tsweep, fig_crossover_surface):
+    for fn in (fig_kp_sweep, fig_perclip, fig_activity, fig_accuracy, fig_tsweep, fig_crossover_surface, fig_per_sample, fig_resources, fig_crossover_heatmap, fig_inputs):
         try:
             fn(); print("wrote", fn.__name__)
         except Exception as e:

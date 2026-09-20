@@ -12,9 +12,13 @@ which are regenerable and not tracked.
 | fig_dvsg_perclip.png | DVS-Gesture per-clip latency, ED sim and board vs dense sim and board | dvsgesture/latency_sim, dvsgesture/board_*_20260919.md |
 | fig_activity_c2c3.png | dense/ED cycle ratio vs trained activity, C2 and C3, both datasets | rate_sweep*/bench, traces |
 | fig_accuracy_vs_activity.png | accuracy vs achieved conv rate, mean +- sd over 3 seeds | rate_sweep*/train_*.log |
-| fig_crossover_vs_kp.png | fitted crossover activity vs K = P for C2/C3 on both datasets (where present; N-MNIST has K=4 only so far) | rate_sweep*/bench, traces |
+| fig_crossover_vs_kp.png | fitted crossover activity vs K = P for C2/C3 on both datasets at K = P = 4 / 8 / 16 | rate_sweep*/bench, traces |
 | fig_tsweep_int16.png | DVS-Gesture accuracy and fc membrane range vs T, per seed, with the int16 ceiling | dvsgesture/**/golden_check_seed*.log |
+| fig_per_sample.png | per-sample latency vs input spike count: N-MNIST (16 check samples, ED K=4 and K=8 board), DVS-Gesture (8 clips, ED K=4 board), robot event frames (sim); cycle-model lines (DVS-Gesture-fitted constants 2NT + 5.0 s + 71.7 s/K) and the dense constants | board_ed_k8_20260917.md, dvsgesture/board_ed_k4_20260919.md, dvsgesture/latency_sim/README.md, host/conv_test_data.npz, p1_distill/isaac_i1_ed_k4_cycles*.txt, robot/artifacts/isaac_event_frames.npz |
+| fig_resources.png | LUT / FF / BRAM per silicon build, N=1 and replicated, ED vs dense | power_estimates/*_power.rpt (post-route utilisation columns) |
+| fig_crossover_heatmap.png | log2(dense/ED) over (activity, K = P) for DVS-Gesture C2 from the per-K fits, with the dense = ED contour of every fitted layer | rate_sweep*/bench, traces |
+| fig_inputs.png | one N-MNIST sample, one DVS-Gesture clip, one robot event frame as T=4 binarised ON/OFF frames and their OR, with densities | data/packed*/test_frames.npy, robot/artifacts/isaac_event_frames.npz |
 
-Missing on purpose until the data exists: the energy figures (measured vs
+The N-MNIST board points in fig_per_sample sit 2-5 % above the model line because the constants were fitted on DVS-Gesture and the board carries a constant +10.7 us; the per-layer fits are in the READMEs. Missing on purpose until the data exists: the energy figures (measured vs
 estimated per engine; the energy crossover), the student's success rates
 per terrain, and the deadline-miss sweep.

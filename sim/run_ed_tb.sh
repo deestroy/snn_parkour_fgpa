@@ -21,7 +21,7 @@ case "$layer" in
 esac
 THRESH="${THRESH:-$thr}"
 if [ "$layer" = i1 ]; then
-    python3 sim/export_fpga_student_vectors.py --name i1 --frames "${I1_FRAMES:-robot/artifacts/isaac_event_frames.npz}" --ckpt "${I1_CKPT:-robot/artifacts/fpga_student.pt}" > /dev/null
+    python3 sim/export_fpga_student_vectors.py --name i1 --frames "${I1_FRAMES:-robot/artifacts/isaac_event_frames.npz}" --ckpt "${I1_CKPT:-robot/artifacts/fpga_student.pt}" --samples "${I1_SAMPLES:-8}" > /dev/null
     THRESH=$(cat sim/vectors/i1_thresh.txt)
 elif [ "$layer" = g1 ]; then
     python3 sim/export_dvsgesture_vectors.py > /dev/null
@@ -47,7 +47,7 @@ iverilog -g2012 -I hdl/dense -DED_DUT="$dut" $extra -o "sim/work/tb_ed_${layer}.
     -Ptb_ed_conv.C_IN=$ci -Ptb_ed_conv.H_IN=$hi -Ptb_ed_conv.W_IN=$wi \
     -Ptb_ed_conv.C_OUT=$co -Ptb_ed_conv.H_OUT=$ho -Ptb_ed_conv.W_OUT=$wo \
     -Ptb_ed_conv.WEIGHT_FILE="\"sim/vectors/conv_${layer}_w.hex\"" \
-    -Ptb_ed_conv.K_BANKS=$K -Ptb_ed_conv.THRESHOLD=$THRESH -Ptb_ed_conv.WT_FILE="\"sim/vectors/ed_${layer}_wt.hex\"" \
+    -Ptb_ed_conv.K_BANKS=$K -Ptb_ed_conv.MAX_SAMPLES=${NS:-$ns} -Ptb_ed_conv.THRESHOLD=$THRESH -Ptb_ed_conv.WT_FILE="\"sim/vectors/ed_${layer}_wt.hex\"" \
     $srcs sim/tb_ed_conv.v
 vvp "sim/work/tb_ed_${layer}.vvp" +spk="sim/vectors/ed_${layer}_spk.txt" \
     +s="sim/vectors/ed_${layer}_s.bin" +v="sim/vectors/ed_${layer}_v.hex" +nsamples=${NS:-$ns} ${CYCLES:++cycles=$CYCLES} \
