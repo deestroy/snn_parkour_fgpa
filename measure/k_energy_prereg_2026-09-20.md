@@ -130,42 +130,93 @@ thesis gets is: **on this board the most efficient event-driven configuration
 is K = 8 if you measure the datapath and K = 16 if you measure the board,
 and neither is wrong — they answer different questions** (C0038).
 
-**K5. Resources.** *(Sharpened 2026-09-20, before any build exists — see the
-amendment note below.)* Two laws are available for how block RAM grows with K,
-and the two measured points cannot yet tell them apart, so the prediction names
-one and sets the boundary that separates them.
+**K5. Resources.** *(Re-amended 2026-09-20, second revision, still before
+any build — see the amendment history below. This is now a derivation from
+primitive geometry, not a curve fit.)*
 
-- **Predicted (the linear law).** Whole-design BRAM grows by **+1.0 tile per
-  doubling of K**, which is exactly the measured step from K = 4 (12.5 tiles)
-  to K = 8 (13.5): **10.5 / 11.5 / 12.5 / 13.5 / 14.5 tiles at
-  K = 1 / 2 / 4 / 8 / 16**, each +- 0.5.
-- **The named alternative (the primitive-floor law).** Once a bank's membrane
-  memory falls below what one block-RAM primitive usefully holds, each bank
-  costs a whole primitive and tiles grow with K rather than with log K. That
-  law predicts **K = 16 at 15.5 to 16.5 tiles** and K = 1 at 11 or above.
-- *Refuted if* K = 16 lands outside 14.0 to 15.0 tiles. Landing at 15.5 or
-  above does not merely refute the prediction, it **identifies the mechanism**:
-  the banks have crossed the primitive floor, which is a design fact worth
-  stating, because it is the point where raising K starts costing memory
-  disproportionately and it bounds the useful K on this fabric.
-- LUTs at K = 16 are predicted between 4.5k and 5.5k against 3.4k at K = 4;
-  *refuted if* outside 4.0k to 6.0k.
+The membrane banks are declared in `hdl/eventdriven/ed_scatter.v` as
+`reg signed [WIDTH-1:0] mem [0:BANK_N-1]` with `WIDTH = 16` and
+`BANK_N = NEURONS / K`, and NEURONS = 4,624 for C1. So each bank holds
+`4624/K x 16` bits, and the fabric's smallest block-RAM primitive is a
+RAMB18 of 18,432 bits (a RAMB36 is 36,864; tiles are counted as RAMB36 = 1.0,
+RAMB18 = 0.5).
 
-> **Amendment note, 2026-09-20, before any build.** As first written, K5 said
-> "11.5 / 12 / 12.5 / 13.5 / 15.5 tiles" with a refutation threshold of 17
-> tiles. The board session pointed out that a straight line through the two
-> measured points gives 14.5 at K = 16, not 15.5, and that both values sit
-> comfortably inside a 17-tile threshold — so the prediction would have been
-> scored "held" whichever law turned out to be true, which is not a prediction
-> at all. The original was an unstated mixture of the two laws above. Amended
-> here, with no data in hand, to name one law, name its competitor, and put the
-> boundary between them. K2 already had this structure (it names the per-bank
-> law over the per-doubling law and refutes below 60 mW); K5 now matches it.
+| K | bits per bank | smallest primitive that holds it | banks alone |
+|---|---|---|---|
+| 1 | 73,984 | 2 x RAMB36 + RAMB18 | 2.5 |
+| 2 | 36,992 | RAMB36 + RAMB18 (128 bits over a RAMB36) | 3.0 |
+| 4 | 18,496 | **RAMB36 — 64 bits over a RAMB18** | **4.0 (measured)** |
+| 8 | 9,248 | RAMB18 | **4.0 (measured)** |
+| 16 | 4,624 | RAMB18 — *the floor; a quarter full* | **8.0** |
 
-**K6. Replication fit.** K = 8 fits at R = 8 (predicted 94 tiles); K = 16
-fits at R = 8 only marginally (predicted 110 tiles) and is expected to be
-**built at R = 4** if the placer refuses, exactly as the dense DVS-Gesture
-build did. *Refuted if* K = 16 places at R = 8 with WNS >= 0.
+**The bank cost is flat from K = 2 to K = 8 and doubles at K = 16.** Between
+4 and 8 the per-bank primitive halves exactly as the bank count doubles, which
+is why that step cost one tile rather than four. At K = 16 the per-bank cost
+cannot halve again, because RAMB18 is the smallest primitive there is, so the
+doubling of bank count lands in full.
+
+Decomposing the two measured builds (both from the committed board records:
+`ed_conv_layer` 5 RAMB36 + 1 RAMB18 = 5.5 tiles and DMA/interconnect 2.0
+tiles, flat at both K): whole = 5.5 + 2.0 + banks + the scatter's non-bank
+block RAM, which is **1.0 tile at K = 4 and 2.0 at K = 8** — per-bank
+auxiliary storage that tracks K.
+
+- **Predicted: K = 16 at 19.5 tiles** (5.5 + 2.0 + 8.0 banks + 4.0 auxiliary,
+  the auxiliary continuing to track K).
+- **Named alternative: 17.5 tiles** if the auxiliary storage saturates at
+  2.0 instead of doubling again.
+- **Hard floor: 16.5 tiles.** Below that, sixteen banks would have to share
+  primitives, which the RAMB18 minimum forbids.
+- *Refuted if* K = 16 lands below 16.5 or above 21.0 tiles. A result of 17.5
+  selects the saturating branch over the predicted one and is reported as a
+  partial refutation, not a pass.
+- K = 1 and K = 2 are predicted at 10.0 and 10.5 tiles whole-design and
+  **cannot discriminate the two laws** — only K = 16 can, which is why it is
+  build number one.
+- LUTs at K = 16 predicted 4.5k-5.5k against 3.4k at K = 4; refuted outside
+  4.0k-6.0k.
+
+**The consequence, which is a result in its own right.** K = 8 is the largest
+bank count that costs no extra block RAM over K = 2: the memory is flat across
+that whole range and then doubles. So on this fabric there is a hardware
+reason to stop at K = 8 that is **independent of energy** — past it, latency
+is bought at a disproportionate memory cost. If K3's fabric-energy optimum
+also lands at 8, two independent arguments converge on the same configuration,
+which is a stronger thesis sentence than either alone.
+
+> **Amendment history.** (i) As first written, K5 predicted 15.5 tiles at
+> K = 16 with a 17-tile refutation threshold. (ii) The board session observed
+> that a straight line through the two measured points gives 14.5, and that
+> both values sat inside my threshold, so the prediction would have scored
+> "held" under either law — I amended it to predict the linear law (14.5) and
+> name the primitive-floor law as its competitor. (iii) The board session then
+> retracted its own argument, having decomposed the archived hierarchical
+> reports: the two measured points sit on either side of a primitive
+> transition, so no line through them means anything. I verified this against
+> the RTL and both board records before accepting it. The linear law is
+> therefore refuted **before any build**, on geometry rather than data, and
+> K5 is now the derivation above. I have also corrected the board session's
+> proposed range: its lower bound of 15.5 omits the scatter's non-bank block
+> RAM, which is 1.0 tile at K = 4 and 2.0 at K = 8 and cannot be zero at
+> K = 16, so the floor is 16.5.
+>
+> Worth recording for the methodology chapter: the K = 8 board record of
+> 2026-09-17 already wrote down the rounding mechanism ("each bank still
+> rounds up to whole RAMB18s, and at these sizes the rounding is what sets
+> the count") after a different BRAM prediction failed. The mechanism was on
+> record for three days before either session applied it to K = 16.
+
+**K6. Replication fit, and it discriminates K5.** Per-engine tiles are
+whole-design minus the 2.0 of DMA and interconnect: 11.5 at K = 8, and 17.5
+at K = 16 under K5's prediction (15.5 under its alternative). So:
+
+- K = 8 at R = 8: 8 x 11.5 + 2 = **94 tiles, fits**.
+- K = 16 at R = 8: 8 x 17.5 + 2 = **142 tiles of 140 available — predicted
+  NOT to place**, and to be rebuilt at R = 4 (72 tiles), exactly as the dense
+  DVS-Gesture build went.
+- **If K = 16 does place at R = 8**, that is evidence for K5's saturating
+  alternative (8 x 15.5 + 2 = 126 tiles, which fits), not merely a miss on
+  K6. The two predictions are linked and should be scored together.
 
 **K7. Single-engine resolvability.** A single engine's input delta is
 predicted at 4.3 to 6.5 mA across the K range (fabric mW / 0.85 / 12 V),
