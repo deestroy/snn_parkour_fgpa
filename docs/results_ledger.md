@@ -46,9 +46,12 @@ validated to 0.3 % per sample on a second dataset.
   (1.25x); worst clip 4.57 ms (deadline reading: dense wins).
   `experiments/dvsgesture/latency_sim/`, pre-registered.
 - Parallelism crossover K = P = 5.8 on this dataset (N-MNIST 6.6).
-- T sweep (one seed): 63.3 / 65.2 / 68.9 % at T = 4 / 8 / 16 — but the fc
-  membrane overflows int16 at T = 16, and at T = 8 for 1 of 3 seeds
-  (C0046). T = 4 is the only setting with margin on every seed.
+- T sweep (3 seeds at every T): 65.0 / 65.7 / 69.3 % mean at T = 4 / 8 / 16;
+  the fc membrane sits at 98-121 % of int16 at T = 16 (2 of 3 overflow), at
+  88-101 % at T = 8 (1 of 3), and at T = 8 the ceiling also moves down to
+  ~15 % activity (T x activity compound, C0046). N-MNIST does not bind: 9-25 %
+  of int16 up to T = 16 while gaining +0.7 pp per doubling (98.0 % at T=16,
+  3 seeds; `experiments/tsweep_nmnist/`).
 - **On silicon (board, 2026-09-19 13:27 build, parallel session):** ED K=4
   DATASET=1, 8/8 clips bit-identical, mean 2,970.8 us, spread 2.24x
   (2,084.6-4,663.9), board = sim + 92.9 us constant on every clip against

@@ -3149,3 +3149,29 @@ inference. With N-MNIST's 10.7 / 8.3 us on 872 words, offset ~ 3.5 us
 + 5-9 ns per DMA word. Lesson recorded: compare board numbers only to
 the harness's wrapper-inclusive total; the per-engine column is for
 engine models. Pre-registrations for future builds use that basis.
+
+## 2026-09-20 — Overnight: T on N-MNIST, T x activity on DVS-Gesture, K = P x activity on C2/C3
+
+**N-MNIST T sweep (3 seeds x T = 8, 16, MI210).** 97.6 % at T = 8 and
+98.0 % at T = 16 vs 96.9 % at T = 4 (+0.7 pp per doubling, seed spread
+0.2 pp), every run golden-clean, and the fc membrane at 9-25 % of int16
+even at T = 16. So the int16 ceiling is a DVS-Gesture-geometry property
+(fc fan-in 1,024 vs 256, 4x the activity), not a T property.
+`experiments/tsweep_nmnist/`.
+
+**DVS-Gesture: T and activity compound.** At T = 8 the fc overflows from
+~19 % activity (116 %, 245 % of int16 at 19 / 34 %), and T = 16 sits at
+98-121 % of int16 on all three seeds (mean accuracy 69.3 %, +4.3 pp over
+T = 4). The usable band as built is roughly T x activity <= ~1.2. This
+sharpens C0046's decision: (c) "T = 4 and moderate activity" is a narrow
+corridor on this dataset; (a) 18-bit membranes buys the whole T = 8-16
+range. Still the user's call; the numbers are now on the table.
+
+**Parallelism x activity on C2/C3 (Mac, 24 more bit-identical runs).**
+With K = P raised to 8 and 16 the fitted crossover activity FALLS (C2 43
+-> 36 -> 26 %, C3 48 -> 44 -> 37 %), because the ED sweep floor does not
+shrink with K while the dense cost does with P. At K = P = 16 the 32 %-
+activity network is past the crossover on C2 (dense 1.18x faster): the
+first real-data point where the dense engine wins a conv layer, and the
+same trade the C1 silicon pair showed at K = P = 8. Figure
+`experiments/figures/fig_crossover_vs_kp.png`.

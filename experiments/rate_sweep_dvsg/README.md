@@ -139,3 +139,19 @@ Fits `ED = a + b x spikes` and matched-parallelism crossovers: K=P=4: a=64,464, 
 Fits `ED = a + b x spikes` and matched-parallelism crossovers: K=P=4: a=32,222, b=74.0, crossover 48 %; K=P=8: a=32,503, b=39.5, crossover 44 %; K=P=16: a=32,643, b=22.2, crossover 37 %
 
 Reading: at K = P = 8 the ED engine's per-spike cost halves but the dense reference halves too, and the ED sweep floor (2NT) does not shrink -- so the crossover activity FALLS with parallelism: C2 ~43 / ~36 / ~26 % and C3 ~48 / ~44 / ~37 % at K = P = 4 / 8 / 16. At K = P = 16 the 32-35 % networks are past the crossover on both layers; at K = P = 8 the 32-35 % networks are within ~10 % of it. This is the same parallelism-activity trade the C1 board pair showed (ED wins at 4, dense at 8 on N-MNIST), one geometry up and on the deeper layers.
+
+## T = 8 x activity (seed 0, 2026-09-20, `t8/`)
+
+| target | achieved c1 / c2 / c3 | float | golden integer | fc |V| range | share of int16 | gate |
+|---|---|---|---|---|---|---|
+| 0.02 | .037 / .033 / .035 | 66.29 % | 65.15 % | -8,556 .. 9,768 | 30 % | pass |
+| 0.04 | .053 / .052 / .051 | 65.15 % | 64.77 % | -12,936 .. 11,443 | 39 % | pass |
+| 0.08 | .094 / .099 / .094 | 67.42 % | 66.29 % | -18,051 .. 14,509 | 55 % | pass |
+| 0.16 | .194 / .199 / .188 | 63.64 % | 64.02 % | -32,018 .. 37,877 | **116 %** | FAIL |
+| 0.30 | .305 / .374 / .355 | 64.02 % | 63.26 % | -80,289 .. 61,394 | **245 %** | FAIL |
+
+T and activity compound on the fc membrane: at T = 8 the ceiling moves down
+to ~15 % activity (at T = 4 it was ~30 %). The usable band as built is
+roughly T x activity <= ~1.2 (T=4 at <= 30 %, T=8 at <= 15 %, T=16 at
+~ the unpenalised network's 7 %). Accuracy at T = 8 sits at 64-67 %, no
+better than T = 4 at these targets (one seed).

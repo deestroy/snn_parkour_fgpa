@@ -184,6 +184,20 @@ the membrane widened or the fc scale dropped a bit before it can be a
 board configuration. Recorded as a hardware limit of the encoding, not
 tuned away.
 
+## T = 16, three seeds (2026-09-20, `t16/`)
+
+| seed | float | golden integer | fc |V| range | share of int16 |
+|---|---|---|---|---|
+| 0 | 68.94 % | 70.83 % | -34,472 .. 28,983 | 105 % (overflow) |
+| 1 | 70.08 % | 70.45 % | -32,210 .. 21,145 | 98 % (fits by 557 counts) |
+| 2 | 68.94 % | 69.32 % | -39,677 .. 16,747 | 121 % (overflow) |
+
+T = 16 is AT the int16 ceiling on every seed (98-121 %): two of three
+overflow and the third clears it by 1.7 %. Accuracy 69.0 / 70.1 / 69.0 %
+(mean 69.3, +4.3 pp over the T = 4 mean of 65.0) is real across seeds but
+is not a hardware number as built. See the T = 8 x activity table in
+`../rate_sweep_dvsg/README.md`: the ceiling is a T x activity product.
+
 ## Board readiness (2026-09-18)
 
 Baked for silicon: `hdl/dense/conv_layer_p_g1.v` and

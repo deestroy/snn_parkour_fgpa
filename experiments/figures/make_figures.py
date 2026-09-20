@@ -171,15 +171,23 @@ def fig_tsweep():
             m = re.search(r"fc\s+V in \[\s*(-?\d+),\s*(-?\d+)\]", txt)
             vmax = max(abs(int(m.group(1))), abs(int(m.group(2))))
             pts.append((T, acc, vmax, os.path.basename(f)))
+    npts = []
+    for T in (8, 16):
+        for f in glob.glob("experiments/tsweep_nmnist/golden_t%d_seed*.log" % T):
+            txt = open(f).read()
+            m = re.search(r"fc\s+V in \[\s*(-?\d+),\s*(-?\d+)\]", txt)
+            npts.append((T, float(re.search(r"float model\s*:\s*([\d.]+)%", txt).group(1)), max(abs(int(m.group(1))), abs(int(m.group(2))))))
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 4))
     for T in (4, 8, 16):
-        ys = [p[1] for p in pts if p[0] == T]; a1.plot([T] * len(ys), ys, "o", color="C0")
-        vs = [p[2] for p in pts if p[0] == T]; a2.plot([T] * len(vs), vs, "o", color="C1")
+        ys = [p[1] for p in pts if p[0] == T]; a1.plot([T] * len(ys), ys, "o", color="C0", label="DVS-Gesture" if T == 4 else None)
+        vs = [p[2] for p in pts if p[0] == T]; a2.plot([T] * len(vs), vs, "o", color="C1", label="DVS-Gesture fc" if T == 4 else None)
+        vn = [p[2] for p in npts if p[0] == T]; a2.plot([T] * len(vn), vn, "^", color="C2", label="N-MNIST fc" if T == 8 else None)
+    a1.legend(fontsize=8)
     a1.set_xscale("log", base=2); a1.set_xticks([4, 8, 16]); a1.set_xticklabels([4, 8, 16]); a1.set_xlabel("timesteps T"); a1.set_ylabel("float test accuracy (%)")
     a1.set_title("DVS-Gesture accuracy vs T (one point per seed)"); a1.grid(alpha=.3)
     a2.axhline(32767, color="r", ls="--", label="int16 ceiling (32,767)")
     a2.set_xscale("log", base=2); a2.set_xticks([4, 8, 16]); a2.set_xticklabels([4, 8, 16]); a2.set_xlabel("timesteps T"); a2.set_ylabel("fc membrane |V| max (golden integer)")
-    a2.set_title("The FC membrane range vs T (per seed)"); a2.grid(alpha=.3); a2.legend(fontsize=8)
+    a2.set_title("FC membrane |V| max vs T, per seed (N-MNIST stays far below)"); a2.grid(alpha=.3); a2.legend(fontsize=8)
     fig.tight_layout(); fig.savefig(os.path.join(OUT, "fig_tsweep_int16.png")); plt.close(fig)
 
 
