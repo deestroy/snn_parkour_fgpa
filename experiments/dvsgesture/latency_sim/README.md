@@ -22,6 +22,11 @@ Cycles to ms: divide by 100,000. ED K=4 = 2.88 ms mean; dense P=4 =
 
 ## The cycle model transfers exactly
 
+**Status: FITTED** (least squares on the five `ed_k*.txt` files here,
+engine-only). The 2 N T term inside the decomposition below is DERIVED from
+the two-cycle sweep beat (hdl/eventdriven/ed_conv_layer.v, C0030); the 5.0
+and 71.7 per-spike constants are regression coefficients and are C1's.
+
 Fit on the K means: `cycles = 165,259 + 490,120 / K`, residual 0.00 %
 at every K. Decomposed:
 

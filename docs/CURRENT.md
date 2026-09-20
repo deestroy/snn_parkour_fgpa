@@ -68,13 +68,16 @@ can be recognised as stale.
 
 These are not errors in a number; they are statements that need qualifying.
 
-- **The cost models quoted in most places are C1 constants.** Dense `88.0 N/P`
-  and the ED `71.7 s/K` hold for C1 only. The general dense law is
-  `(N/P) x T x (9 C_IN + 4) + 4`, exact to the cycle on all six layer-dataset
-  pairs; the general ED scatter term is about `1.12 x 4 C_OUT` per spike, an
-  empirical fit with ~4 % spread. The dense law is a derivation from the state
-  machine; the ED one is a regression. They should not be presented with equal
-  confidence.
+- **The cost models quoted in most places are C1 constants, and the two are
+  not equally strong.** The dense law is **DERIVED** by counting the state
+  machine: `(N/P) x T x (9 C_IN + tail)`, where the tail is the post-MAC state
+  count -- 4 before C0054 and **2 after**, so the C1 per-neuron figure is now
+  80 rather than the familiar 88.0. It reproduces all six layer-dataset pairs
+  exactly and predicts configurations never built. The event-driven law is
+  **part derived, part FITTED**: its `2NT` sweep floor follows from the
+  two-cycle beat (C0030), but the per-spike constants are regression
+  coefficients that drift about 4 % across layers, and `71.7 s/K` is C1's.
+  Full sourcing in `docs/notation.md` section 3.
 - **"Engine-only" latency includes the DMA round trip.** The ARM's global timer
   brackets a cache flush, both transfers, a busy-poll and a cache invalidate.
   Only UART framing and CRC are outside it.
@@ -88,8 +91,8 @@ These are not errors in a number; they are statements that need qualifying.
 
 | # | question | why it matters | status |
 |---|---|---|---|
-| 1 | The dense engine's 4-cycle tail is not pipelined; the ED sweep was (C0030) | 18.2 % of dense cycles on C1. Pipelining it moves the C1 verdict from ED 1.54x to ~1.3x, the DVS-Gesture mean from 1.25x to ~1.03x, and the parallelism crossover from 7.3 to ~5.6-6.0. Every verdict's direction survives; the margins roughly halve | **open, user's decision** |
-| 2 | Engine replication does not enforce lockstep | per-engine energy divides a measured delta by the replica count, which assumes the replicas do identical work | **open, before the meter** |
+| 1 | ~~The dense engine's 4-cycle tail is not pipelined~~ **FIXED 2026-09-20, C0054** (tail is now 2; parity restored, not exceeded) | was 18.2 % of dense cycles on C1. Now fixed: the C1 verdict moves from ED 1.54x to about 1.40x and the parallelism crossover from 7.3 to about 6.5. Directions unchanged, margins roughly halved. **Every dense board pass (4, 6, 8, 11, 12, 14) is superseded** -- they were built from the old engine | **RTL fixed and bit-identical; board rebuilds outstanding** |
+| 2 | ~~Engine replication does not enforce lockstep~~ **FIXED 2026-09-20, C0053** (board session; awaiting the before/after two-replica simulation as evidence) | per-engine energy divides a measured delta by the replica count. The pre-fix behaviour was worse than a race: a replica latched the DMA's held word once per cycle and ran on a fabricated input. **Every replicated pass (7, 8, 13, 14) predates the fix** | **RTL fixed; before/after simulation pending as evidence** |
 | 3 | T is not parameterised past the wrapper | the synthesis top and the board server hardwire 4, so the T-sweep projections describe a build the flow cannot produce | **open**, ~3 lines to fix |
 | 4 | K dividing C_OUT is assumed but not enforced | a non-dividing K would corrupt silently | **open**, one elaboration check |
 | 5 | The int16 membrane ceiling on DVS-Gesture | C0046 options costed; fc k=7 makes the verdict run-independent | **open, user's decision** |

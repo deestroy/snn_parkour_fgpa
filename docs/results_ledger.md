@@ -38,7 +38,9 @@ against wrapper-inclusive totals.
 | 8 | 56,464 | 53,195 | 0.94x (board 0.939x) |
 | 16 | 50,822 | ~27k | 0.53x |
 
-ED = 45.2k + 90.3k/K, dense 406.9k/P + 2.3k, both on the WRAPPER-INCLUSIVE
+ED = 45.2k + 90.3k/K (FITTED), dense 406.9k/P + 2.3k (the 406.9k is DERIVED
+from the dense state machine, the 2.3k is the harness constant), both on the
+WRAPPER-INCLUSIVE
 basis; engine-only they are 43.3k + 90.4k/K and 406.9k/P + 4. Crossover
 K = P = 7.4 (7.3 engine-only); mixing the two bases gives 7.0 or 7.7, so
 always state which. The dense engine has essentially no fixed cost of its

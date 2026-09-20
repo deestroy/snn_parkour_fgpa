@@ -78,3 +78,100 @@ cost: LIF 13 LUT / 17 FF / 0 DSP; SRC 75/21/0; QIF 82/21/0; Izhikevich
 42/25/1; Hodgkin-Huxley 73/25/3. Quantitative justification for the LIF
 choice — and the balancing acknowledgement that SRC preserves dynamics
 LIF discards.
+
+---
+
+## Throughput per synapse: how our engines compare with the published designs
+
+Added 2026-09-20. **Why this section exists:** every latency in the table above
+belongs to a different network on a different fabric at a different clock, so
+the raw milliseconds cannot be compared. The fabric-independent measure is the
+**synaptic operation** -- one weight accumulated into one neuron -- and the
+question is how many of those a design retires per clock cycle. That number
+says how much parallelism the design extracts, independently of how big its
+chip is or how fast its clock runs.
+
+### Ours, computed exactly
+
+C1 on N-MNIST: 4,624 output neurons, 18 taps each (a 3x3 kernel over 2 input
+channels), T = 4 timesteps. The dense engine evaluates **332,928** accumulates
+per inference, whether or not the input spiked. The event-driven engine
+evaluates only what fired: 1,256 spikes x a 2x2 output block x 16 channels =
+**80,384**, which is 24 % of the dense work for the same output.
+
+| engine | cycles per inference | synaptic ops per cycle | at 100 MHz |
+|---|---|---|---|
+| dense P = 1 | 369,924 | 0.90 | 0.09 GSOP/s |
+| dense P = 4 | 92,484 | **3.60** | 0.36 GSOP/s |
+| dense P = 16 | 23,124 | 14.40 | 1.44 GSOP/s |
+| event-driven K = 4 | 67,756 | 1.19 useful (4.91 dense-equivalent) | 0.12 GSOP/s useful |
+| event-driven K = 16 | 50,822 | 1.58 useful (6.55 dense-equivalent) | 0.16 GSOP/s useful |
+
+Dense cycle counts are post-C0054 (`(N/P) x T x (9 C_IN + 2) + 4`, derived and
+verified exact at every P). "Dense-equivalent" counts the accumulates the
+event-driven engine *avoided*: it is the fair number when comparing against a
+design that evaluates everything, and the reason the two columns differ by 4x
+is the 24 % activity of this data.
+
+### The published designs, and what can actually be computed
+
+| work | synaptic ops per cycle | status |
+|---|---|---|
+| **Minitaur** (Neil & Liu, TVLSI 2014) | **0.065** on MNIST, 0.250 peak | **computable** -- the only row that reports synaptic throughput directly (4.88 M and 18.73 M post-synaptic current updates per second, at 75 MHz) |
+| FireFly-P (arXiv 2601.21222) | naive figure 508 | **not computable.** 784-1024-10 is 813,056 synapses and 8 us at 200 MHz is 1,600 cycles, which would need 508 accumulates per cycle on 47 DSPs. The 8 us therefore is not a full evaluation of every synapse; the paper is needed to say what it is |
+| Spiker+ (TETC 2025) | -- | **not computable from our transcription**: the MNIST hidden-layer size and the timestep count are not in our rows. This is the most valuable row to complete -- same XC7Z020 fabric, same 100 MHz clock as ours |
+| Harmeling et al. (NCE 2026) | -- | synapses derivable (784-100-10 = 79,400) but the spike-train length is not in our rows |
+| Li et al. (TCAS-I 2021) | -- | synapses derivable (177,800) but it is event-driven with Poisson coding, so the accumulate count depends on spike rates the transcription does not carry |
+| Cerebron (TVLSI 2022) | -- | the spiking ConvNet topology is not in our rows |
+| Cheng et al. (TCAS-I 2025) | -- | "up to 1M synapses" and no per-inference time |
+| FireFly-S (TCAS-I 2025) | -- | latency not yet transcribed |
+
+**The finding, which parallels this table's main one.** Of eight published
+designs, **one** reports enough to compute throughput per synapse. The others
+give a latency for a network whose evaluated-synapse count is either
+unstated or activity-dependent and unreported. So the same gap that makes
+their *energy* numbers incomparable -- a tool estimate with an unstated
+boundary -- also makes their *throughput* numbers incomparable. That is worth
+one sentence in Chapter 3 beside the power-method column.
+
+### What this comparison does and does not say
+
+- Our dense engine at P = 4 retires 3.6 accumulates per cycle. That is modest
+  by accelerator standards and is **not** a claim of competitive throughput.
+  The engine does one tap per cycle per lane with no multipliers at all (DSP =
+  0 by construction, because a spike is one bit and a synapse is an add), on
+  the smallest Zynq part, at 100 MHz.
+- The thesis claim is a controlled comparison between two datapaths on one
+  fabric, not a fast accelerator. The right reading of the table above is that
+  both of our engines sit in the same order of magnitude as Minitaur, the one
+  comparable event-driven FPGA design, and one to two orders below the
+  large-fabric accelerators -- which is what a 53k-LUT part at 100 MHz with no
+  DSPs should do.
+- Comparing across rows is unsound for a second reason beyond throughput:
+  precision differs (1-bit activations here, 4- to 16-bit elsewhere), the
+  networks differ (one conv layer here, fully-connected elsewhere), and
+  event-driven designs' work is data-dependent while clock-driven work is not.
+
+### Papers needed to finish this section
+
+I could not read these; the repository has only transcribed rows. Each link
+is the verified DOI from `docs/references_verified.md`, with exactly what is
+needed from it.
+
+| paper | link | what to extract |
+|---|---|---|
+| **Spiker+** (Carpegna et al., TETC 13(3) 2025) | https://doi.org/10.1109/TETC.2024.3511676 | the MNIST network topology (hidden layer size) and the number of timesteps per inference. Highest value: same fabric and clock as ours, so it is a like-for-like row |
+| FireFly-P (Li et al., 2026) | https://arxiv.org/abs/2601.21222 | what the 8 us covers -- one timestep, one inference, or a sparse subset of synapses -- and the spike rate if event-driven |
+| Harmeling et al. (NCE 6 024022, 2026) | https://doi.org/10.1088/2634-4386/ae759c | spike-train length (their analogue of T), and whether all synapses are evaluated per timestep |
+| Li et al. (TCAS-I 68(4) 2021) | https://doi.org/10.1109/TCSI.2021.3052885 | mean spike rate or synaptic-operation count per image |
+| Cerebron (TVLSI 30(10) 2022) | https://doi.org/10.1109/TVLSI.2022.3196839 | the spiking ConvNet topology behind the 0.026 ms MNIST figure |
+| Cheng et al. (TCAS-I 72(7) 2025) | https://doi.org/10.1109/TCSI.2025.3560666 | per-inference latency, and the synapse count actually evaluated under 50 % structured sparsity |
+| FireFly-S (TCAS-I 72(8) 2025) | https://doi.org/10.1109/TCSI.2024.3496554 | per-inference latency for MNIST and DVS-Gesture |
+| Minitaur (Neil & Liu, TVLSI 22(12) 2014) | https://doi.org/10.1109/TVLSI.2013.2294916 | already usable; the FPGA part number would complete its row |
+
+On method: analytical cycle models of this kind are standard practice for
+FPGA neural-network accelerators rather than something invented here; the
+canonical reference is Zhang et al., FPGA 2015,
+https://doi.org/10.1145/2684746.2689060, which introduced the roofline-based
+analytical model for this purpose. Our model is far simpler because our engine
+is far simpler.

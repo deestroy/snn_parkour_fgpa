@@ -1155,6 +1155,44 @@ rather than slipped in.
 **Done when:** the user decides whether to re-baseline, and either way the
 K = 16 row reports the table's share of its tiles separately from the banks'.
 ---
+## C0054 — The dense engine's tail was not pipelined where the event-driven sweep's was (P0, fixed 2026-09-20)
+**Problem.** `conv_layer_p.v` ran four states after every output group's MAC
+loop -- S_TAIL, S_VRD, S_VREG, S_UPDATE -- strictly in sequence. Two of them,
+S_VRD and S_VREG, existed only to cover the membrane memory's read latency.
+C0030 had already removed exactly this pattern from the event-driven sweep
+("read n+1 while updating n", 4 cycles per neuron down to 2) and said why:
+at 4 the event-driven floor was 18.5k of 27.1k cycles and the margin was "too
+thin to build an energy argument on". The same optimisation was never applied
+to the dense arm, so the headline comparison ran a pipelined engine against an
+unpipelined one. Because the tail is amortised over the tap count it cost
+**18.2 % of dense cycles on C1 -- the only layer on silicon -- and 1.4 % on C3.**
+**Fix.** The read address `n_off` is already stable throughout S_MAC (it only
+advances in S_UPDATE), so the membrane read is now issued during the MAC loop
+and `v_lat`/`v_r2` are valid when the loop ends. S_VRD and S_VREG are gone.
+The tail is S_TAIL + S_UPDATE = 2. Two lines plus two state encodings.
+**Verified.** Bit-identical to the golden model at every P; the derived law
+`(N/P) x T x (9 C_IN + 2) + 4` reproduces the regenerated AXI-harness files
+exactly at P = 1, 2, 4, 8, 16 (369,924 / 184,964 / 92,484 / 46,244 / 23,124
+engine-busy cycles).
+**Why it stops at tail = 2 and not tail = 1.** The remaining two cycles could
+also be hidden, by holding the finished accumulator and membrane in shadow
+registers and letting the LIF update ride the next group's first MAC cycle.
+That was deliberately NOT done. The event-driven sweep does not overlap its
+own update either -- its two-cycle beat is one cycle to present addresses and
+one to update -- so taking the dense engine to tail = 1 would buy it an
+optimisation its counterpart does not have and would create the opposite
+unfairness. What C0054 restores is parity: **both engines now hide their read
+latency and neither hides its update.** That is the defensible stopping point,
+and it is the answer to the obvious reviewer question of why the dense engine
+was not optimised further.
+**Consequences, all directions unchanged, all margins roughly halved.**
+C1 at matched parallelism K = P = 4 moves from ED 1.54x to about 1.40x; the
+parallelism crossover from 7.3 to about 6.5; the DVS-Gesture per-clip mean
+from 1.25x to about 1.09x, still 6 of 8 clips. **Every dense board pass is
+superseded** (4, 6, 8, 11, 12, 14) -- they were built from the old engine.
+**Done when:** the dense passes are rebuilt, or the thesis states which board
+figures predate C0054. Open on the board side.
+---
 ## Closing note on this review
 Three passes have been made: methodology (C0001–C0017), measurement
 accuracy and missing experiments (C0018–C0027), design and internal

@@ -94,8 +94,11 @@ re-baselined (C0037): at K = P = 4 on C1 the event-driven engine now wins
 not the verdict but the axis: giving the dense engine its knob is what moved
 the crossover onto parallelism, where it has stayed.
 
-**The cost models** (cycles per inference, validated against simulation and
-silicon):
+**The cost models.** Each line below says whether it is DERIVED (counted from
+the RTL, so it predicts configurations never built) or FITTED (a regression on
+measured cycle files, so it only describes what was measured). That
+distinction matters: the two are not equally strong, and the repository used
+to present them as if they were.
 
 ```
 These are the C1 constants. The general forms, verified on all six
@@ -105,12 +108,43 @@ dense:  88.0 x N / P            per T = 4 inference   (data-independent)
 ED:     2 N T  +  5.0 s  +  71.7 s / K                (data-dependent)
         ^sweep    ^queue   ^scatter
 
-general dense:  (N / P) x T x (9 C_IN + 4) + 4    exact to the cycle; the +4
-                per neuron is the engine's serial tail (S_TAIL, S_VRD,
-                S_VREG, S_UPDATE), 18.2 % of C1 and 1.4 % of C3
-general ED:     2 N T + 5.0 s + (~1.12 x 4 C_OUT) s / K   empirical, ~4 %
-                spread; the 4 is the stride-2 3x3 fan-out (a 2x2 block of
-                output positions), NOT the T = 4 of the dense law
+general dense:  (N / P) x T x (9 C_IN + tail) + c
+
+  DERIVED, from hdl/dense/conv_layer_p.v. Its state machine (the localparam
+  list at lines 79-81) runs, for each of the N/P output groups and each of the
+  T timesteps, `taps` cycles of S_MAC followed by the tail states.
+    - N / P   groups, because P output channels advance together (line 73,
+              "neuron (oc,oy,ox) -> bank oc mod P")
+    - taps = 9 x C_IN, from the MAC loop bounds: kx 0..2, ky 0..2, ic
+              0..C_IN-1 (lines 253-258) = 3 x 3 x C_IN iterations
+    - tail  = the number of post-MAC states. It was 4 (S_TAIL, S_VRD, S_VREG,
+              S_UPDATE) until 2026-09-20 and is 2 (S_TAIL, S_UPDATE) after
+              C0054 folded the two read-latency states into S_MAC.
+    - c     = a small additive constant that is NOT derived. It is FITTED and
+              it depends on the harness, not the engine: +4 on the AXI-Stream
+              harness's engine-busy column (experiments/latency_sim/
+              ksweep_c0035/dense_p*.txt) and -4 on the layer testbench's
+              "engine cycles/sample" line (experiments/rate_sweep*/bench/
+              dense_p4_*.txt). Quote it with the harness or leave it out.
+  Verified: the derived part reproduces all six layer-dataset pairs exactly
+  (N-MNIST and DVS-Gesture x C1/C2/C3) and every P in {1,2,4,8,16}.
+  The familiar "88.0 cycles per neuron per T=4 inference" is this law at C1
+  with the old tail: T x (taps + 4) = 4 x 22 = 88 (docs/decisions.md D0026).
+  With the C0054 tail it is 4 x 20 = 80.
+general ED:     2 N T + 5.0 s + (~1.12 x 4 C_OUT) s / K
+
+  MIXED. The 2 N T sweep floor is DERIVED: the sweep visits every one of the
+  N neurons once per timestep at two cycles each, which is the pipelined beat
+  C0030 introduced (hdl/eventdriven/ed_conv_layer.v, the comment at lines
+  206-213). The 5.0 per-spike queue term and the 1.12 factor are FITTED, from
+  experiments/dvsgesture/latency_sim/README.md (C1) and
+  experiments/rate_sweep*/README.md (C2, C3); the fits reproduce their own K
+  points to 0.00 % but the 1.12 factor drifts 1.078 to 1.125 across the four
+  C2/C3 fits, so it is a description, not a law. The 4 in "4 C_OUT" is the
+  stride-2 3x3 fan-out -- one input spike reaches at most a 2x2 block of
+  output positions -- and is NOT the T = 4 of the dense law above; change the
+  kernel or the stride and one moves while the other does not.
+  The familiar "71.7 s / K" is this term at C1: 1.12 x 4 x 16 = 71.7.
 ```
 
 The crossover exists because the ED **sweep** term `2NT` does not shrink when

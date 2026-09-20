@@ -20,6 +20,13 @@ halving each step, i.e. the data fit
 
     cycles(K) = 45.2k + 90.3k / K          (residual < 10 cycles at every K)
 
+**Status of this equation: FITTED**, by least squares on the five ed_k*.txt
+files in this directory (total-cycles column, so it includes the wrapper).
+It describes these measurements; it is not derived from the RTL. The sweep
+term inside it, 2 N T, IS derived -- two cycles per neuron per timestep from
+the pipelined beat in hdl/eventdriven/ed_conv_layer.v (C0030) -- but the
+per-spike constants are regression coefficients.
+
 exactly. The two terms are the two halves of the engine: the **scatter**
 (work per spike, spread over K banks) is the 90.3k/K term; the
 **K-independent floor** of ~45k is the neuron sweep (2 cycles x 4,624
