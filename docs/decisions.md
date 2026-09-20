@@ -3127,3 +3127,14 @@ silicon build's report_power (default vectorless), the thesis estimate
 column; fabric 48 mW (ED K=4 N=1) to 501 mW (dense P=4 x8), PS7 1.533 W
 throughout. The sim session folded them into the metering
 pre-registration as the tool's prediction.
+
+## 2026-09-19 (night) — Pass 12: dense P=4 N=1 N-MNIST at rev 3; the day closed
+
+dense_p4_20260919_2323 (WNS +0.768 vs rev 2's +0.299): 16/16, 1,048.9 us
+on every sample -- the 2026-09-06 record to 0.1 us. Rev 3 is validated
+on both datasets; its power report (73 mW fabric) completes the
+single-engine pair for the metering pre-registration. Server build 5
+DATASET=0 confirmed by PING. Tally 2026-09-17..19: 12 board passes, 0
+correctness misses; three builds rejected before the card by checks
+written days earlier; one RTL revision forced by a timing failure and
+proven by silicon the same day.

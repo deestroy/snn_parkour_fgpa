@@ -20,8 +20,8 @@ the ARM subsystem's estimate and dominates every total.
 
 | build tag | what | WNS | total W | dynamic | static | clocks | logic | signals | BRAM | DSP | PS7 | fabric mW |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| dense_p4_20260919_2323 | dense P=4 N-MNIST, rev 3, m4_conv2 (pass pending) | 0.768 | 1.750 | 1.606 | 0.144 | 0.021 | 0.013 | 0.026 | 0.013 | 0.000 | 1.533 | 73.0 |
-| dense_p4_dvsg_20260919_1447 | dense P=4 DVS-Gesture, rev 3 (pass pending) | 1.091 | 1.814 | 1.668 | 0.146 | 0.036 | 0.012 | 0.064 | 0.023 | — | 1.533 | 135.0 |
+| dense_p4_20260919_2323 | dense P=4 N-MNIST, rev 3, m4_conv2 (pass 12) | 0.768 | 1.750 | 1.606 | 0.144 | 0.021 | 0.013 | 0.026 | 0.013 | 0.000 | 1.533 | 73.0 |
+| dense_p4_dvsg_20260919_1447 | dense P=4 DVS-Gesture, rev 3 (pass 11) | 1.091 | 1.814 | 1.668 | 0.146 | 0.036 | 0.012 | 0.064 | 0.023 | — | 1.533 | 135.0 |
 | dense_p4_x8_20260917_2312 | dense P=4 x8 N-MNIST (pass 8) | 0.041 | 2.196 | 2.034 | 0.162 | 0.057 | 0.093 | 0.250 | 0.101 | — | 1.533 | 501.0 |
 | dense_p4_x8_20260918_1004 | (superseded/intermediate run) | 0.041 | 2.196 | 2.034 | 0.162 | 0.057 | 0.093 | 0.250 | 0.101 | — | 1.533 | 501.0 |
 | dense_p4_x8_20260918_1011 | (superseded/intermediate run) | 0.041 | 2.196 | 2.034 | 0.162 | 0.057 | 0.093 | 0.250 | 0.101 | — | 1.533 | 501.0 |
