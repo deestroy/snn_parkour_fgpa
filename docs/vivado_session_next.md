@@ -76,7 +76,12 @@ For each:
    of 1,156 per bank) but doubles the number of banks and the read-mux
    width feeding the word port. Plausible either way; WNS < 0 -> paste
    the top path, stop, do not export.
-5. WNS >= 0: report_utilization (BRAM tiles: expect ~2x the K=4 count
+5. WNS >= 0: report_utilization (**the ~2x BRAM prediction below FAILED at
+   pass 5**: measured 13.5 tiles against 12.5 at K=4, i.e. +1. Superseded by
+   C0052 / K5 -- bank memory is flat at 4.0 tiles from K=2 to K=8 because the
+   per-bank primitive halves as the bank count doubles, then doubles at K=16
+   when it cannot halve again. Original text follows.)
+   report_utilization (BRAM tiles: expect ~2x the K=4 count
    for ED — this is the K-vs-BRAM trade the thesis needs measured;
    DSP must still be 0) and report_power (the estimate column). Export
    Hardware WITH bitstream.
