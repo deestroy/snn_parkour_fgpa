@@ -1222,31 +1222,66 @@ RISES as inputs get sparser, because control-FSM "event" activity dominates the
 arithmetic saved. That claim rests entirely on a tool estimate, which is a
 direct and citable motivation for measuring.
 
-**2. The measurement method, on FPGA, for a spiking-adjacent network.**
+**2. The measurement method exists, but NOT for a spiking network.**
 "Embedded FPGA Acceleration of Brain-Like Neural Networks: Online Learning to
 Scalable Inference", arXiv:2506.18530 (2025). Uses the **onboard INA226** on a
 ZCU104 to measure board power and an idle-minus-execution delta, sampling at
-10 ms over 1000+ samples per state. That is our C0004/C0038 protocol. So
-"nobody measures" is too strong as written; "no event-driven-versus-dense
-comparison measures" is the defensible form. PDF not yet read -- confirm
-whether the network is spiking and whether any datapath comparison is made.
+10 ms over 1000+ samples per state -- our C0004/C0038 protocol exactly.
+**PDF read 2026-09-20: it is NOT a spiking network.** The model is BCPNN, a
+Bayesian-Hebbian "brain-like" network, and the paper states plainly that
+"spike activity is represented as rate-based and not as an actual spike"
+(Sec. II). Its comparison is against ARM software baselines, not against a
+second datapath.
+**So the Chapter 1 claim survives in its strong form**: no FPGA *spiking*
+accelerator reports externally instrumented board power -- all seven surveyed
+in docs/baseline_table.md use a tool estimate or state no method. What this
+work provides is **precedent for the protocol**, which is worth citing as
+support for the method rather than as a threat to novelty.
 
-**3. The sparse-versus-dense crossover framing, long established for ANNs.**
-SCNN (Parashar et al., ISCA 2017, arXiv:1708.04485) reports its sparse
-architecture beating a dense one once weights and activations are each below
-~85 % dense; other work puts the break-even nearer 70 %. So the *shape* of our
-result -- sparsity pays only above a threshold, because the machinery that
-exploits it costs something -- is a known result in non-spiking accelerators.
-This is good for us: it gives standard vocabulary and a comparison point,
-and it means our contribution is the spiking, measured, same-fabric instance
-of a question the field already recognises as real.
+**3. The sparse-versus-dense crossover framing, established for ANNs -- and the
+comparison is more useful than expected.** SCNN (Parashar et al., ISCA 2017,
+arXiv:1708.04485), read 2026-09-20. Its own words: "the SCNN architecture
+starts [to beat the dense] architecture in performance and energy efficiency
+[when] weights and activations are each less than 85% dense", and "at 100%
+density, SCNN achieves about [a fraction of] the performance of DCNN because
+it suffers from PE underutilization", reaching 24x at 10% density.
+**The mechanism is ours exactly**: at high density the sparse machinery is
+underutilised and loses; it only pays once there is enough sparsity to feed it.
+**But the numbers are very different, and that difference is a contribution.**
+SCNN's crossover is at 85 % density; ours is at ~30 % input density on C1.
+Our event-driven engine needs roughly three times more sparsity before it pays.
+The reason is structural and is the thesis's own mechanism: **a spiking
+event-driven datapath has a floor that a sparse ANN accelerator does not.**
+The leak-and-threshold sweep must visit every neuron every timestep (our 2NT
+term) whether or not anything arrived, so the event-driven engine can never
+fall below it however sparse the input. SCNN has no equivalent -- a zero
+simply produces no work. That is a clean, quotable statement of why spiking
+sparsity is harder to cash in than ANN sparsity, and it is exactly what this
+thesis measures.
+
+**4. The two datapaths have standard names, and the taxonomy omits one of
+them for an interesting reason.** Eyeriss (Chen, Emer, Sze, ISCA 2016), read
+2026-09-20, classifies CNN dataflows as Weight Stationary, Output Stationary,
+No Local Reuse and Row Stationary. Output Stationary is defined as keeping
+"the accumulation of [partial sums] for the same output activation value
+stationary in a PE" -- **which is our dense engine exactly**: each output
+neuron's accumulator stays put while weights and input bits stream past it.
+Our event-driven engine is the dual: the *input* is held and scattered to all
+the outputs it touches. **That dual has no name in their taxonomy**, and the
+reason is instructive: for a dense ANN an input-stationary dataflow buys
+nothing, because every input is used anyway. It only becomes interesting when
+inputs are sparse, which is the spiking case. Adopt their vocabulary in
+Chapter 2 and 4 -- call the dense engine output-stationary and the
+event-driven one input-stationary (scatter) -- rather than inventing terms.
 
 **What survives as the gap, stated carefully:**
 no published work compares an event-driven and a clock-driven **layer datapath
 on the same fabric**, verified bit-identical against a common reference, swept
 over activity AND parallelism, with energy **measured at the board input**
-rather than estimated. Each clause is now doing work; drop any one of them and
-one of the three works above covers it.
+rather than estimated. Each clause is doing work: Marostica et al. have the
+comparison but at neuron scale with an estimate, the BCPNN work has the
+instrument but no spiking and no datapath comparison, and SCNN has the
+crossover but for non-spiking hardware with no sweep floor.
 
 **Actions.**
 - Rewrite Chapter 3's gap statement to the sentence above, and add all three

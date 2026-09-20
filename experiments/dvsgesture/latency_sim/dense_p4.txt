@@ -1,1 +1,1 @@
-TB_PASS 1572864 comparisons bit-identical over 8 samples x 4 timesteps, 360444 engine cycles/sample (P=4) 
+TB_PASS 1572864 comparisons bit-identical over 8 samples x 4 timesteps, 327676 engine cycles/sample (P=4)
