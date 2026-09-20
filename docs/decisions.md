@@ -3348,3 +3348,35 @@ jobs back to back, each as smoke, full run, evaluation, with a disk guard:
 About 156 hours of training plus evaluations, against roughly 240 hours of
 access. A fifth job (a T = 8 student) fits only if something above fails
 early, and is deliberately not queued.
+
+## 2026-09-20 — The block-RAM primitive floor bounds useful K (from the archived reports, before any K-sweep build)
+
+Decomposing the hierarchical utilisation of the two ED builds on silicon
+shows where every tile goes, and that the K=4 -> K=8 step of +1.0 tile is
+a coincidence, not a law:
+
+| | K=4 | K=8 |
+|---|---|---|
+| engine excl. scatter | 5 RAMB36 + 1 RAMB18 = 5.5 | same = 5.5 |
+| ed_scatter (banked by K) | 4 RAMB36 + 2 RAMB18 = 5.0 | 0 RAMB36 + 12 RAMB18 = 6.0 |
+| DMA + interconnect | 2.0 | 2.0 |
+| whole design | 12.5 | 13.5 |
+
+ed_scatter banks `mem[0:NEURONS/K-1]` at 16 bits. Per bank that is
+1156 x 16 = 18,496 bits at K=4 -- **64 bits over a RAMB18's 18,432**, so
+each bank takes a whole RAMB36; at K=8 it is 9,248 bits and fits a
+RAMB18, so the per-bank cost halves exactly as the bank count doubles.
+At K=16 each bank is 4,624 bits, a quarter of a RAMB18, but RAMB18 is
+the smallest primitive: 16 banks cost >= 16 RAMB18 = 8.0 tiles, so the
+whole design is predicted at 15.5-17.5 rather than a linear 14.5.
+
+**Consequence for the thesis.** Past K=8 the banks are below the
+primitive floor, so further K buys latency at a disproportionate memory
+cost on this fabric -- a bound on useful K that is independent of the
+energy argument (C0025). If the energy sweep also bottoms at K=8, the
+two arguments agree for different reasons.
+
+Recorded before the K-sweep builds exist, so K=16's row scores it. I had
+argued the opposite (a linear +1.0/doubling) from the two-point fit and
+was wrong; the peer session's original primitive-floor hypothesis was
+right and has been reinstated with this mechanism attached.
