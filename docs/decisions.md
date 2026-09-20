@@ -3457,3 +3457,42 @@ though the README quotes 104,059 for P=4 in three places. The value is
 exactly reproducible from the other three points (406,912/4 + 2,331 =
 104,059), so it is right, but it is a derived row with no file behind
 it and any generator parsing that directory reconstructs it silently.
+
+## 2026-09-20 (audit, cont.) — The dense cost law is a derivation, not a fit; the two "4"s are different quantities
+
+Checking the peer session's generalisation of both cost models across
+layers.
+
+**Dense is the state machine, exact.** conv_layer_p runs `taps` cycles
+of S_MAC then four states (S_TAIL, S_VRD, S_VREG, S_UPDATE) per neuron
+group per timestep, so
+
+    engine-busy = (N/P) x T x (taps + 4) + 4,   taps = 9 x C_IN
+
+Against every dense cycle file: P = 1/2/4/8/16 measured 406,916 /
+203,460 / 101,732 / 50,868 / 25,436 against predicted 406,912 / 203,456
+/ 101,728 / 50,864 / 25,432 -- **+4 cycles everywhere**, that +4 being
+the engine's fixed term. So "88.0 N/P for C1, 592 for C2, 1,168 for C3"
+is one derivation, not three fits, and it predicts any (N, C_IN, P, T)
+without new data.
+
+**The ED expression's "4" is kernel fan-out, not T.** A stride-2 3x3
+kernel sends an input spike to at most a 2x2 block of output positions,
+so the per-spike scatter is 4 targets x C_OUT/K slots: at C1, K=1 that
+is 64 cycles against 71.9 measured. Changing stride or kernel changes
+the ED 4 and not the dense one; changing T does the reverse. The two
+must not be written side by side as if they were the same constant.
+
+**A refuted alternative, recorded as such.** I hypothesised that the
+ED model's 1.12 factor was a fixed per-spike overhead misread as a
+scale, which would explain its drift from 1.125 to 1.078 as C_OUT
+grows. The implied overhead is 7.7 / 8.0 / 14.7 / 13.7 / 20.0 cycles at
+C_OUT = 16 / 16 / 32 / 32 / 64 -- not constant, and a 2.6x spread
+against the multiplicative form's 4 %. The additive model is refuted;
+the multiplicative one stands, with an unexplained C_OUT dependence.
+
+**Asymmetry for the thesis.** Dense is exact to 4 cycles and derivable;
+ED is empirical with ~4 % spread and an unexplained constant. They
+should not be quoted with equal confidence -- which is itself a fair
+statement of the two architectures, and part of the argument for
+measuring the event-driven design rather than modelling it.
