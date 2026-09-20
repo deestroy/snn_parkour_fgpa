@@ -1304,3 +1304,22 @@ and post-fix RTL for a before-and-after rather than an assertion.
 14) predates this fix, so their per-engine energy division rests on the
 old behaviour. They are still valid as correctness passes of instance 0.
 Rebuilding them is a user decision, recorded as open.
+
+**Regression evidence (2026-09-20).** The harness has always supported
+N_ENGINES (sim/run_axis_tb.sh passes NENG through to the testbench) and
+no ladder check has ever used it -- which is why this survived. With the
+fix in, the first multi-engine benches ever run all pass bit-identical:
+
+| N | engine | dataset | result |
+|---|---|---|---|
+| 2 | ED K=4 | N-MNIST c1 | 9,280 words bit-identical |
+| 2 | dense P=4 | N-MNIST c1 | 9,280 words bit-identical |
+| 4 | ED K=4 | N-MNIST c1 | 9,280 words bit-identical |
+| 4 | dense P=4 | N-MNIST c1 | 9,280 words bit-identical |
+| 4 | ED K=4 | DVS-Gesture g1 | 16,384 words bit-identical |
+
+This is a REGRESSION check, not a validation: instance 0 is correct
+either way, because replica outputs are unconnected. It proves the fix
+does not break the single stream that reaches the DMA; the defect
+itself is detectable only by probing replica accepts, which is the
+peer session's two-replica before-and-after.
