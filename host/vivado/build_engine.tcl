@@ -335,6 +335,52 @@ if {$wns < 0 || $whs < 0} {
 # ---------------------------------------------------------------- reports + export
 report_utilization -hierarchical -file $out/utilization_hier.rpt
 report_power -file $out/power.rpt
+
+# Block-RAM census by cell name (2026-09-20, C0025/C0052). The hierarchical
+# report totals a module's BRAM but cannot separate the ed_scatter
+# accumulator banks (g_bank[*].mem) from the weight table's dual-port
+# replicas (wt), and at K=16 both are RAMB18, so a correct TOTAL could hide
+# a wrong SPLIT -- which is exactly what the two pre-registered mechanisms
+# (RAMB18 floor for the banks, K/2 replication for the table) predict
+# separately. Every BRAM primitive is listed with its owner so the split is
+# measured, not inferred.
+if {![catch {llength [get_cells -quiet -hier -filter {REF_NAME =~ RAMB*}]} n_bmem]} {
+    set fh [open $out/bram_census.txt w]
+    puts $fh "# block-RAM primitives by owner  ($tag, routed)"
+    puts $fh "# RAMB36 counts 1.0 tile, RAMB18 counts 0.5"
+    array set grp {}
+    array set tiles {}
+    foreach c [get_cells -quiet -hier -filter {REF_NAME =~ RAMB*}] {
+        set ref [get_property -quiet REF_NAME $c]
+        set t [expr {[string match "RAMB36*" $ref] ? 1.0 : 0.5}]
+        # Vivado names a generate scope with a DOT inside the leaf
+        # (".../g_baked.scatter/g_bank[0].mem_reg_0_0"), so splitting on "/"
+        # alone puts the banks and the table in one group. Key on the array:
+        # leaf -> drop the _reg_N_N suffix, collapse the generate index.
+        set owner [regsub {/[^/]+$} $c {}]
+        set leaf [file tail $c]
+        regsub {_reg(_[0-9]+)*$} $leaf {} leaf
+        regsub -all {\[[0-9]+\]} $leaf {[*]} leaf
+        set key [regsub -all {\[[0-9]+\]} "$owner/$leaf" {[*]}]
+        if {[info exists grp($key)]} {
+            incr grp($key); set tiles($key) [expr {$tiles($key) + $t}]
+        } else { set grp($key) 1; set tiles($key) $t }
+        puts $fh [format "%-10s %s" $ref $c]
+    }
+    puts $fh ""
+    puts $fh "# summary: primitives and tiles per owner"
+    set total 0.0
+    foreach key [lsort [array names grp]] {
+        puts $fh [format "%6d prim  %6.1f tiles  %s" $grp($key) $tiles($key) $key]
+        set total [expr {$total + $tiles($key)}]
+    }
+    puts $fh [format "%21.1f tiles  TOTAL" $total]
+    close $fh
+    if {$n_bmem == 0} { say "  WARNING: BRAM census found no RAMB cells -- filter wrong for this Vivado, census unusable" }
+    say "  BRAM census: $n_bmem primitives, [format %.1f $total] tiles -> $out/bram_census.txt"
+} else {
+    say "  BRAM census skipped ($n_bmem)"
+}
 set xsa "$out/design_1_wrapper.xsa"
 write_hw_platform -fixed -include_bit -force $xsa
 say "exported $xsa"
