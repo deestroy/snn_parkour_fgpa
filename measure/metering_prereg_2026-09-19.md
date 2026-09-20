@@ -35,6 +35,7 @@ during the session are recorded as deviations. Procedure details live in
 | 5 | ED K=4, DATASET=1 (DVS-Gesture) | ed_k4_dvsg_20260919_1324 | the per-clip activity crossover in ENERGY |
 | 6 | dense P=4, DATASET=1 | (rebuilding 2026-09-19) | its pair |
 | 7-8 | ED K=8 / dense P=8, N-MNIST | ed_k8_20260917_2106 / dense_p8_20260917_2221 | the parallelism crossover in energy, if time |
+| 9-10 | ED K=4 / dense P=4, DATASET=1, **N_ENGINES=4** (x8 does not fit: g1 ED engine 21 BRAM tiles, g1 dense 7.3k LUT / 17k FF) | VM queue 848b933, 2026-09-19 night | resolvable DVS-Gesture delta; per-engine = delta / 4 |
 
 Samples: the 16 N-MNIST check samples (BURST sweep over all 16 = the
 mean over the set) and the 8 DVS-Gesture clips. For #5-6 each clip is
@@ -169,3 +170,18 @@ N=1 ratio). P1 for the dense single engine: ~7.2 mA at 12 V / 0.85.
 Nothing else in section 7 changes: the tool still predicts ED wins energy
 at K=P=4 by 2.3x (N=1) to 3.2x (per engine from x8); my P2 (1.1-1.4x)
 stands as the contrary prediction.
+
+### 7b. Addendum 2026-09-20 00:05 -- offsets decomposed; DVS-Gesture replication at N = 4
+
+- The board-minus-sim "offsets" quoted in sections 4 and 7 (92.9 us ED,
+  102.0 us dense on DVS-Gesture) were a comparison-basis artefact: the
+  per-engine sim column excluded 6.3k-8.2k wrapper cycles. Against the
+  wrapper-inclusive harness totals (experiments/dvsgesture/latency_sim/
+  axis_total/, b85ec60) the board sits at ED +29.4 us and dense +20.0 us,
+  constant. From now on board latencies are compared to wrapper-inclusive
+  totals; the energy predictions above used measured board latencies, so
+  they are unaffected.
+- The DVS-Gesture replicated builds are N_ENGINES = 4, not 8 (matrix rows
+  9-10 added); per-engine energy from them is delta / 4. Predicted input
+  delta at 12 V / 0.85: ED ~4 x 72 mW -> ~28 mA (upper bound; the N=1
+  figure includes the fixed wrapper share), dense ~4 x 135 mW -> ~53 mA.

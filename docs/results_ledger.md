@@ -51,9 +51,9 @@ validated to 0.3 % per sample on a second dataset.
   (C0046). T = 4 is the only setting with margin on every seed.
 - **On silicon (board, 2026-09-19 13:27 build, parallel session):** ED K=4
   DATASET=1, 8/8 clips bit-identical, mean 2,970.8 us, spread 2.24x
-  (2,084.6-4,663.9), **board = sim + 92.9 us constant** on every clip
-  (offset recorded as measured, not explained: neither the ~38 us
-  streaming nor the ~10 us fixed hypothesis); clips 1 and 5 above the
+  (2,084.6-4,663.9), board = sim + 92.9 us constant on every clip against
+  the engine-only sim column -- later decomposed (b85ec60): against the
+  wrapper-inclusive total the board is +29.4 us; clips 1 and 5 above the
   dense P=4 prediction, so the per-clip crossover is visible on hardware
   pending the dense P=4 build. WNS +0.190, server build 5. The PING
   DATASET check rejected a mis-built image first.
@@ -62,9 +62,11 @@ validated to 0.3 % per sample on a second dataset.
   8/8 bit-identical, **3,706.5 us on every clip** (rev 3 engine, WNS
   +1.091). Against ED K=4's 2,970.8 us mean: **ED 1.248x at the mean,
   wins 6 of 8 clips, loses clips 1 and 5** -- the pre-registered per-clip
-  activity crossover, on hardware. Board-minus-sim offsets now all
-  measured: dense 8.3 / 102.0 us, ED 10.7 / 92.9 us (N-MNIST /
-  DVS-Gesture); recorded, not modelled.
+  activity crossover, on hardware. Board-minus-sim offsets against the
+  engine-only column were dense 8.3 / 102.0 us, ED 10.7 / 92.9 us (N-MNIST /
+  DVS-Gesture); against wrapper-inclusive totals the DVS-Gesture ones are
+  dense +20.0 us, ED +29.4 us (b85ec60) -- compare board to wrapper-inclusive
+  totals from now on.
   `experiments/dvsgesture/board_dense_p4_20260919.md`.
 
 ## 4. Activity axis by training (gpu + sim), K = P = 4
