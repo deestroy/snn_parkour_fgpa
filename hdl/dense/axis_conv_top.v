@@ -82,10 +82,23 @@ module axis_conv_top #(
             .ENGINE(ENGINE), .ED_K(ED_K), .WT_FILE(WT_FILE), .DENSE_P(DENSE_P)
         ) core (
             .clk(aclk), .rst(~aresetn),
-            .s_axis_tdata(s_axis_tdata), .s_axis_tvalid(s_axis_tvalid),
+            // C0053: replicas must see the BUS HANDSHAKE, not raw tvalid.
+            // Only instance 0's tready reaches the DMA, so a replica whose
+            // own S_RX is asserted would accept on tvalid alone -- and while
+            // instance 0 is still in S_TXSEND the DMA holds the SAME word on
+            // the bus, so the replica latched it once per cycle and filled
+            // its input buffer with duplicates of one word, then ran on that.
+            // Gating with s_axis_tready makes a replica accept exactly on the
+            // cycles a real transfer occurs. No-op for instance 0 (its own
+            // tready IS s_axis_tready, and it only accepts in S_RX), and no
+            // combinational loop: tready is a function of the state register.
+            .s_axis_tdata(s_axis_tdata),
+            .s_axis_tvalid(s_axis_tvalid & s_axis_tready),
             .s_axis_tready(rep_tready), .s_axis_tlast(s_axis_tlast),
             .m_axis_tdata(rep_tdata), .m_axis_tvalid(rep_tvalid),
-            .m_axis_tready((gi == 0) ? m_axis_tready : 1'b1),
+            // and the SAME output ready, so replicas stall in transmit on the
+            // same cycles instead of draining early and racing back to S_RX.
+            .m_axis_tready(m_axis_tready),
             .m_axis_tlast(rep_tlast)
         );
     end endgenerate

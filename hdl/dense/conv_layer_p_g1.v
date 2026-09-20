@@ -368,7 +368,7 @@ module conv_layer_p_g1 #(
 
     // FSM ------------------------------------------------------------------
     localparam S_IDLE = 0, S_CLEAR = 1, S_MAC = 2, S_TAIL = 3,
-               S_VRD = 4, S_VREG = 5, S_UPDATE = 6;
+               S_UPDATE = 4;   // C0054: S_VRD/S_VREG folded into S_MAC
     reg [2:0] state;
     reg prime;
     integer og, oy, ox;         // channel GROUP + position of the P neurons
@@ -458,7 +458,11 @@ module conv_layer_p_g1 #(
             ob_waddr_q <= mem_waddr;
             ob_spk_q   <= spike_next[g];
             if (ob_we_q) obits[ob_waddr_q] <= ob_clr_q ? 1'b0 : ob_spk_q;
-            v_lat <= vmem[(state == S_TAIL || state == S_VRD) ? n_off : x_off_v[AB-1:0]];
+            // C0054: the membrane read is issued throughout S_MAC (n_off is the
+            // current group's offset and does not move until S_UPDATE), so v_lat
+            // and v_r2 are already valid when the MAC loop ends. That removes the
+            // two read-latency states S_VRD/S_VREG from the per-group tail.
+            v_lat <= vmem[(state == S_MAC || state == S_TAIL) ? n_off : x_off_v[AB-1:0]];
             v_r2  <= v_lat;
             s_lat <= smem[x_off_o[AB-1:0]];
         end
@@ -551,11 +555,8 @@ module conv_layer_p_g1 #(
             if (in_bit_r)
                 for (j = 0; j < P; j = j + 1)
                     acc[j] <= acc[j] + {{(WIDTH-8){w_r[j][7]}}, w_r[j]};
-            state <= S_VRD;
+            state <= S_UPDATE;   // C0054: v_r2 already valid
         end
-
-        S_VRD:  state <= S_VREG;   // v_lat valid
-        S_VREG: state <= S_UPDATE; // v_r2 valid (fabric FF feeds the LIF)
 
         S_UPDATE: begin            // P banks each write their neuron (we_upd);
                                    // obits takes the spike at the same address

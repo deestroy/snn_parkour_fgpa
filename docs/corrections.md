@@ -1210,3 +1210,59 @@ more than a day. Together they turn "we measured 25 mW of difference" into
 a claim with a noise floor, a build-variance bound, a sample distribution,
 and a static-power component — which is the difference between a result and
 an anecdote.
+
+## C0053 — Engine replication did not feed the replicas real data (2026-09-20)
+
+**Found by** the peer session's architecture audit, from the RTL; confirmed
+here by tracing the two state machines before any fix was written.
+
+**The defect.** `axis_conv_top` drives the AXI-Stream bus `tready` from
+instance 0 only (`assign s_axis_tready = g_rep[0].rep_tready`) and tied
+every other replica's **output** ready to `1'b1`. Inside one engine the
+accept condition `S_RX: if (s_axis_tvalid)` is self-consistent, because
+that engine's own tready IS `(state == S_RX)`. Across replicas it is not:
+
+1. a replica never stalls in `S_TXSEND` (its `m_axis_tready` is tied
+   high), so it drains its output words and re-enters `S_RX` while
+   instance 0 is still transmitting through real DMA backpressure;
+2. the DMA, waiting on instance 0's tready, **holds the same word on the
+   bus with tvalid high**;
+3. the replica, now in `S_RX`, latches that held word **once per cycle**,
+   incrementing `rx_words` each time, until its input buffer is full of
+   duplicates of one word -- then runs the engine on it.
+
+So replicas did not merely desynchronise: they processed a fabricated
+input. Receive and transmit alternate once per timestep, four times per
+sample, so there are four opportunities per sample.
+
+**Why nothing detected it.** Replica outputs are discarded by
+construction; only instance 0 reaches the DMA. Every board pass checks
+instance 0 and is therefore correct and unaffected. Simulation never saw
+it because the testbench instantiates N_ENGINES = 1.
+
+**Why it matters.** C0003 requires the replicas be fed real data
+precisely so that per-engine energy can be taken as delta / N. For the
+dense engine the work is data-independent, so the error is switching
+activity only; for the event-driven engine the work scales with spike
+count, so a replica running on duplicated words does a different amount
+of scatter -- and that is the arm with the larger divisor in metering
+rows 1, 7 and 9.
+
+**Fix** (hdl/dense/axis_conv_top.v): replicas observe the bus handshake
+rather than raw tvalid, `.s_axis_tvalid(s_axis_tvalid & s_axis_tready)`,
+so a replica accepts exactly on the cycles a real transfer occurs; and
+all replicas share instance 0's `m_axis_tready` so they stall in
+transmit on the same cycles instead of draining early. Both are no-ops
+for instance 0, and neither creates a combinational loop because tready
+is a function of the state register.
+
+**Status.** Correct by construction, not observable on the board, which
+is why it had to be fixed rather than tested for. The ladder cannot
+validate it -- every ladder bench runs N_ENGINES = 1 -- so the evidence
+is the peer session's two-replica simulation, run against the pre-fix
+and post-fix RTL for a before-and-after rather than an assertion.
+
+**Consequence.** Every replicated bitstream on record (passes 7, 8, 13,
+14) predates this fix, so their per-engine energy division rests on the
+old behaviour. They are still valid as correctness passes of instance 0.
+Rebuilding them is a user decision, recorded as open.
