@@ -182,7 +182,7 @@ def d_ed():
 
 # ------------------------------------------------------------------ 6. bank interleaving
 def d_banks():
-    fig, ax = canvas(h=48, figsize=(10.5, 4.9), y0=11)
+    fig, ax = canvas(h=48, figsize=(11.5, 5.8), y0=4)
     ax.text(50, 45, "One input spike touches at most a 2x2 block of output positions, in every output channel",
             ha="center", fontsize=10, fontweight="bold")
     # input grid
@@ -207,14 +207,21 @@ def d_banks():
         ax.text(64 + i * 4, 30, "c%d" % i, ha="center", va="center", fontsize=7)
         ax.text(64 + i * 4, 24.2, "b%d" % k, ha="center", va="center", fontsize=6.5, color="#666666")
     arrow(ax, (53, 29), (61, 30))
-    ax.text(78, 20.5, "K = 4 shown. Because consecutive channels live in different banks,\n"
-                      "K read-modify-writes are issued per cycle with no arbitration and no conflict.\n"
-                      "Cost: K adders and K bank ports; BRAM grows with K (12.5 tiles at K=4, 13.5 at K=8).",
-            ha="center", va="top", fontsize=8)
+    ax.text(78, 20.5, "K = 4 shown. Because consecutive channels live in different banks, K read-modify-writes\n"
+                      "are issued per cycle with no arbitration and no conflict.\n\n"
+                      "Block RAM does NOT simply grow with K. Each bank holds 4624/K x 16 bits and the smallest\n"
+                      "primitive is an 18,432-bit RAMB18, so from K=2 to K=8 the per-bank primitive halves exactly\n"
+                      "as the bank count doubles and bank memory stays FLAT at 4.0 tiles; at K=16 it cannot halve\n"
+                      "again and doubles to 8.0. K=8 is the largest bank count that costs no extra block RAM.\n"
+                      "Whole design: 12.5 tiles at K=4, 13.5 at K=8, 19.5 predicted at K=16 (C0025 pre-registration).",
+            ha="center", va="top", fontsize=7.5)
     ax.text(15, 14, "Alternatives considered (D0017): arbitrated shared memory (stalls under load),\n"
-                    "output-row interleave (conflicts on the 2x2 block), full replication (BRAM).",
+                    "output-row interleave (conflicts on the 2x2 block), full replication (BRAM).\n"
+                    "Separate from the banks: the 288-byte weight table is read K-wide in one cycle, so\n"
+                    "synthesis replicates it into K/2 dual-port primitives -- 4.0 tiles at K=16 for 2,304\n"
+                    "bits, 1.6 % utilised (C0052). Counted in the totals above; recoverable, not yet fixed.",
             ha="left", va="top", fontsize=7.5, color="#555555", style="italic")
-    save(fig, "fig_bank_interleave", "Membrane banking. The fan-out pattern of a stride-2 3x3 layer is what makes channel interleaving conflict-free by construction. Section 4.6.")
+    save(fig, "fig_bank_interleave", "Membrane banking and what raising K actually costs in memory. The fan-out pattern makes channel interleaving conflict-free by construction; the block-RAM behaviour is set by primitive granularity, not by bank count. Sections 4.6, 6.3.")
 
 
 # ------------------------------------------------------------------ 7. LIF core

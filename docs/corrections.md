@@ -1123,6 +1123,38 @@ provenance policy for the whole project. Rules that hide files should name
 the files they mean.
 **Done when:** done.
 ---
+## C0052 — The event-driven scatter spends 4.0 block-RAM tiles at K=16 on a 288-byte table (P2, found before the build, deliberately not fixed yet)
+**What it is.** `ed_scatter.v` (and the baked `ed_scatter_c1.v` that is
+actually synthesised) holds the layer's weights in
+`reg signed [7:0] wt [0:C_IN*9*C_OUT-1]` — 288 entries, **2,304 bits**, for
+C1 — and reads it K-wide in one cycle:
+`for (j = 0; j < K; j = j + 1) w_r[j] <= wt[wt_row + j]`. K simultaneous reads
+require K read ports; a RAMB18 is dual-port, so synthesis replicates the table
+into K/2 primitives. That is 2 at K = 4 and 4 at K = 8, matching both measured
+builds exactly, and 8 at K = 16.
+**The cost.** At K = 16 those eight primitives hold 147,456 bits to store
+2,304: **1.6 % utilised, 4.0 block-RAM tiles for a quarter-kilobyte lookup**
+(6.3 % utilised and 1.0 tile at K = 4). So a measurable part of what the
+energy-versus-K sweep will report as "the memory cost of raising K" is not
+banked neuron state at all — it is a tiny ROM being copied to buy read ports.
+**It also decides a build.** K = 16 replicated eight times needs 142 tiles of
+the 140 available and is predicted not to place; with the table in distributed
+RAM the engine would be 13.5 tiles and the same build would need 110, which
+fits. The replication limit at the top of the K axis is set by a synthesis
+attribute on a 288-byte array rather than by the architecture.
+**Deliberately not fixed now.** Changing `ram_style` mid-experiment would tune
+the design after its predictions were written (K5, K6) and would make the K
+sweep inconsistent with every event-driven board result on record. The sweep
+runs on the RTL as pre-registered; this is reported as a named, quantified
+improvement the experiment exposed, which is a better methodology sentence
+than a quietly optimised build.
+**Open decision for the user.** Re-baselining on a fixed version is a real
+option and a real cost: every event-driven bitstream would need rebuilding and
+re-validating, and the existing passes could no longer be reused. Stated here
+rather than slipped in.
+**Done when:** the user decides whether to re-baseline, and either way the
+K = 16 row reports the table's share of its tiles separately from the banks'.
+---
 ## Closing note on this review
 Three passes have been made: methodology (C0001–C0017), measurement
 accuracy and missing experiments (C0018–C0027), design and internal

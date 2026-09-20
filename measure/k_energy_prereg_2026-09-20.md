@@ -161,15 +161,24 @@ tiles, flat at both K): whole = 5.5 + 2.0 + banks + the scatter's non-bank
 block RAM, which is **1.0 tile at K = 4 and 2.0 at K = 8** — per-bank
 auxiliary storage that tracks K.
 
-- **Predicted: K = 16 at 19.5 tiles** (5.5 + 2.0 + 8.0 banks + 4.0 auxiliary,
-  the auxiliary continuing to track K).
-- **Named alternative: 17.5 tiles** if the auxiliary storage saturates at
-  2.0 instead of doubling again.
+- **Predicted: K = 16 at 19.5 tiles** (5.5 + 2.0 + 8.0 banks + 4.0 auxiliary).
+- **The auxiliary term is now derived, not extrapolated.** It is the weight
+  table. `ed_scatter_c1.v` declares `reg signed [7:0] wt [0:C_IN*9*C_OUT-1]`
+  (288 entries for C1) and reads it K-wide in a single cycle at lines 501-502,
+  `for (j = 0; j < K; j = j + 1) w_r[j] <= wt[wt_row + j]`. K simultaneous
+  reads need K read ports and a RAMB18 is dual-port, so synthesis replicates
+  the table into **K/2 primitives**: 2 at K = 4 and 4 at K = 8, which is
+  exactly what both builds measured, and 8 at K = 16 = 4.0 tiles. The earlier
+  "saturating" alternative of 17.5 tiles is therefore **ruled out before any
+  build**: saturation would require the replication count to stop tracking K,
+  which the loop forbids.
 - **Hard floor: 16.5 tiles.** Below that, sixteen banks would have to share
   primitives, which the RAMB18 minimum forbids.
-- *Refuted if* K = 16 lands below 16.5 or above 21.0 tiles. A result of 17.5
-  selects the saturating branch over the predicted one and is reported as a
-  partial refutation, not a pass.
+- *Refuted if* K = 16 lands outside 19.0 to 20.0 tiles. The prediction is now
+  a derivation from two independent mechanisms (the RAMB18 floor for the banks,
+  dual-port replication for the table), each of which reproduces both measured
+  builds, so a miss means one of those mechanisms is wrong and the report says
+  which.
 - K = 1 and K = 2 are predicted at 10.0 and 10.5 tiles whole-design and
   **cannot discriminate the two laws** — only K = 16 can, which is why it is
   build number one.
@@ -200,6 +209,15 @@ which is a stronger thesis sentence than either alone.
 > RAM, which is 1.0 tile at K = 4 and 2.0 at K = 8 and cannot be zero at
 > K = 16, so the floor is 16.5.
 >
+> (iv) The board session then derived the auxiliary term from the K-wide read
+> loop rather than extrapolating it, which eliminated my named alternative
+> before any build. I verified the array declaration and the loop in the baked
+> module that is actually synthesised (`ed_scatter_c1.v`, lines 90 and
+> 501-502) before accepting it. Provenance note: the K = 8 module breakdown is
+> in the committed board record; the K = 4 breakdown comes from hierarchical
+> reports that live on the build VM, and is consistent with the committed
+> whole-design total of 12.5 tiles under the flatness the K = 8 record shows.
+>
 > Worth recording for the methodology chapter: the K = 8 board record of
 > 2026-09-17 already wrote down the rounding mechanism ("each bank still
 > rounds up to whole RAMB18s, and at these sizes the rounding is what sets
@@ -214,9 +232,14 @@ at K = 16 under K5's prediction (15.5 under its alternative). So:
 - K = 16 at R = 8: 8 x 17.5 + 2 = **142 tiles of 140 available — predicted
   NOT to place**, and to be rebuilt at R = 4 (72 tiles), exactly as the dense
   DVS-Gesture build went.
-- **If K = 16 does place at R = 8**, that is evidence for K5's saturating
-  alternative (8 x 15.5 + 2 = 126 tiles, which fits), not merely a miss on
-  K6. The two predictions are linked and should be scored together.
+- **If K = 16 does place at R = 8**, K5's bank or table mechanism is wrong and
+  the two are scored together. Note what actually decides this: with the weight
+  table forced to distributed RAM the engine would be 13.5 tiles and R = 8
+  would need only 110, which fits comfortably. **The replication limit at
+  K = 16 is set by a synthesis attribute on a 288-byte array, not by the
+  architecture** (C0052). The sweep is deliberately run on the RTL as
+  pre-registered and as every board result on record was built; the attribute
+  is not touched.
 
 **K7. Single-engine resolvability.** A single engine's input delta is
 predicted at 4.3 to 6.5 mA across the K range (fabric mW / 0.85 / 12 V),

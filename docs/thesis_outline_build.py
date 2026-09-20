@@ -12,7 +12,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-REVISED = "2026-09-20t"
+REVISED = "2026-09-20u"
 ONEDRIVE = os.path.expanduser("~/OneDrive - Carleton University/Research Papers/Final_thesis_images")
 GREEN, RED, BLUE = RGBColor(0x1B, 0x5E, 0x20), RGBColor(0xB7, 0x1C, 0x1C), RGBColor(0x0D, 0x47, 0xA1)
 PURPLE, ORANGE = RGBColor(0x6A, 0x1B, 0x9A), RGBColor(0xE6, 0x51, 0x00)
@@ -225,7 +225,9 @@ OUTLINE = [
     "Worst-case sizing as a deliberate trade (C0032): what it costs in BRAM at each geometry vs the risk of an overflow path that would need a stall or a drop, both of which would make latency non-deterministic in a way the deadline analysis could not bound.",
     "The two-word neuron state (membrane + current) and whether it is structural or an ordering artefact (C0033); the answer chosen and its BRAM cost.",
     "FIG: [exists] (experiments/figures/diagrams/fig_bank_interleave.svg) Bank interleaving diagram: output channels striped across K banks, one spike's 2x2 x C_OUT footprint landing K-wide per cycle.",
-    "TAB: [todo] K options: K, banks, adders, BRAM tiles per engine, WNS on silicon where built, cycles at the mean N-MNIST and DVS-Gesture sample.",
+    "RESULT (memory cost of K, derived from primitive geometry and verified against both built engines, 2026-09-20): each bank holds 4,624/K x 16 bits against an 18,432-bit RAMB18, the smallest primitive the fabric has. From K=2 to K=8 the per-bank primitive halves exactly as the bank count doubles, so bank memory is FLAT at 4.0 tiles; at K=16 it cannot halve again and doubles to 8.0. K=8 is therefore the largest bank count that costs no extra block RAM -- a hardware reason to stop there that is independent of the energy argument, and it converges with the pre-registered energy prediction (measure/k_energy_prereg_2026-09-20.md, K5)."
+    "RESULT (C0052, a cost that is not the banks): the 288-byte weight table is read K-wide in one cycle, so synthesis replicates it into K/2 dual-port primitives -- 1.0 tile at K=4, 4.0 at K=16, where 147,456 bits hold 2,304 at 1.6 % utilisation. It also decides whether the K=16 engine replicates eight times (142 tiles of 140 as built, 110 with the table in distributed RAM). Report the table's share separately from the banks' so the sweep is not read as "the memory cost of parallelism" when part of it is a fixable artefact; the RTL is deliberately unchanged so the sweep measures the design its predictions were written against."
+    "TAB: [todo] K options: K, banks, adders, BRAM tiles per engine (banks and weight table separately), WNS on silicon where built, cycles at the mean N-MNIST and DVS-Gesture sample.",
 ]),
 (1, "4.7  A Shared Wrapper for Matched-Parallelism Comparison", [
     "One AXIS wrapper with an ENGINE parameter (D0021): identical framing, DMA path, server, client and vectors; baked weights for synthesis; the DATASET knob selecting table + geometry + threshold together (decision 2026-09-18); matched parallelism K = P. BURST mode with engine-only ticks (server build 4/5); PING reports build and dataset.",
@@ -325,7 +327,7 @@ OUTLINE = [
 ]),
 (1, "6.3  Resource Utilisation and Timing", [
     "RESULT: per build -- ED K=4 ~3.4k LUT / 12.5 tiles / WNS +0.508; dense P=4 5,760 LUT / 6.5 tiles / +0.299; ED K=8 13.5 tiles / +0.332; dense P=8 8.5 tiles / +0.101; ED K=4 x8 11,733 LUT / 86 tiles / +0.430; dense P=4 x8 27,829 LUT (52 %) / 46 tiles / +0.041; DVS-Gesture ED K=4 +0.190, dense P=4 +1.091 (rev 3); ED K=4 DVS-Gesture x4 86 tiles / +0.119; dense P=4 DVS-Gesture x2 21 tiles / +0.842 and x4 does not place. DSP = 0 everywhere. The honest asymmetry is STATE not logic. WHERE: experiments/board_*.md utilisation sections.",
-    "Interpretation: the ED engine costs about half the LUTs of the dense engine at K=P=4 but about twice the BRAM (address list + K banks + two-word state); the dense engine's logic (decoded output enables) is what fails to replicate x4 at the 64-geometry while the ED engine's memory is what fails at x8. Neither is 'smaller'; they spend different resources.",
+    "Interpretation: the ED engine costs about half the LUTs of the dense engine at K=P=4 but about twice the BRAM (address list + K banks + two-word state + the replicated weight table, C0052); the dense engine's logic (decoded output enables) is what fails to replicate x4 at the 64-geometry while the ED engine's memory is what fails at x8. Neither is 'smaller'; they spend different resources.",
     "Timing: every build closes at 100 MHz with the sign-off rules; the smallest margins (dense x8 +0.041, ED x4 DVS-Gesture +0.119) and what limits them; the strategy variants show +0.35 to +0.77 ns spread at fixed RTL.",
     "FIG: [exists] (experiments/figures/fig_resources.png) Grouped bars of LUT, FF, BRAM tiles per build (N=1 builds on one panel, replicated on another), ED vs dense side by side; generated from the board records.",
     "TAB: [exists] (docs/thesis_tables/utilisation.md) Utilisation and timing per build: build, engine, K or P, dataset, N_ENGINES, LUT (% of 53,200), FF, BRAM tiles (% of 140), DSP, WNS, WHS, power estimate -- the brief's resource row for every silicon pass.",
