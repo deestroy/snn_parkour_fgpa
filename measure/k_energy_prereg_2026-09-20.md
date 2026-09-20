@@ -130,12 +130,37 @@ thesis gets is: **on this board the most efficient event-driven configuration
 is K = 8 if you measure the datapath and K = 16 if you measure the board,
 and neither is wrong — they answer different questions** (C0038).
 
-**K5. Resources.** BRAM for the whole design is predicted at 11.5 / 12 /
-12.5 / 13.5 / 15.5 tiles at K = 1 / 2 / 4 / 8 / 16 (the engine alone is 10.5
-tiles at K = 4, from the x8 subtraction). LUTs at K = 16 are predicted between
-4.5k and 5.5k against 3.4k at K = 4. *Refuted if* K = 16 exceeds 17 tiles or
-6k LUTs, which would say the bank hardware scales worse than the two built
-points suggest.
+**K5. Resources.** *(Sharpened 2026-09-20, before any build exists — see the
+amendment note below.)* Two laws are available for how block RAM grows with K,
+and the two measured points cannot yet tell them apart, so the prediction names
+one and sets the boundary that separates them.
+
+- **Predicted (the linear law).** Whole-design BRAM grows by **+1.0 tile per
+  doubling of K**, which is exactly the measured step from K = 4 (12.5 tiles)
+  to K = 8 (13.5): **10.5 / 11.5 / 12.5 / 13.5 / 14.5 tiles at
+  K = 1 / 2 / 4 / 8 / 16**, each +- 0.5.
+- **The named alternative (the primitive-floor law).** Once a bank's membrane
+  memory falls below what one block-RAM primitive usefully holds, each bank
+  costs a whole primitive and tiles grow with K rather than with log K. That
+  law predicts **K = 16 at 15.5 to 16.5 tiles** and K = 1 at 11 or above.
+- *Refuted if* K = 16 lands outside 14.0 to 15.0 tiles. Landing at 15.5 or
+  above does not merely refute the prediction, it **identifies the mechanism**:
+  the banks have crossed the primitive floor, which is a design fact worth
+  stating, because it is the point where raising K starts costing memory
+  disproportionately and it bounds the useful K on this fabric.
+- LUTs at K = 16 are predicted between 4.5k and 5.5k against 3.4k at K = 4;
+  *refuted if* outside 4.0k to 6.0k.
+
+> **Amendment note, 2026-09-20, before any build.** As first written, K5 said
+> "11.5 / 12 / 12.5 / 13.5 / 15.5 tiles" with a refutation threshold of 17
+> tiles. The board session pointed out that a straight line through the two
+> measured points gives 14.5 at K = 16, not 15.5, and that both values sit
+> comfortably inside a 17-tile threshold — so the prediction would have been
+> scored "held" whichever law turned out to be true, which is not a prediction
+> at all. The original was an unstated mixture of the two laws above. Amended
+> here, with no data in hand, to name one law, name its competitor, and put the
+> boundary between them. K2 already had this structure (it names the per-bank
+> law over the per-doubling law and refutes below 60 mW); K5 now matches it.
 
 **K6. Replication fit.** K = 8 fits at R = 8 (predicted 94 tiles); K = 16
 fits at R = 8 only marginally (predicted 110 tiles) and is expected to be
