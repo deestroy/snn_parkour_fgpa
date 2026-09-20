@@ -3206,3 +3206,23 @@ meter session now has all ten pre-registered bitstreams on silicon:
 N-MNIST ED K=4 / dense P=4 at N=1 and N=8, K=P=8 pair, DVS-Gesture
 ED K=4 / dense P=4 at N=1, ED x4, dense x2. Fourteen passes, zero
 correctness misses.
+
+## 2026-09-20 — C0046 options costed: fc k = 7 costs nothing, halves the range
+
+Requantised every DVS-Gesture network that overflowed or sat within 5 % of
+the fc int16 ceiling (T = 16 seeds 1-2, T = 8 seeds 1-2, the 34 %-activity
+T = 4 network seeds 0-2) with the FC shift at 7 and at 6, conv shifts
+unchanged (`train/05_quantise.py --fixed_k`), and golden-checked all
+fourteen over the full test set on the MI210 (chain: ~3 min).
+Result: k = 7 changes accuracy by -1.5 to +1.9 pp (mean +0.1 pp; one
+sample is 0.38 pp, seed spread 1-5 pp), clips 0.000 % of the weights
+(max|w| 0.34-0.37 against 0.99 representable), and halves the fc range
+(95-186 % -> 47-93 % of int16); k = 6 halves it again (23-47 %) at
+mean -0.3 pp. Because the golden model's membranes are int32, the
+chosen-k accuracy already IS what 18-bit membranes (option a) would
+give, so (a) buys no accuracy over (b). The decision between (a), (b),
+(c) stays the user's; the numbers are in
+`experiments/dvsgesture/c0046/README.md` and my recommendation there is
+(b) as a per-dataset quantiser default `fc k = min(choose_k, 7)`, which
+moves the usable T x activity band from ~1.2 to ~2.4 (k = 6: ~4.8) with
+no RTL change.

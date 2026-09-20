@@ -52,6 +52,13 @@ validated to 0.3 % per sample on a second dataset.
   ~15 % activity (T x activity compound, C0046). N-MNIST does not bind: 9-25 %
   of int16 up to T = 16 while gaining +0.7 pp per doubling (98.0 % at T=16,
   3 seeds; `experiments/tsweep_nmnist/`).
+- **C0046 option costing (gpu, 2026-09-20):** fc at k = 7 instead of the
+  chosen k = 8 on the seven overflowing / near-ceiling DVS-Gesture networks
+  (T = 16 and T = 8 seeds 1-2, T = 4 at 34 % activity seeds 0-2): accuracy
+  -1.5 to +1.9 pp (mean +0.1), 0.000 % weight clipping, fc range 95-186 %
+  -> 47-93 % of int16 (k = 6: 23-47 %). The chosen-k golden accuracy is
+  option (a)'s (18-bit) accuracy, so a wider membrane buys no accuracy
+  here. `experiments/dvsgesture/c0046/README.md`.
 - **On silicon (board, 2026-09-19 13:27 build, parallel session):** ED K=4
   DATASET=1, 8/8 clips bit-identical, mean 2,970.8 us, spread 2.24x
   (2,084.6-4,663.9), board = sim + 92.9 us constant on every clip against

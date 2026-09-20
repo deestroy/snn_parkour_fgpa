@@ -964,8 +964,16 @@ number carries its fc |V|max next to it, and any board build of a
 DVS-Gesture network is preceded by a golden check on THAT checkpoint.
 **Golden-check half done 2026-09-19:** every layer's line now carries
 "% of int16" and a summary line gives the worst layer's headroom.
+**Option costing done 2026-09-20** (experiments/dvsgesture/c0046/README.md):
+requantising fc at k = 7 on all seven overflowing / near-ceiling networks
+costs no measurable accuracy (-1.5 to +1.9 pp, mean +0.1 pp, 264 samples,
+0.000 % weight clipping) and halves the fc range (95-186 % -> 47-93 % of
+int16; k = 6 -> 23-47 %). The k = 8 golden accuracy is by construction
+option (a)'s accuracy (int32 golden membranes), so (a) buys nothing (b)
+does not. Recommendation on record: (b), fc k = min(choose_k, 7) per
+dataset.
 **Done when:** one of (a)-(c) is chosen in decisions.md (open, the
-user's call).
+user's call; the numbers for the call are now in the README above).
 ---
 ## C0047 — Direct coding makes the event-driven engine scatter the same frame four times (P2)
 **Problem.** The year-two student uses the paper's direct coding: one
