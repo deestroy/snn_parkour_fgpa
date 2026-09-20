@@ -36,7 +36,7 @@ during the session are recorded as deviations. Procedure details live in
 | 6 | dense P=4, DATASET=1 | (rebuilding 2026-09-19) | its pair |
 | 7-8 | ED K=8 / dense P=8, N-MNIST | ed_k8_20260917_2106 / dense_p8_20260917_2221 | the parallelism crossover in energy, if time |
 | 9 | ED K=4, DATASET=1, **N_ENGINES=4** (x8 does not fit: g1 ED engine 21 BRAM tiles) | ed_k4_dvsg_x4_20260920_0010 (pass 13, 8/8) | resolvable DVS-Gesture ED delta; per-engine = delta / 4 |
-| 10 | dense P=4, DATASET=1, **N_ENGINES=2** (N=4 does not place: 65k decoded-enable output flops, addendum 7c) | (building 2026-09-20) | its pair; per-engine = delta / 2 |
+| 10 | dense P=4, DATASET=1, **N_ENGINES=2** (N=4 does not place: 65k decoded-enable output flops, addendum 7c) | dense_p4_dvsg_x2_20260920_1127 (built; board pass pending) | its pair; per-engine = delta / 2 |
 
 Samples: the 16 N-MNIST check samples (BURST sweep over all 16 = the
 mean over the set) and the 8 DVS-Gesture clips. For #5-6 each clip is
@@ -211,3 +211,36 @@ stands as the contrary prediction.
     to be quoted next to the fabric-fit rows of docs/results_ledger.md.
 - Not yet on silicon: row 10 (N = 2 build in progress on the VM). Its
   numbers will be added here when the peer session reports them.
+
+### 7d. Addendum 2026-09-20 12:10 -- row 10 built; DVS-Gesture per-engine tool numbers; strategy spread
+
+Row 10 (6e55859, experiments/power_estimates/): dense_p4_dvsg_x2_20260920_1127,
+N_ENGINES = 2, WNS +0.842 / WHS +0.028, 21 BRAM tiles, estimate 1.956 W
+total, fabric 270 mW. Board pass pending on the user's copy of the image.
+
+**Per-engine tool estimates by replication subtraction (section 7a
+method, fabric mW), written down before the meter:**
+
+| build | N=1 fabric | replicated fabric | per engine | x board latency (mean) | tool energy per inference |
+|---|---|---|---|---|---|
+| ED K=4 DVS-Gesture | 72 | 236 (x4) | (236-72)/3 = 54.7 mW | 2,970.8 us | 162 uJ |
+| dense P=4 DVS-Gesture | 135 | 270 (x2) | (270-135)/1 = 135.0 mW | 3,706.5 us | 500 uJ |
+
+- The dense x2 subtraction says the whole 135 mW N=1 figure is engine, i.e.
+  the tool assigns the wrapper ~0 mW on the dense build, while the ED x4
+  subtraction assigns the wrapper 72 - 54.7 = 17.3 mW. That
+  asymmetry is a tool artefact (vectorless activity on a two-point fit),
+  and one of the things the meter tests directly: the measured wrapper
+  share should be the same number for both.
+- **P8 restated per engine:** tool ratio dense/ED = 3.08x in
+  ED's favour at the mean clip (was 2.3x on the N=1 figures). My contrary
+  prediction P2 (1.1-1.4x measured) is unchanged.
+- **Strategy spread (C0019 variants, same RTL, N-MNIST N=1):** ED K=4
+  fabric 48 / 57 / 50 mW (default / Performance_Explore /
+  Congestion_SpreadLogic_high), dense P=4 73 / 73 / 76 mW. The estimate
+  moves ~9 mW (19 %) on ED and ~3 mW (4 %) on dense from placement alone.
+  **P9 (new, pre-registered):** the measured fabric delta across the three
+  ED bitstreams differs by less than the measured-vs-estimated gap of any
+  one of them; if it does not, the "tool gap" is partly a placement effect
+  and the thesis must say so. Optional rows 11-13 (the three ED variants,
+  x8 not needed if the N=1 delta resolves) -- run only after rows 1-10.
