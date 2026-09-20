@@ -1,0 +1,20 @@
+checkpoint : experiments/dvsgesture/t8/dvsgesture_beta0875_seed0_t8.pt  (trained test acc 65.15%)
+
+C0045 fixed shifts: {'conv1': 7, 'conv2': 8, 'conv3': 8, 'fc': 7} (clipping allowed and reported)
+
+layer  max|w|    k   scale     rms rounding err   clipped
+conv1  0.9619    7   2^-7     2.25e-03   0.000 %
+       -> integer threshold for this layer = 2^7 = 128
+conv2  0.4854    8   2^-8     1.12e-03   0.000 %
+       -> integer threshold for this layer = 2^8 = 256
+conv3  0.4155    8   2^-8     1.13e-03   0.000 %
+       -> integer threshold for this layer = 2^8 = 256
+fc     0.3064    7   2^-7     2.26e-03   0.000 %
+       -> pool /4 folds in: FC effective shift k+2 = 9
+       -> integer threshold for this layer = 2^7 = 128
+
+float weights      : 65.15%
+int8 weights       : 68.56%
+drop from rounding : -3.41 pp   (M1 budget ~1 pp for the full fixed-point model)
+
+weights -> experiments/dvsgesture/c0046/t8_seed0_fck7_int8.npz

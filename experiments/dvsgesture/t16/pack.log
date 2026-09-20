@@ -1,0 +1,10 @@
+  test     0/264  (1s)
+  test   200/264  (356s)
+packed test: 264 samples, 11 classes, 35 MB, input density 0.1510, uint8-clipped 0.000038% of pixel-bins, 448s
+  train     0/1077  (0s)
+  train   200/1077  (274s)
+  train   400/1077  (573s)
+  train   600/1077  (857s)
+  train   800/1077  (1148s)
+  train  1000/1077  (1474s)
+packed train: 1077 samples, 11 classes, 141 MB, input density 0.1305, uint8-clipped 0.000058% of pixel-bins, 1572s

@@ -1,0 +1,57 @@
+== t16_seed1 fixed_k=7,8,8,7 12:40:45
+experiments/dvsgesture/c0046/quantise_t16_seed1_fck7.log:fc     0.3357    7   2^-7     2.25e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t16_seed1_fck7.log:golden integer: 70.45%
+experiments/dvsgesture/c0046/golden_t16_seed1_fck7.log:  fc  V in [ -15932,  10431]  -> 15 bits  fits int16  ( 49 % of int16)
+== t16_seed2 fixed_k=6,7,8,7 12:41:02
+experiments/dvsgesture/c0046/quantise_t16_seed2_fck7.log:fc     0.3471    7   2^-7     2.26e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t16_seed2_fck7.log:golden integer: 67.80%
+experiments/dvsgesture/c0046/golden_t16_seed2_fck7.log:  fc  V in [ -19772,   8463]  -> 16 bits  fits int16  ( 60 % of int16)
+== t8_seed1 fixed_k=7,8,8,7 12:41:19
+experiments/dvsgesture/c0046/quantise_t8_seed1_fck7.log:fc     0.3386    7   2^-7     2.25e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t8_seed1_fck7.log:golden integer: 65.15%
+experiments/dvsgesture/c0046/golden_t8_seed1_fck7.log:  fc  V in [ -16465,  10745]  -> 16 bits  fits int16  ( 50 % of int16)
+== t8_seed2 fixed_k=6,7,8,7 12:41:29
+experiments/dvsgesture/c0046/quantise_t8_seed2_fck7.log:fc     0.3456    7   2^-7     2.25e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t8_seed2_fck7.log:golden integer: 64.77%
+experiments/dvsgesture/c0046/golden_t8_seed2_fck7.log:  fc  V in [ -15447,  12150]  -> 15 bits  fits int16  ( 47 % of int16)
+== t4_rate0.30_seed0 fixed_k=6,8,8,7 12:41:39
+experiments/dvsgesture/c0046/quantise_t4_rate0.30_seed0_fck7.log:fc     0.3619    7   2^-7     2.26e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t4_rate0.30_seed0_fck7.log:golden integer: 66.29%
+experiments/dvsgesture/c0046/golden_t4_rate0.30_seed0_fck7.log:  fc  V in [ -24739,  16105]  -> 16 bits  fits int16  ( 75 % of int16)
+== t4_rate0.30_seed1 fixed_k=6,8,8,7 12:41:46
+experiments/dvsgesture/c0046/quantise_t4_rate0.30_seed1_fck7.log:fc     0.3626    7   2^-7     2.26e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t4_rate0.30_seed1_fck7.log:golden integer: 64.39%
+experiments/dvsgesture/c0046/golden_t4_rate0.30_seed1_fck7.log:  fc  V in [ -22578,  20899]  -> 16 bits  fits int16  ( 69 % of int16)
+== t4_rate0.30_seed2 fixed_k=6,7,8,7 12:41:52
+experiments/dvsgesture/c0046/quantise_t4_rate0.30_seed2_fck7.log:fc     0.3698    7   2^-7     2.26e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t4_rate0.30_seed2_fck7.log:golden integer: 67.05%
+experiments/dvsgesture/c0046/golden_t4_rate0.30_seed2_fck7.log:  fc  V in [ -30374,  16663]  -> 16 bits  fits int16  ( 93 % of int16)
+== t16_seed1 fixed_k=7,8,8,6 12:41:58
+experiments/dvsgesture/c0046/quantise_t16_seed1_fck6.log:fc     0.3357    6   2^-6     4.51e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t16_seed1_fck6.log:golden integer: 69.70%
+experiments/dvsgesture/c0046/golden_t16_seed1_fck6.log:  fc  V in [  -8030,   5329]  -> 14 bits  fits int16  ( 25 % of int16)
+== t16_seed2 fixed_k=6,7,8,6 12:42:16
+experiments/dvsgesture/c0046/quantise_t16_seed2_fck6.log:fc     0.3471    6   2^-6     4.51e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t16_seed2_fck6.log:golden integer: 68.56%
+experiments/dvsgesture/c0046/golden_t16_seed2_fck6.log:  fc  V in [  -9835,   4138]  -> 15 bits  fits int16  ( 30 % of int16)
+== t8_seed1 fixed_k=7,8,8,6 12:42:33
+experiments/dvsgesture/c0046/quantise_t8_seed1_fck6.log:fc     0.3386    6   2^-6     4.51e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t8_seed1_fck6.log:golden integer: 64.02%
+experiments/dvsgesture/c0046/golden_t8_seed1_fck6.log:  fc  V in [  -8271,   5499]  -> 15 bits  fits int16  ( 25 % of int16)
+== t8_seed2 fixed_k=6,7,8,6 12:42:43
+experiments/dvsgesture/c0046/quantise_t8_seed2_fck6.log:fc     0.3456    6   2^-6     4.51e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t8_seed2_fck6.log:golden integer: 63.64%
+experiments/dvsgesture/c0046/golden_t8_seed2_fck6.log:  fc  V in [  -7676,   6060]  -> 14 bits  fits int16  ( 23 % of int16)
+== t4_rate0.30_seed0 fixed_k=6,8,8,6 12:42:53
+experiments/dvsgesture/c0046/quantise_t4_rate0.30_seed0_fck6.log:fc     0.3619    6   2^-6     4.50e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t4_rate0.30_seed0_fck6.log:golden integer: 66.67%
+experiments/dvsgesture/c0046/golden_t4_rate0.30_seed0_fck6.log:  fc  V in [ -12313,   7969]  -> 15 bits  fits int16  ( 38 % of int16)
+== t4_rate0.30_seed1 fixed_k=6,8,8,6 12:43:00
+experiments/dvsgesture/c0046/quantise_t4_rate0.30_seed1_fck6.log:fc     0.3626    6   2^-6     4.52e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t4_rate0.30_seed1_fck6.log:golden integer: 65.15%
+experiments/dvsgesture/c0046/golden_t4_rate0.30_seed1_fck6.log:  fc  V in [ -11415,  10383]  -> 15 bits  fits int16  ( 35 % of int16)
+== t4_rate0.30_seed2 fixed_k=6,7,8,6 12:43:06
+experiments/dvsgesture/c0046/quantise_t4_rate0.30_seed2_fck6.log:fc     0.3698    6   2^-6     4.52e-03   0.000 %
+experiments/dvsgesture/c0046/golden_t4_rate0.30_seed2_fck6.log:golden integer: 65.53%
+experiments/dvsgesture/c0046/golden_t4_rate0.30_seed2_fck6.log:  fc  V in [ -15299,   8411]  -> 15 bits  fits int16  ( 47 % of int16)
+C0046-DONE 12:43:12

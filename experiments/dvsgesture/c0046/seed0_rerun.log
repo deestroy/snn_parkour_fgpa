@@ -1,0 +1,15 @@
+TRAIN T=8 exit 0 16:12
+QUANT T=8 exit 0
+GOLDEN T=8 exit 0
+golden integer: 68.18%
+  fc  V in [ -14500,  10859]  -> 15 bits  fits int16  ( 44 % of int16)
+golden integer: 66.29%
+  fc  V in [  -7350,   5391]  -> 14 bits  fits int16  ( 22 % of int16)
+TRAIN T=16 exit 0 16:13
+QUANT T=16 exit 0
+GOLDEN T=16 exit 0
+golden integer: 70.08%
+  fc  V in [ -16076,  14871]  -> 15 bits  fits int16  ( 49 % of int16)
+golden integer: 70.08%
+  fc  V in [  -8137,   7473]  -> 14 bits  fits int16  ( 25 % of int16)
+SEED0-RERUN-DONE 16:14

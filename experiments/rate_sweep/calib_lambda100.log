@@ -1,0 +1,24 @@
+/home/dhritiaravind/snn_parkour_fpga/train/03_train.py:69: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  tot_loss += float(loss) * y.numel()
+encoding : binarised   (D0003)
+loading nmnist (first epoch also builds the frame cache)...
+device: cuda   train batches: 468   test batches: 79
+
+rate penalty: target 0.030, lambda 100.0, layers ('c1', 'c2', 'c3')
+epoch  1   15.6s  train acc 0.858  test acc 0.945  |  rates c1=0.037  c2=0.035  c3=0.035  fc=0.265
+epoch  2   13.5s  train acc 0.955  test acc 0.957  |  rates c1=0.036  c2=0.034  c3=0.033  fc=0.254
+epoch  3   13.5s  train acc 0.967  test acc 0.966  |  rates c1=0.035  c2=0.033  c3=0.032  fc=0.257
+
+per-epoch log -> experiments/rates_binarised_nmnist_target0.030_seed0_t4.csv
+plot -> experiments/m0_firing_rates_binarised.png
+
+--- final per-layer firing rates (binarised) ---
+  c1    3.48% of neurons fire per timestep
+  c2    3.31% of neurons fire per timestep
+  c3    3.23% of neurons fire per timestep
+  fc   25.66% of neurons fire per timestep
+
+final test accuracy: 96.62%
+
+This is a measurement, not a target. Do not tune it.

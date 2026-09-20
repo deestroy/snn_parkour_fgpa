@@ -1,0 +1,19 @@
+golden model over 264 test samples (integer datapath, float readout)
+    264/264  acc so far 64.39%
+
+float model   : 63.64%
+golden integer: 64.39%
+drop          : -0.76 pp   (M1 gate: ~1 pp)
+
+membrane ranges over the run (hardware budget: int16, +-32767):
+  c1  V in [   -426,   1356]  -> 12 bits  fits int16  (  4 % of int16)
+  c2  V in [  -3599,   7719]  -> 14 bits  fits int16  ( 24 % of int16)
+  c3  V in [  -4782,   7601]  -> 14 bits  fits int16  ( 23 % of int16)
+  fc  V in [ -22578,  20899]  -> 16 bits  fits int16  ( 69 % of int16)
+  membrane headroom: worst layer fc uses 69 % of int16 -> 31 % headroom
+
+trace samples (C0039, seed 20260820): idx [8, 21, 24, 29, 68, 83, 98, 180, 181, 184, 206, 223, 252, 257, 260, 263] labels [3, 4, 1, 2, 1, 8, 4, 10, 9, 3, 3, 7, 4, 10, 2, 4]
+
+traces for 16 samples -> ../../../tmp/tr_c0046.npz  (4.1 MB)
+
+PASS: golden model holds accuracy and fits the membrane budget.

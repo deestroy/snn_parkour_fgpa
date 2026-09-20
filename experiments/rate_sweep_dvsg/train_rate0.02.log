@@ -1,0 +1,52 @@
+/home/dhritiaravind/snn_parkour_fpga/train/03_train.py:69: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  tot_loss += float(loss) * y.numel()
+encoding : binarised   (D0003)
+loading dvsgesture (first epoch also builds the frame cache)...
+device: cuda   train batches: 8   test batches: 3
+
+rate penalty: target 0.020, lambda 100.0, layers ('c1', 'c2', 'c3')
+epoch  1    1.8s  train acc 0.198  test acc 0.307  |  rates c1=0.056  c2=0.049  c3=0.034  fc=0.054
+epoch  2    0.2s  train acc 0.345  test acc 0.458  |  rates c1=0.049  c2=0.038  c3=0.045  fc=0.146
+epoch  3    0.2s  train acc 0.541  test acc 0.549  |  rates c1=0.048  c2=0.038  c3=0.059  fc=0.233
+epoch  4    0.2s  train acc 0.604  test acc 0.587  |  rates c1=0.047  c2=0.037  c3=0.058  fc=0.251
+epoch  5    0.1s  train acc 0.644  test acc 0.614  |  rates c1=0.046  c2=0.035  c3=0.052  fc=0.240
+epoch  6    0.1s  train acc 0.667  test acc 0.633  |  rates c1=0.042  c2=0.035  c3=0.051  fc=0.251
+epoch  7    0.1s  train acc 0.704  test acc 0.652  |  rates c1=0.041  c2=0.036  c3=0.053  fc=0.282
+epoch  8    0.1s  train acc 0.724  test acc 0.610  |  rates c1=0.041  c2=0.036  c3=0.049  fc=0.276
+epoch  9    0.1s  train acc 0.746  test acc 0.617  |  rates c1=0.040  c2=0.036  c3=0.046  fc=0.268
+epoch 10    0.2s  train acc 0.771  test acc 0.617  |  rates c1=0.037  c2=0.035  c3=0.046  fc=0.279
+epoch 11    0.2s  train acc 0.774  test acc 0.633  |  rates c1=0.037  c2=0.035  c3=0.045  fc=0.277
+epoch 12    0.2s  train acc 0.818  test acc 0.636  |  rates c1=0.037  c2=0.035  c3=0.044  fc=0.273
+epoch 13    0.2s  train acc 0.833  test acc 0.614  |  rates c1=0.037  c2=0.036  c3=0.043  fc=0.283
+epoch 14    0.2s  train acc 0.875  test acc 0.652  |  rates c1=0.037  c2=0.036  c3=0.043  fc=0.289
+epoch 15    0.2s  train acc 0.885  test acc 0.625  |  rates c1=0.037  c2=0.036  c3=0.041  fc=0.287
+epoch 16    0.2s  train acc 0.896  test acc 0.614  |  rates c1=0.037  c2=0.037  c3=0.041  fc=0.292
+epoch 17    0.2s  train acc 0.917  test acc 0.625  |  rates c1=0.036  c2=0.036  c3=0.041  fc=0.290
+epoch 18    0.1s  train acc 0.926  test acc 0.625  |  rates c1=0.036  c2=0.036  c3=0.040  fc=0.292
+epoch 19    0.2s  train acc 0.933  test acc 0.625  |  rates c1=0.036  c2=0.037  c3=0.040  fc=0.300
+epoch 20    0.2s  train acc 0.930  test acc 0.633  |  rates c1=0.034  c2=0.033  c3=0.037  fc=0.294
+epoch 21    0.1s  train acc 0.954  test acc 0.655  |  rates c1=0.036  c2=0.038  c3=0.041  fc=0.309
+epoch 22    0.1s  train acc 0.978  test acc 0.636  |  rates c1=0.033  c2=0.033  c3=0.037  fc=0.301
+epoch 23    0.1s  train acc 0.994  test acc 0.652  |  rates c1=0.033  c2=0.032  c3=0.037  fc=0.311
+epoch 24    0.1s  train acc 0.991  test acc 0.640  |  rates c1=0.033  c2=0.033  c3=0.037  fc=0.317
+epoch 25    0.2s  train acc 0.998  test acc 0.629  |  rates c1=0.033  c2=0.033  c3=0.035  fc=0.291
+epoch 26    0.2s  train acc 0.999  test acc 0.640  |  rates c1=0.033  c2=0.033  c3=0.035  fc=0.290
+epoch 27    0.1s  train acc 0.999  test acc 0.652  |  rates c1=0.033  c2=0.032  c3=0.035  fc=0.293
+epoch 28    0.1s  train acc 0.999  test acc 0.659  |  rates c1=0.033  c2=0.032  c3=0.034  fc=0.298
+epoch 29    0.1s  train acc 1.000  test acc 0.644  |  rates c1=0.033  c2=0.033  c3=0.034  fc=0.301
+epoch 30    0.1s  train acc 1.000  test acc 0.633  |  rates c1=0.032  c2=0.032  c3=0.034  fc=0.300
+
+per-epoch log -> experiments/rates_binarised_dvsgesture_target0.020_seed0_t4.csv
+plot -> experiments/m0_firing_rates_binarised.png
+
+--- final per-layer firing rates (binarised) ---
+  c1    3.24% of neurons fire per timestep
+  c2    3.20% of neurons fire per timestep
+  c3    3.37% of neurons fire per timestep
+  fc   30.01% of neurons fire per timestep
+
+final test accuracy: 63.26%
+checkpoint -> experiments/rate_sweep_dvsg/dvsg_rate0.02_seed0.pt
+
+This is a measurement, not a target. Do not tune it.

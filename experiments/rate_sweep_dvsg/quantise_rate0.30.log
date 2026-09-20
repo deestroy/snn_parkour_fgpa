@@ -1,0 +1,18 @@
+checkpoint : experiments/rate_sweep_dvsg/dvsg_rate0.30_seed0.pt  (trained test acc 66.29%)
+
+layer  max|w|    k   scale     rms rounding err
+conv1  1.1479    6   2^-6     4.73e-03
+       -> integer threshold for this layer = 2^6 = 64
+conv2  0.4637    8   2^-8     1.13e-03
+       -> integer threshold for this layer = 2^8 = 256
+conv3  0.4034    8   2^-8     1.13e-03
+       -> integer threshold for this layer = 2^8 = 256
+fc     0.3619    8   2^-8     1.13e-03
+       -> pool /4 folds in: FC effective shift k+2 = 10
+       -> integer threshold for this layer = 2^8 = 256
+
+float weights      : 66.29%
+int8 weights       : 65.91%
+drop from rounding : 0.38 pp   (M1 budget ~1 pp for the full fixed-point model)
+
+weights -> experiments/rate_sweep_dvsg/dvsg_rate0.30_int8.npz

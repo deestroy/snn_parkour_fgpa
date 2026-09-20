@@ -972,6 +972,10 @@ int16; k = 6 -> 23-47 %). The k = 8 golden accuracy is by construction
 option (a)'s accuracy (int32 golden membranes), so (a) buys nothing (b)
 does not. Recommendation on record: (b), fc k = min(choose_k, 7) per
 dataset.
+**Reproducibility caveat added 2026-09-20 (C0050):** option (c) cannot be
+stated as "T = 16 fits on seed 1" — with code and seed held fixed, two
+training runs land at 98 % and 102 % of int16, i.e. on either side of the
+ceiling. Option (b) is the one that makes the verdict independent of the run.
 **Done when:** one of (a)-(c) is chosen in decisions.md (open, the
 user's call; the numbers for the call are now in the README above).
 ---
@@ -1041,6 +1045,63 @@ table build.
 **Lesson.** A derived number that is quoted more often than it is recomputed
 drifts from its own inputs. Every derived headline now has a generator
 (the tables) or a figure that reads the data.
+**Done when:** done.
+---
+## C0050 — Training is not reproducible at a fixed seed, and the difference straddles the int16 ceiling (P1)
+**Problem.** Retraining DVS-Gesture seed 0 at T = 16 to complete the C0046
+table produced a different network from the original (fc membrane 99 % of
+int16 instead of 105 %, i.e. fits instead of overflows). A direct test with
+the code and seed held fixed — two runs, same script, same pack — reproduces
+the disagreement: run A ends at 98 % of int16 (fits), run B at 102 %
+(overflows); quantised weights differ by up to 3 counts in conv1 and 38 in fc;
+float accuracy differs by 1.1 pp. Training on the MI210 host is
+non-deterministic at a fixed seed (non-deterministic GPU kernels;
+`torch.use_deterministic_algorithms(True)` was never set).
+**Consequences.**
+1. **C0046's option (c) cannot be stated as written.** "T = 16 fits on seed 1"
+   is not a property of a configuration: the same configuration and seed land
+   on either side of the ceiling run to run, because they sit 1-2 % from it.
+   Option (b) (fc k = 7) moves the membrane to 44-93 % of int16, far outside
+   run-to-run variation, and is the option that makes the verdict stable.
+2. **Single-run accuracy differences below a few pp on DVS-Gesture are not
+   resolvable.** The reported three-seed spreads confound seed and run
+   variation. No conclusion in this project rests on such a difference —
+   the crossover results are cycle counts, which are exactly reproducible —
+   but every accuracy table must say so.
+3. It is a statistical-validity threat for the thesis (Section 3.5) and a
+   residual-risk row for the discussion (6.9).
+**Action taken (2026-09-20).** Recorded here and in
+`experiments/dvsgesture/c0046/README.md` with both tables and the raw logs
+(`c0046/rerun_seed0/`). **Standing rule from here:** any number that goes in
+the thesis is either a cycle count (deterministic), or is reported over
+repeated runs, or is produced with deterministic algorithms enabled. Not yet
+done: re-running the affected accuracy tables under
+`torch.use_deterministic_algorithms(True)` — cheap on this dataset (~2 min per
+run) and worth doing before the accuracy tables are final.
+**Done when:** the accuracy tables state their run count, and the affected
+DVS-Gesture rows are either deterministic or repeated. Open.
+---
+## C0051 — Every experiment log was gitignored; one was overwritten before anyone noticed (P2, fixed)
+**Problem.** `.gitignore` carried a blanket `*.log` rule under the heading
+"Vivado / Vitis build junk". No Vivado log has ever lived in this repository
+(they stay on the VM), but the rule silently excluded **206 experiment logs**
+— the training, quantisation and golden-check outputs that the results tables
+and READMEs are transcribed from, and that
+`docs/thesis_tables/make_tables.py` now parses directly. They were invisible
+to `git status`, so nothing warned that they were unprotected.
+On 2026-09-20 an `rsync` of the MI210's experiment directory overwrote the
+local seed-0 T = 8 / T = 16 golden-check logs with a rerun, and the rerun
+script had already overwritten the remote originals. The original *numbers*
+survive because they had been transcribed into
+`experiments/dvsgesture/README.md`, but the logs themselves are gone — and
+they cannot be regenerated, because training is not reproducible (C0050).
+**Fix.** The rule is narrowed to the Vivado names it was meant for
+(`vivado*.log`, `runme.log`, `hs_err_pid*.log`, `webtalk*.log`, `xsim*.log`)
+and the 206 experiment logs are now tracked (≈800 KB). A clean checkout can
+now reproduce every generated table, which was not true before.
+**Lesson.** An ignore rule written for one tool's junk silently decided the
+provenance policy for the whole project. Rules that hide files should name
+the files they mean.
 **Done when:** done.
 ---
 ## Closing note on this review

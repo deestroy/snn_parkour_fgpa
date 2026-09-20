@@ -1,0 +1,38 @@
+golden model over 10000 test samples (integer datapath, float readout)
+    500/10000  acc so far 97.20%
+   1000/10000  acc so far 97.50%
+   1500/10000  acc so far 98.13%
+   2000/10000  acc so far 98.60%
+   2500/10000  acc so far 98.40%
+   3000/10000  acc so far 98.57%
+   3500/10000  acc so far 98.26%
+   4000/10000  acc so far 98.15%
+   4500/10000  acc so far 98.02%
+   5000/10000  acc so far 98.06%
+   5500/10000  acc so far 98.07%
+   6000/10000  acc so far 98.20%
+   6500/10000  acc so far 98.00%
+   7000/10000  acc so far 98.06%
+   7500/10000  acc so far 98.04%
+   8000/10000  acc so far 98.08%
+   8500/10000  acc so far 98.01%
+   9000/10000  acc so far 98.07%
+   9500/10000  acc so far 97.88%
+  10000/10000  acc so far 97.86%
+
+float model   : 97.87%
+golden integer: 97.86%
+drop          : 0.01 pp   (M1 gate: ~1 pp)
+
+membrane ranges over the run (hardware budget: int16, +-32767):
+  c1  V in [  -1092,   1002]  -> 12 bits  fits int16  (  3 % of int16)
+  c2  V in [  -4655,   1925]  -> 14 bits  fits int16  ( 14 % of int16)
+  c3  V in [  -5522,   2572]  -> 14 bits  fits int16  ( 17 % of int16)
+  fc  V in [  -8111,   1972]  -> 14 bits  fits int16  ( 25 % of int16)
+  membrane headroom: worst layer fc uses 25 % of int16 -> 75 % headroom
+
+trace samples (C0039, seed 20260820): idx [318, 349, 810, 963, 966, 1136, 2616, 3322, 3787, 3887, 6934, 7059, 7184, 8016, 8833, 8944] labels [0, 0, 0, 0, 0, 1, 2, 3, 3, 3, 6, 7, 7, 7, 8, 8]
+
+traces for 16 samples -> ../../../tmp/tr_nt_16_1.npz  (4.4 MB)
+
+PASS: golden model holds accuracy and fits the membrane budget.

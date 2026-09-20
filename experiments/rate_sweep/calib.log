@@ -1,0 +1,4 @@
+lambda 20: epoch  3   14.1s  train acc 0.967  test acc 0.966  |  rates c1=0.046  c2=0.039  c3=0.039  fc=0.262
+lambda 100: epoch  3   13.5s  train acc 0.967  test acc 0.966  |  rates c1=0.035  c2=0.033  c3=0.032  fc=0.257
+lambda 500: epoch  3   15.0s  train acc 0.965  test acc 0.963  |  rates c1=0.032  c2=0.031  c3=0.030  fc=0.251
+CALIB-DONE

@@ -8,8 +8,17 @@ data/
 
 # Vivado / Vitis build junk
 *.jou
-*.log
+vivado*.log
+vivado_pid*.str
+hs_err_pid*.log
+webtalk*.log
+runme.log
+xsim*.log
 .Xil/
+# (a blanket *.log rule lived here until 2026-09-20 and silently hid every
+#  experiment log in the tree -- 206 files that are the provenance the thesis
+#  tables parse. One of them was overwritten before anyone noticed it was not
+#  in git; see C0050.)
 vivado*.str
 *.cache/
 *.hw/

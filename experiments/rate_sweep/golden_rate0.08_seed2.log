@@ -1,0 +1,37 @@
+golden model over 10000 test samples (integer datapath, float readout)
+    500/10000  acc so far 97.20%
+   1000/10000  acc so far 98.20%
+   1500/10000  acc so far 98.53%
+   2000/10000  acc so far 98.80%
+   2500/10000  acc so far 98.44%
+   3000/10000  acc so far 98.20%
+   3500/10000  acc so far 97.89%
+   4000/10000  acc so far 97.70%
+   4500/10000  acc so far 97.71%
+   5000/10000  acc so far 97.72%
+   5500/10000  acc so far 97.69%
+   6000/10000  acc so far 97.70%
+   6500/10000  acc so far 97.52%
+   7000/10000  acc so far 97.63%
+   7500/10000  acc so far 97.48%
+   8000/10000  acc so far 97.50%
+   8500/10000  acc so far 97.45%
+   9000/10000  acc so far 97.48%
+   9500/10000  acc so far 97.40%
+  10000/10000  acc so far 97.43%
+
+float model   : 97.49%
+golden integer: 97.43%
+drop          : 0.06 pp   (M1 gate: ~1 pp)
+
+membrane ranges over the run (hardware budget: int16, +-32767):
+  c1  V in [   -663,    546]  -> 11 bits  fits int16
+  c2  V in [  -2692,   1801]  -> 13 bits  fits int16
+  c3  V in [  -3665,   2288]  -> 13 bits  fits int16
+  fc  V in [  -2623,   1650]  -> 13 bits  fits int16
+
+trace samples (C0039, seed 20260820): idx [318, 349, 810, 963, 966, 1136, 2616, 3322, 3787, 3887, 6934, 7059, 7184, 8016, 8833, 8944] labels [0, 0, 0, 0, 0, 1, 2, 3, 3, 3, 6, 7, 7, 7, 8, 8]
+
+traces for 16 samples -> ../../../tmp/tr_n_0.08_2.npz  (1.2 MB)
+
+PASS: golden model holds accuracy and fits the membrane budget.

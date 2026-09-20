@@ -1,0 +1,18 @@
+golden model over 264 test samples (integer datapath, float readout)
+    264/264  acc so far 66.67%
+
+float model   : 68.56%
+golden integer: 66.67%
+drop          : 1.89 pp   (M1 gate: ~1 pp)
+
+membrane ranges over the run (hardware budget: int16, +-32767):
+  c1  V in [  -1563,   1652]  -> 12 bits  fits int16
+  c2  V in [  -5063,   3135]  -> 14 bits  fits int16
+  c3  V in [  -1463,   1667]  -> 12 bits  fits int16
+  fc  V in [ -21252,  17045]  -> 16 bits  fits int16
+
+trace samples (C0039, seed 20260820): idx [8, 21, 24, 29, 68, 83, 98, 180, 181, 184, 206, 223, 252, 257, 260, 263] labels [3, 4, 1, 2, 1, 8, 4, 10, 9, 3, 3, 7, 4, 10, 2, 4]
+
+traces for 16 samples -> ../../../tmp/traces_dvsg_seed1.npz  (3.9 MB)
+
+FAIL: see above.

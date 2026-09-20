@@ -1,0 +1,31 @@
+/home/dhritiaravind/snn_parkour_fpga/train/03_train.py:62: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  tot_loss += float(loss) * y.numel()
+encoding : binarised   (D0003)
+loading N-MNIST (first epoch also builds the frame cache)...
+device: cuda   train batches: 468   test batches: 79
+
+epoch  1   13.5s  train acc 0.871  test acc 0.947  |  rates c1=0.063  c2=0.094  c3=0.121  fc=0.336
+epoch  2   12.5s  train acc 0.953  test acc 0.958  |  rates c1=0.066  c2=0.090  c3=0.116  fc=0.331
+epoch  3   13.2s  train acc 0.965  test acc 0.962  |  rates c1=0.066  c2=0.090  c3=0.110  fc=0.324
+epoch  4   14.2s  train acc 0.970  test acc 0.958  |  rates c1=0.068  c2=0.091  c3=0.115  fc=0.327
+epoch  5   13.7s  train acc 0.974  test acc 0.966  |  rates c1=0.067  c2=0.085  c3=0.109  fc=0.319
+epoch  6   13.3s  train acc 0.977  test acc 0.964  |  rates c1=0.068  c2=0.087  c3=0.110  fc=0.319
+epoch  7   13.9s  train acc 0.980  test acc 0.972  |  rates c1=0.067  c2=0.086  c3=0.112  fc=0.330
+epoch  8   15.2s  train acc 0.982  test acc 0.965  |  rates c1=0.069  c2=0.084  c3=0.106  fc=0.293
+epoch  9   12.6s  train acc 0.984  test acc 0.970  |  rates c1=0.067  c2=0.086  c3=0.111  fc=0.310
+epoch 10   13.6s  train acc 0.985  test acc 0.970  |  rates c1=0.066  c2=0.080  c3=0.102  fc=0.293
+
+per-epoch log -> experiments/m0_firing_rates_binarised.csv
+plot -> experiments/m0_firing_rates_binarised.png
+
+--- final per-layer firing rates (binarised) ---
+  c1    6.58% of neurons fire per timestep
+  c2    8.00% of neurons fire per timestep
+  c3   10.19% of neurons fire per timestep
+  fc   29.30% of neurons fire per timestep
+
+final test accuracy: 96.98%
+checkpoint -> experiments/beta_sweep/beta0.9375_seed0.pt
+
+This is a measurement, not a target. Do not tune it.

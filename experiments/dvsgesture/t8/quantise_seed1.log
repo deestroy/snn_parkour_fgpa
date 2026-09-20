@@ -1,0 +1,18 @@
+checkpoint : experiments/dvsgesture/t8/dvsgesture_beta0875_seed1_t8.pt  (trained test acc 66.67%)
+
+layer  max|w|    k   scale     rms rounding err
+conv1  0.9644    7   2^-7     2.26e-03
+       -> integer threshold for this layer = 2^7 = 128
+conv2  0.4713    8   2^-8     1.13e-03
+       -> integer threshold for this layer = 2^8 = 256
+conv3  0.4396    8   2^-8     1.13e-03
+       -> integer threshold for this layer = 2^8 = 256
+fc     0.3386    8   2^-8     1.12e-03
+       -> pool /4 folds in: FC effective shift k+2 = 10
+       -> integer threshold for this layer = 2^8 = 256
+
+float weights      : 66.67%
+int8 weights       : 65.53%
+drop from rounding : 1.14 pp   (M1 budget ~1 pp for the full fixed-point model)
+
+weights -> experiments/dvsgesture/t8/dvsgesture_weights_int8_seed1_t8.npz

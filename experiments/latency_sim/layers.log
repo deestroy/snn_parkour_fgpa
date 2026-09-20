@@ -1,0 +1,10 @@
+c1 dense: TB_PASS K=1 591872 comparisons bit-identical over 16 samples x 4 timesteps, 25078 input spikes
+c1 ed_k1: TB_PASS K=1 591872 comparisons bit-identical over 16 samples x 4 timesteps, 25078 input spikes
+c1 ed_k4: TB_PASS K=4 591872 comparisons bit-identical over 16 samples x 4 timesteps, 25078 input spikes
+c2 dense: TB_PASS K=1 331776 comparisons bit-identical over 16 samples x 4 timesteps, 26017 input spikes
+c2 ed_k1: TB_PASS K=1 331776 comparisons bit-identical over 16 samples x 4 timesteps, 26017 input spikes
+c2 ed_k4: TB_PASS K=4 331776 comparisons bit-identical over 16 samples x 4 timesteps, 26017 input spikes
+c3 dense: TB_PASS K=1 204800 comparisons bit-identical over 16 samples x 4 timesteps, 16777 input spikes
+c3 ed_k1: TB_PASS K=1 204800 comparisons bit-identical over 16 samples x 4 timesteps, 16777 input spikes
+c3 ed_k4: TB_PASS K=4 204800 comparisons bit-identical over 16 samples x 4 timesteps, 16777 input spikes
+LAYERS_DONE

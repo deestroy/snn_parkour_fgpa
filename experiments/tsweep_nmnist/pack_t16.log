@@ -1,0 +1,16 @@
+  test      0/10000  (0s)
+  test   5000/10000  (49s)
+packed test: 10000 samples, 370 MB, 97s
+  train      0/60000  (0s)
+  train   5000/60000  (59s)
+  train  10000/60000  (93s)
+  train  15000/60000  (131s)
+  train  20000/60000  (182s)
+  train  25000/60000  (233s)
+  train  30000/60000  (275s)
+  train  35000/60000  (321s)
+  train  40000/60000  (368s)
+  train  45000/60000  (411s)
+  train  50000/60000  (455s)
+  train  55000/60000  (505s)
+packed train: 60000 samples, 2220 MB, 549s

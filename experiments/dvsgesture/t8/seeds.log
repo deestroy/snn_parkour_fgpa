@@ -1,0 +1,7 @@
+TRAIN seed 1 exit 0
+QUANT seed 1 exit 0
+GOLDEN seed 1 exit 1
+TRAIN seed 2 exit 0
+QUANT seed 2 exit 0
+GOLDEN seed 2 exit 0
+T8-SEEDS-DONE

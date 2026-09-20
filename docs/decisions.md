@@ -3280,3 +3280,35 @@ since rewriting a pre-registration would defeat its purpose. The value
 is no longer typed anywhere that matters: the table generator computes
 it from the cycle files on every run. Recorded as C0049, with the
 lesson that a derived headline needs a generator, not a quotation.
+
+## 2026-09-20 — C0050/C0051: training does not reproduce at a fixed seed; the experiment logs were never in git
+
+Completing the C0046 table needed DVS-Gesture seed 0 at T = 8 and T = 16,
+whose checkpoints had not been kept. The retrained networks disagreed with
+the originals — at T = 16 the fc membrane came out at 99 % of int16 where
+the original was 105 %, i.e. fits where the original overflowed. Since the
+trainer had been edited in between, that had an innocent explanation, so I
+tested it directly: two runs, same code, same seed, same data pack. They
+disagree too — 98 % (fits) against 102 % (overflows), accuracy 69.32
+against 68.18 %, weights differing by up to 38 counts in fc. Training on
+this host is non-deterministic and `torch.use_deterministic_algorithms`
+was never set.
+
+This is the more useful result of the two. It says C0046's option (c),
+"stay at T = 4 and report the margin per seed", cannot be stated as a
+property of a configuration at all when that configuration sits 1-2 % from
+the ceiling: the run decides. Option (b), fc k = 7, puts the membrane at
+44-93 % of int16 and is the choice that makes the verdict independent of
+the training run. It also means every DVS-Gesture accuracy figure here
+carries about a point of run-to-run noise on top of the seed spread. The
+cycle results are untouched: simulation is exactly reproducible and every
+bench is bit-identical.
+
+Separately, this exposed that `.gitignore`'s blanket `*.log` rule — written
+for Vivado junk that has never been in this repository — had been hiding
+206 experiment logs, including the provenance the new generated tables
+parse. An rsync overwrote two of them before anyone could notice they were
+unprotected; their numbers survive only because they had been transcribed
+into the DVS-Gesture README, and they cannot be regenerated because of the
+finding above. The rule is narrowed to the Vivado names and the logs are
+now tracked. Recorded as C0050 and C0051.

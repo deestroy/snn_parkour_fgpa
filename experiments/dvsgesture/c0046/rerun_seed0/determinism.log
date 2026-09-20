@@ -1,0 +1,6 @@
+run A: float model   : 69.32% | golden integer: 71.21% |   fc  V in [ -32118,  29340]  -> 16 bits  fits int16  ( 98 % of int16)
+run B: float model   : 68.18% | golden integer: 67.42% |   fc  V in [ -33297,  28424]  -> 17 bits  DOES NOT FIT  (102 % of int16, over by 2 %)
+weights identical across the two runs: False
+  conv1 max|diff| = 3
+  fc max|diff| = 38
+DET-DONE

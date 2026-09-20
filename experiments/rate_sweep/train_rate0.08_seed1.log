@@ -1,0 +1,32 @@
+/home/dhritiaravind/snn_parkour_fpga/train/03_train.py:69: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  tot_loss += float(loss) * y.numel()
+encoding : binarised   (D0003)
+loading nmnist (first epoch also builds the frame cache)...
+device: cuda   train batches: 468   test batches: 79
+
+rate penalty: target 0.080, lambda 100.0, layers ('c1', 'c2', 'c3')
+epoch  1    8.0s  train acc 0.865  test acc 0.940  |  rates c1=0.081  c2=0.081  c3=0.081  fc=0.338
+epoch  2    6.7s  train acc 0.951  test acc 0.958  |  rates c1=0.081  c2=0.079  c3=0.080  fc=0.322
+epoch  3    6.6s  train acc 0.965  test acc 0.961  |  rates c1=0.081  c2=0.080  c3=0.080  fc=0.326
+epoch  4    6.4s  train acc 0.970  test acc 0.965  |  rates c1=0.082  c2=0.080  c3=0.079  fc=0.328
+epoch  5    6.7s  train acc 0.974  test acc 0.966  |  rates c1=0.080  c2=0.080  c3=0.082  fc=0.320
+epoch  6    6.6s  train acc 0.977  test acc 0.970  |  rates c1=0.081  c2=0.080  c3=0.078  fc=0.292
+epoch  7    6.4s  train acc 0.981  test acc 0.965  |  rates c1=0.081  c2=0.082  c3=0.080  fc=0.304
+epoch  8    6.8s  train acc 0.983  test acc 0.968  |  rates c1=0.080  c2=0.079  c3=0.082  fc=0.311
+epoch  9    6.5s  train acc 0.984  test acc 0.968  |  rates c1=0.080  c2=0.081  c3=0.080  fc=0.288
+epoch 10    6.9s  train acc 0.986  test acc 0.973  |  rates c1=0.080  c2=0.080  c3=0.080  fc=0.287
+
+per-epoch log -> experiments/rates_binarised_nmnist_target0.080_seed1_t4.csv
+plot -> experiments/m0_firing_rates_binarised.png
+
+--- final per-layer firing rates (binarised) ---
+  c1    7.98% of neurons fire per timestep
+  c2    8.04% of neurons fire per timestep
+  c3    8.01% of neurons fire per timestep
+  fc   28.67% of neurons fire per timestep
+
+final test accuracy: 97.27%
+checkpoint -> experiments/rate_sweep/nmnist_rate0.08_seed1.pt
+
+This is a measurement, not a target. Do not tune it.

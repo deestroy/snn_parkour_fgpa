@@ -60,6 +60,13 @@ validated to 0.3 % per sample on a second dataset.
   -> 47-93 % of int16 (k = 6: 23-47 %). The chosen-k golden accuracy is
   option (a)'s (18-bit) accuracy, so a wider membrane buys no accuracy
   here. `experiments/dvsgesture/c0046/README.md`.
+- **Reproducibility (gpu, 2026-09-20, C0050):** training is NOT deterministic
+  at a fixed seed on the MI210. Same code, same seed, same pack, two runs:
+  fc membrane 98 % vs 102 % of int16 (fits vs overflows), float accuracy
+  69.32 vs 68.18 %, quantised weights differing by up to 38 counts in fc.
+  Every DVS-Gesture accuracy number in this ledger is therefore a single-run
+  number with ~1 pp of run-to-run noise; the cycle counts are unaffected
+  (simulation is exactly reproducible and every bench is bit-identical).
 - **On silicon (board, 2026-09-19 13:27 build, parallel session):** ED K=4
   DATASET=1, 8/8 clips bit-identical, mean 2,970.8 us, spread 2.24x
   (2,084.6-4,663.9), board = sim + 92.9 us constant on every clip against

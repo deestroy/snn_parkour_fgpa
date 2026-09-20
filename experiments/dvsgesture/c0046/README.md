@@ -26,6 +26,8 @@ weight files are the requantised networks.
 | T=4, 34 % activity, seed 0 | 0.362 | 66.67 % / **150 %** (overflow) | 66.29 % / 75 % | 66.67 % / 38 % |
 | T=4, 34 % activity, seed 1 | 0.363 | 64.39 % / **138 %** (overflow) | 64.39 % / 69 % | 65.15 % / 35 % |
 | T=4, 34 % activity, seed 2 | 0.370 | 65.15 % / **186 %** (overflow) | 67.05 % / 93 % | 65.53 % / 47 % |
+| T=8 seed 0 (retrain) | 0.306 | 66.29 % / 90 % | 68.18 % / 44 % | 66.29 % / 22 % |
+| T=16 seed 0 (retrain) | 0.344 | 71.21 % / 99 % | 70.08 % / 49 % | 70.08 % / 25 % |
 
 Weight clipping at k = 7 and k = 6: **0.000 %** on every network (fc
 max|w| <= 0.37 < 127 x 2^-7 = 0.99). `choose_k` picks k = 8 because it is
@@ -34,7 +36,7 @@ resolution (rms rounding error 2.25e-3 vs 1.13e-3).
 
 **Reading.**
 
-- **(b) costs nothing measurable.** Over the seven networks the k = 7
+- **(b) costs nothing measurable.** Over the nine networks the k = 7
   accuracy moves by -1.5 to +1.9 pp against k = 8, mean +0.1 pp; one test
   sample is 0.38 pp, and the seed spread at fixed T is 1-5 pp. k = 6 is
   the same story (mean -0.3 pp).
@@ -55,8 +57,53 @@ resolution (rms rounding error 2.25e-3 vs 1.13e-3).
   FC RTL, nothing in the conv engines moves). The T x activity usable
   band becomes ~2.4 at k = 7 and ~4.8 at k = 6 instead of ~1.2.
 
-**Caveats.** Accuracy on 264 test samples; two seeds at T = 8/16 (seed 0's
-checkpoints were not retained -- a rerun would take ~20 min per seed on
-the MI210); the conv layers are untouched, and their ranges (9-28 % of
+## Seed 0 at T = 8 / 16, and a reproducibility finding (2026-09-20)
+
+Seed 0's T = 8 and T = 16 checkpoints had not been retained, so they were
+retrained to complete the table. **The retrained networks do not reproduce
+the originals**, and chasing that turned into the more important result of
+this page.
+
+| network | run | float | golden | fc range | share of int16 |
+|---|---|---|---|---|---|
+| T=8 seed 0 | original (2026-09-18) | 65.15 % | 65.53 % | -28,768 .. 22,533 | 88 % (fits) |
+| T=8 seed 0 | retrain (2026-09-20) | 65.15 % | 66.29 % | -29,370 .. 21,672 | 90 % (fits) |
+| T=16 seed 0 | original (2026-09-18) | 68.94 % | 70.83 % | -34,472 .. 28,983 | **105 % (overflow)** |
+| T=16 seed 0 | retrain (2026-09-20) | 70.08 % | 71.21 % | -32,545 .. 29,752 | 99 % (fits) |
+
+The trainer had been edited between the two runs (two commits touched
+`train/03_train.py`), so the difference had two candidate explanations. A
+direct test settles it (`rerun_seed0/determinism_run{A,B}.log`): **the same
+seed, the same code and the same data pack, run twice, give different
+networks.**
+
+| run | float | golden | fc range | share of int16 |
+|---|---|---|---|---|
+| A | 69.32 % | 71.21 % | -32,118 .. 29,340 | 98 % (fits) |
+| B | 68.18 % | 67.42 % | -33,297 .. 28,424 | **102 % (overflow)** |
+
+Quantised weights differ by up to 3 counts in conv1 and 38 in fc. Training on
+this host is not reproducible at a fixed seed -- non-deterministic GPU kernels
+(atomics / reduction order in the convolution backward pass) are the usual
+cause, and `torch.use_deterministic_algorithms(True)` was never set.
+
+**What this does to C0046.** It removes option (c) as stated. "T = 16 fits
+int16 on seed 1" is not a claim that can be made: the *same configuration and
+seed* lands on either side of the ceiling depending on the run, because it sits
+1-2 % from it. A design cannot be validated against a boundary it sits inside
+the noise of. It strengthens option (b): at fc k = 7 the range is 44-93 % and
+at k = 6 it is 22-47 %, both far outside run-to-run variation, so the
+membrane verdict stops depending on which training run produced the weights.
+
+**It also qualifies the accuracy numbers on this dataset.** The three-seed
+spreads reported for DVS-Gesture (1-5 pp) are seed *and* run variation
+confounded; run-to-run alone moved accuracy 1.1 pp here (69.32 -> 68.18 %)
+with everything held fixed. Differences below a few pp at this network size
+are not resolvable without repeated runs, and none of this project's
+DVS-Gesture accuracy comparisons rest on such a difference.
+
+**Caveats.** Accuracy on 264 test samples; seed 0 at T = 8/16 is a retrain,
+not the original network (its logs are in `rerun_seed0/`, the originals were
+lost -- C0051); the conv layers are untouched, and their ranges (9-28 % of
 int16) did not change. The recommendation is a tool result, not a board
 result: the FC layer has not been on silicon (C0015).

@@ -1,0 +1,18 @@
+checkpoint : experiments/rate_sweep/nmnist_rate0.30_seed2.pt  (trained test acc 95.62%)
+
+layer  max|w|    k   scale     rms rounding err
+conv1  1.7305    6   2^-6     4.40e-03
+       -> integer threshold for this layer = 2^6 = 64
+conv2  1.1080    6   2^-6     4.46e-03
+       -> integer threshold for this layer = 2^6 = 64
+conv3  1.0828    6   2^-6     4.50e-03
+       -> integer threshold for this layer = 2^6 = 64
+fc     1.5446    6   2^-6     4.52e-03
+       -> pool /4 folds in: FC effective shift k+2 = 8
+       -> integer threshold for this layer = 2^6 = 64
+
+float weights      : 95.62%
+int8 weights       : 95.75%
+drop from rounding : -0.13 pp   (M1 budget ~1 pp for the full fixed-point model)
+
+weights -> experiments/rate_sweep/nmnist_rate0.30_seed2_int8.npz

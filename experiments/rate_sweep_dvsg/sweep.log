@@ -1,0 +1,17 @@
+CALIB: epoch  3    0.1s  train acc 0.588  test acc 0.583  |  rates c1=0.053  c2=0.054  c3=0.079  fc=0.262
+TRAIN 0.02 exit 0
+QUANT 0.02 exit 0
+GOLDEN 0.02 exit 0
+TRAIN 0.04 exit 0
+QUANT 0.04 exit 0
+GOLDEN 0.04 exit 0
+TRAIN 0.08 exit 0
+QUANT 0.08 exit 0
+GOLDEN 0.08 exit 1
+TRAIN 0.16 exit 0
+QUANT 0.16 exit 0
+GOLDEN 0.16 exit 0
+TRAIN 0.30 exit 0
+QUANT 0.30 exit 0
+GOLDEN 0.30 exit 1
+SWEEP-DONE
