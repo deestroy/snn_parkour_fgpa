@@ -246,3 +246,15 @@ method, fabric mW), written down before the meter:**
   one of them; if it does not, the "tool gap" is partly a placement effect
   and the thesis must say so. Optional rows 11-13 (the three ED variants,
   x8 not needed if the N=1 delta resolves) -- run only after rows 1-10.
+
+### 7e. Notation note added 2026-09-20 (no change to anything pre-registered)
+
+This file uses `N` for two different things, both of which the thesis renames
+so that `N` can mean the cycle model's output-neuron count and nothing else:
+
+| here | thesis | meaning |
+|---|---|---|
+| `N_ENGINES`, and "N = 4 / 8" in prose | **R** | engine copies per bitstream (the Verilog parameter keeps the name `N_ENGINES`) |
+| "BURST length N", e.g. N = 24,000 | **B** | how many times one sample is replayed inside a measurement window |
+
+Nothing in sections 1-7d changes; this is a reading key. See docs/notation.md.

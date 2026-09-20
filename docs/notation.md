@@ -18,7 +18,7 @@ smaller stack out.
 | **FC** | The **f**ully **c**onnected layer at the end: every input connects to every output (768 -> 128). It has by far the most weights, which is why its membrane is the one that overflows. |
 | **C_IN, C_OUT** | Channels in and out of a layer. "Channel" = one feature map, one image in the stack. C1 is 2 -> 16, C2 is 16 -> 32, C3 is 32 -> 64. |
 | **H, W** | Height and width of a layer's feature maps. N-MNIST input is 34x34, DVS-Gesture and the robot 64x64. |
-| **N** (in the cycle models) | The number of **output neurons** in a layer, `C_OUT x H_out x W_out`. For N-MNIST C1 that is 16 x 17 x 17 = 4,624. **Careful:** `N` also appears as engine replication count (below); the thesis should rename one of them. |
+| **N** | The number of **output neurons** in a layer, `C_OUT x H_out x W_out`. For N-MNIST C1 that is 16 x 17 x 17 = 4,624. In the thesis `N` means only this: the engine replication count is written **R** and the BURST repeat count **B**, both below. (The repository and the board records predate that choice and use `N_ENGINES` and `N` respectively.) |
 | **geometry** | Shorthand for the input size: the "34-geometry" (N-MNIST, 2x34x34) and the "64-geometry" (DVS-Gesture and the robot, 2x64x64). Same layer structure, different image sizes. |
 
 **Layer names in the repository.** Vector sets and bench files use a letter
@@ -71,11 +71,25 @@ they do the work, which is the whole point of the thesis.
 | **ED** (event-driven) | Keeps a list of the input spikes and processes only those, then makes one pass over the neurons to apply leak and threshold. Work scales with activity, but the machinery costs something. |
 | **P** | **Dense lane count**: how many output neurons the dense engine updates in parallel. Its cost is exactly `1/P` — double P, halve the time. |
 | **K** | **Event-driven bank count**: how many membrane memory banks the engine has, and so how many neuron updates its scatter stage can apply per cycle. Only *part* of the ED cost divides by K. |
-| **K = P** ("matched parallelism") | The fair comparison: give both engines the same amount of parallel hardware and compare. K and P are not the same kind of thing (banks vs lanes), which is why resource counts are always reported beside the latency. |
+| **K = P** ("matched parallelism") | The fair comparison. Both engines split the layer's output channels the same way (channel mod K, channel mod P), so the two knobs count the same unit of work; what that unit costs in hardware differs (bank ports and adders vs lanes and accumulators), which is why LUT and BRAM counts are always reported beside the latency. See the note below the table. |
+| **B** (the BURST repeat count) | How many times one sample is replayed back to back during a measurement, so that the meter has a long steady window and latency averages over many runs. Sized for 15-30 s per window (for example B = 24,000 for the event-driven N-MNIST build). The metering pre-registration calls this N; it is written B in the thesis. |
 | **s** (in the cycle model) | The number of input spikes in one sample, summed over all T timesteps. This is the activity variable: ED cost rises with it, dense cost does not. |
-| **N_ENGINES** (also written x8, x4, x2) | How many **copies of the whole engine** are built into one bitstream. Used only for power measurement: one engine's power is too small to resolve on the meter, so N of them are run at once and the difference divided by N. Unrelated to the `N` in the cycle model. |
+| **R** (the RTL parameter is `N_ENGINES`; builds are written x8, x4, x2) | How many **copies of the whole engine** are built into one bitstream. Used only for power measurement: one engine's power is too small to resolve on the meter, so R of them run at once and the measured difference is divided by R. **Written R in the thesis** to keep it apart from the `N` of the cycle model; the Verilog parameter, the build tags and the board records keep the name `N_ENGINES`, so a reader moving between thesis and repository should read `N_ENGINES = 4` as R = 4. |
 | **activity** / firing rate | The fraction of neurons that fire per timestep, or for an input, the fraction of input bits set. The independent variable of the whole thesis. |
 | **crossover** | The activity (or the parallelism) at which the two engines cost exactly the same. Below it ED wins, above it dense wins. |
+
+**Why K = P is the fair comparison** (C0029, resolved by D0026). The
+event-driven engine always had a parallelism knob: K banks, so K neuron
+updates land per cycle. The first dense engine had none -- it processed one
+tap per cycle, single-issue -- so the original headline compared a 4-wide
+event-driven engine against a 1-wide dense one. The fix was to give the dense
+engine the *same* partition the event-driven one already used: output channels
+split by `channel mod P`, with P banked weight reads and P accumulators
+advancing together. Because both engines then split the same thing the same
+way, **K and P count the same unit of hardware, and K = P is matched
+parallelism by construction** rather than by assertion. When the dense engine
+got its knob, the C1 verdict flipped: dense P=4 beat ED K=4 by 8 % in
+simulation, which is how the crossover was found in the first place.
 
 **The cost models** (cycles per inference, validated against simulation and
 silicon):
