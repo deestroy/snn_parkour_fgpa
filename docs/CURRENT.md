@@ -87,6 +87,21 @@ These are not errors in a number; they are statements that need qualifying.
 - **One layer is on silicon.** C1. C2, C3 and FC are bit-identical in
   simulation only.
 
+## 4b. Novelty: the gap is narrower than Chapter 3 says (C0055, 2026-09-20)
+
+A literature check found the core question asked before, outside robotics:
+**Marostica et al., arXiv:2506.13268 (2025)** compare event-driven and
+clock-driven spiking neurons on FPGA across a sparsity sweep and report the
+crossover -- but at **single-neuron scale** and with **Vivado + SAIF estimated
+power**. Separately, **arXiv:2506.18530** measures FPGA board power with an
+onboard INA226 exactly as our protocol does, and **SCNN (ISCA 2017)**
+established the sparse-versus-dense crossover framing for non-spiking
+accelerators. The defensible gap is now the conjunction: a **layer-level**
+event-driven versus dense comparison, **same fabric**, **bit-identical to a
+common reference**, swept over **activity and parallelism**, with energy
+**measured at the board input**. Drop any clause and one of those three
+covers it. See C0055.
+
 ## 5. Open questions that affect results (not yet decided)
 
 | # | question | why it matters | status |

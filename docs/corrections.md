@@ -1193,6 +1193,73 @@ superseded** (4, 6, 8, 11, 12, 14) -- they were built from the old engine.
 **Done when:** the dense passes are rebuilt, or the thesis states which board
 figures predate C0054. Open on the board side.
 ---
+## C0055 — The thesis question HAS been asked outside robotics; the gap statement must be rewritten (P0, novelty)
+**Why this exists.** A literature check on 2026-09-20 (web search, not a systematic
+review) found three prior works that between them cover most of what this
+thesis's gap statement claims is absent. None of them does the whole thing, but
+the gap is much narrower than Chapter 3 currently says, and a reviewer will
+find these.
+
+**1. The comparison itself, at neuron level, with estimated power.**
+F. Marostica, A. Carpegna, A. Savino, S. Di Carlo, "Energy-Efficient Digital
+Design: A Comparative Study of Event-Driven and Clock-Driven Spiking Neurons",
+arXiv:2506.13268 (2025) -- the same Politecnico di Torino group as Spiker+.
+They build six neuron variants (event-driven and clock-driven, serial and AER,
+shifter and multiplier decay), sweep input and temporal sparsity at 25/50/75/100
+%, and plot the ratio of event-driven to clock-driven latency crossing 1 as
+density rises. **That is our crossover question.** What they do NOT do:
+- it is a **single neuron with 8 input channels**, not a layer datapath: no
+  membrane banking, no spike queue, no scatter, no wrapper, no DMA -- none of
+  the machinery that our thesis argues is where the event-driven overhead
+  actually lives;
+- **power is Vivado Power Analysis driven by a SAIF from post-synthesis
+  simulation** ("Power consumption measurements were performed using the
+  generated SAIF files under Vivado Power Analysis"), i.e. exactly the method
+  this thesis exists to test against an instrument;
+- no silicon pass, no golden-model bit-identity, no real network.
+Their most interesting result is a counterintuitive one: event-driven power
+RISES as inputs get sparser, because control-FSM "event" activity dominates the
+arithmetic saved. That claim rests entirely on a tool estimate, which is a
+direct and citable motivation for measuring.
+
+**2. The measurement method, on FPGA, for a spiking-adjacent network.**
+"Embedded FPGA Acceleration of Brain-Like Neural Networks: Online Learning to
+Scalable Inference", arXiv:2506.18530 (2025). Uses the **onboard INA226** on a
+ZCU104 to measure board power and an idle-minus-execution delta, sampling at
+10 ms over 1000+ samples per state. That is our C0004/C0038 protocol. So
+"nobody measures" is too strong as written; "no event-driven-versus-dense
+comparison measures" is the defensible form. PDF not yet read -- confirm
+whether the network is spiking and whether any datapath comparison is made.
+
+**3. The sparse-versus-dense crossover framing, long established for ANNs.**
+SCNN (Parashar et al., ISCA 2017, arXiv:1708.04485) reports its sparse
+architecture beating a dense one once weights and activations are each below
+~85 % dense; other work puts the break-even nearer 70 %. So the *shape* of our
+result -- sparsity pays only above a threshold, because the machinery that
+exploits it costs something -- is a known result in non-spiking accelerators.
+This is good for us: it gives standard vocabulary and a comparison point,
+and it means our contribution is the spiking, measured, same-fabric instance
+of a question the field already recognises as real.
+
+**What survives as the gap, stated carefully:**
+no published work compares an event-driven and a clock-driven **layer datapath
+on the same fabric**, verified bit-identical against a common reference, swept
+over activity AND parallelism, with energy **measured at the board input**
+rather than estimated. Each clause is now doing work; drop any one of them and
+one of the three works above covers it.
+
+**Actions.**
+- Rewrite Chapter 3's gap statement to the sentence above, and add all three
+  works to the baseline table and the related-work chapter.
+- Cite Marostica et al. as the closest prior work and as motivation, not as a
+  threat to be minimised: their headline power finding is a tool estimate.
+- Re-check the "essentially none report externally instrumented power" claim in
+  Chapter 1 against arXiv:2506.18530 before it goes in.
+- This was a web search, not a systematic review. A proper search of IEEE
+  Xplore and ACM DL with the terms "event-driven", "clock-driven", "spiking",
+  "FPGA", "energy" is still owed before submission.
+**Done when:** the gap statement is rewritten and the three works are cited.
+---
 ## Closing note on this review
 Three passes have been made: methodology (C0001–C0017), measurement
 accuracy and missing experiments (C0018–C0027), design and internal
