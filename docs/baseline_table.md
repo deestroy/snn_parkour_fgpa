@@ -113,31 +113,63 @@ event-driven engine *avoided*: it is the fair number when comparing against a
 design that evaluates everything, and the reason the two columns differ by 4x
 is the 24 % activity of this data.
 
-### The published designs, and what can actually be computed
+### The published designs, read from the papers (2026-09-20)
 
-| work | synaptic ops per cycle | status |
-|---|---|---|
-| **Minitaur** (Neil & Liu, TVLSI 2014) | **0.065** on MNIST, 0.250 peak | **computable** -- the only row that reports synaptic throughput directly (4.88 M and 18.73 M post-synaptic current updates per second, at 75 MHz) |
-| FireFly-P (arXiv 2601.21222) | naive figure 508 | **not computable.** 784-1024-10 is 813,056 synapses and 8 us at 200 MHz is 1,600 cycles, which would need 508 accumulates per cycle on 47 DSPs. The 8 us therefore is not a full evaluation of every synapse; the paper is needed to say what it is |
-| Spiker+ (TETC 2025) | -- | **not computable from our transcription**: the MNIST hidden-layer size and the timestep count are not in our rows. This is the most valuable row to complete -- same XC7Z020 fabric, same 100 MHz clock as ours |
-| Harmeling et al. (NCE 2026) | -- | synapses derivable (784-100-10 = 79,400) but the spike-train length is not in our rows |
-| Li et al. (TCAS-I 2021) | -- | synapses derivable (177,800) but it is event-driven with Poisson coding, so the accumulate count depends on spike rates the transcription does not carry |
-| Cerebron (TVLSI 2022) | -- | the spiking ConvNet topology is not in our rows |
-| Cheng et al. (TCAS-I 2025) | -- | "up to 1M synapses" and no per-inference time |
-| FireFly-S (TCAS-I 2025) | -- | latency not yet transcribed |
+All seven papers were read. "SOP/cycle" is synaptic operations per clock cycle,
+computed from each paper's own reported figure where one exists.
 
-**The finding, which parallels this table's main one.** Of eight published
-designs, **one** reports enough to compute throughput per synapse. The others
-give a latency for a network whose evaluated-synapse count is either
-unstated or activity-dependent and unreported. So the same gap that makes
-their *energy* numbers incomparable -- a tool estimate with an unstated
-boundary -- also makes their *throughput* numbers incomparable. That is worth
-one sentence in Chapter 3 beside the power-method column.
+| work | fabric / clock | SOP per cycle | how obtained |
+|---|---|---|---|
+| **Cerebron** (TVLSI 2022) | XC7Z100, 200 MHz | **200.5** | its own 40.1 GSOP/s (Sec. V-D). **Caveat: the paper never states T**, so this cannot be normalised per timestep |
+| **Spiker+** (TETC 2025) | **XC7Z020, 100 MHz -- our fabric and clock** | **130** dense-equivalent | derived: 784-128-10 = 101,632 synapses x 100 timesteps / 78,000 cycles (Table I p.9, Sec. VI-A) |
+| **Cheng et al.** (TCAS-I 2025) | ZCU104, 250 MHz | **12.9** | its own 3.22 GSOP/s measured (Table IV). No per-inference latency is stated anywhere in the paper |
+| **ours, dense P = 16** | XC7Z020, 100 MHz | 14.4 | derived and verified |
+| **ours, event-driven K = 4** | XC7Z020, 100 MHz | **4.91** dense-equivalent (1.19 useful) | derived and verified |
+| **ours, dense P = 4** | XC7Z020, 100 MHz | **3.60** | derived and verified |
+| **Minitaur** (TVLSI 2014) | Spartan-6 LX150, 75 MHz | **0.065** sustained, 0.25 peak | its own 4.88 M and 18.73 M post-synaptic updates/s (Table II). Sustained is 26 % of peak: fan-out of 32 cannot fill 32 cores |
+| FireFly-S (TCAS-I 2025) | KV260, 333 MHz | not stated | throughput only (10,047 FPS MNIST); inter-layer pipelined, so 1/FPS is an issue interval, not a latency |
+| FireFly-P (arXiv 2026) | Cmod A7-35T, 200 MHz | not stated | frames per second only |
+| Li et al. (TCAS-I 2021) | VC707, 100 MHz | not computable | no spike-train length, no spike count, no SOP figure |
+
+### Three things the papers corrected in our own table
+
+1. **Our FireFly-P row conflated two separate experiments.** The 8 us
+   end-to-end latency belongs to a *continuous-control* network of 128 hidden
+   neurons on Brax tasks (Sec. IV-A/B); the 784-1024-10 MNIST network is a
+   different experiment whose result is **32 FPS = 31.25 ms per image,
+   including learning** (Table II). The impossible 508 accumulates per cycle
+   that this section previously flagged was our error, not the paper's.
+2. **FireFly-S's abstract misstates its own units.** It reports "10,047 FPS/W
+   on MNIST, 3,683 FPS/W on DVS-Gesture, 2,327 FPS/W on CIFAR-10". Dividing
+   each by the power in its Table VI gives 7,722.5, 2,022.5 and 612.5, which
+   are the table's FPS/W column -- so the abstract's numbers are FPS and the
+   label is wrong. Cite the table, not the abstract.
+3. **Li et al.'s "0.028 uJ/synapse/image" is energy per *static* synapse**,
+   5.04 mJ over the 177,800 weights of 784-200-100-10, not energy per synaptic
+   operation. It cannot be inverted to recover a throughput.
+
+### The reporting finding, now with all seven papers read
+
+Of the seven published designs, **three report enough to compute throughput
+per synapse** (Cerebron, Cheng, Minitaur) and a fourth is derivable because it
+states its topology and timestep count (Spiker+). Three do not: FireFly-P and
+FireFly-S give frames per second for pipelined architectures where that is an
+issue interval rather than a latency, and Li et al. omit the spike-train
+length entirely.
+
+And **every one of the seven power figures is a tool estimate or has no stated
+provenance**: FireFly-P, FireFly-S, Cheng and Li name Vivado (the last two
+with a SAIF from post-layout simulation); Cerebron and Minitaur state a
+wattage with no method given anywhere in the paper. Not one is externally
+instrumented. That is the same gap in the throughput column as in the power
+column, and it is the gap this thesis exists to close.
 
 ### What this comparison does and does not say
 
-- Our dense engine at P = 4 retires 3.6 accumulates per cycle. That is modest
-  by accelerator standards and is **not** a claim of competitive throughput.
+- Our dense engine at P = 4 retires 3.6 accumulates per cycle, against 130 for
+  Spiker+ on **the same XC7Z020 at the same 100 MHz**. That is a factor of 36,
+  and it is not a claim of competitive throughput -- it is a measurement of a
+  deliberate design choice.
   The engine does one tap per cycle per lane with no multipliers at all (DSP =
   0 by construction, because a spike is one bit and a synapse is an add), on
   the smallest Zynq part, at 100 MHz.
@@ -147,27 +179,41 @@ one sentence in Chapter 3 beside the power-method column.
   comparable event-driven FPGA design, and one to two orders below the
   large-fabric accelerators -- which is what a 53k-LUT part at 100 MHz with no
   DSPs should do.
+- **Why Spiker+ extracts 36x more per cycle, from its own architecture
+  section.** It states that it "exploits only one dimension to obtain
+  parallelism, concurrently updating all neurons within a layer while
+  sequentially providing inputs to each neuron", and that it "expects all
+  neurons to access their respective weights in parallel ... therefore it
+  strongly relies on the high parallelism provided by on-board BRAMs". Three
+  things follow, and only the first is a free choice:
+  1. **Its neuron state fits in flip-flops.** 128 hidden neurons; the design
+     reports 3,298 registers, and 138 neurons x 16 bits is about 2,200 of
+     them. Registers are all writable in the same cycle. Our C1 has 4,624
+     neurons = 74 kbit of membrane state, which must live in block RAM, and a
+     block RAM has one write port. **Our entire K/P banking scheme exists to
+     buy write ports**: each bank is one more port. Their parallelism is free;
+     ours is purchased a bank at a time.
+  2. **Fully connected versus convolutional.** In an FC layer every input
+     reaches every neuron, so "one input per cycle, all neurons in parallel"
+     leaves nothing idle. In a stride-2 3x3 convolution an input reaches a 2x2
+     block across the output channels -- 64 of our 4,624 neurons -- so that
+     schedule does not transfer. Their strategy is the right one for their
+     layer and is not available for ours.
+  3. **Our P = 4 is a comparison choice, not a hardware limit.** It matches
+     the event-driven bank count K so that the two engines get the same
+     parallel hardware. At P = 16 we retire 14.4 per cycle. A more parallel
+     dense engine would move the crossover further left, in the same direction
+     the C0054 tail fix already moved it.
+- Both designs avoid multipliers for the same reason: a binary spike times a
+  weight is a select, which Spiker+ describes as "a bitwise AND between the
+  weight and the spike". Both report DSP = 0.
+- Their reported accuracy needs care: the hardware figure is 93.85 % against a
+  96.83 % software model (Table I, p. 9), a 3 pp implementation drop the
+  headline does not foreground.
 - Comparing across rows is unsound for a second reason beyond throughput:
   precision differs (1-bit activations here, 4- to 16-bit elsewhere), the
   networks differ (one conv layer here, fully-connected elsewhere), and
   event-driven designs' work is data-dependent while clock-driven work is not.
-
-### Papers needed to finish this section
-
-I could not read these; the repository has only transcribed rows. Each link
-is the verified DOI from `docs/references_verified.md`, with exactly what is
-needed from it.
-
-| paper | link | what to extract |
-|---|---|---|
-| **Spiker+** (Carpegna et al., TETC 13(3) 2025) | https://doi.org/10.1109/TETC.2024.3511676 | the MNIST network topology (hidden layer size) and the number of timesteps per inference. Highest value: same fabric and clock as ours, so it is a like-for-like row |
-| FireFly-P (Li et al., 2026) | https://arxiv.org/abs/2601.21222 | what the 8 us covers -- one timestep, one inference, or a sparse subset of synapses -- and the spike rate if event-driven |
-| Harmeling et al. (NCE 6 024022, 2026) | https://doi.org/10.1088/2634-4386/ae759c | spike-train length (their analogue of T), and whether all synapses are evaluated per timestep |
-| Li et al. (TCAS-I 68(4) 2021) | https://doi.org/10.1109/TCSI.2021.3052885 | mean spike rate or synaptic-operation count per image |
-| Cerebron (TVLSI 30(10) 2022) | https://doi.org/10.1109/TVLSI.2022.3196839 | the spiking ConvNet topology behind the 0.026 ms MNIST figure |
-| Cheng et al. (TCAS-I 72(7) 2025) | https://doi.org/10.1109/TCSI.2025.3560666 | per-inference latency, and the synapse count actually evaluated under 50 % structured sparsity |
-| FireFly-S (TCAS-I 72(8) 2025) | https://doi.org/10.1109/TCSI.2024.3496554 | per-inference latency for MNIST and DVS-Gesture |
-| Minitaur (Neil & Liu, TVLSI 22(12) 2014) | https://doi.org/10.1109/TVLSI.2013.2294916 | already usable; the FPGA part number would complete its row |
 
 On method: analytical cycle models of this kind are standard practice for
 FPGA neural-network accelerators rather than something invented here; the
