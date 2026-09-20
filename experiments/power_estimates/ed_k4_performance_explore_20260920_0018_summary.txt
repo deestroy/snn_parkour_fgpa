@@ -1,0 +1,6 @@
+tag        ed_k4_performance_explore_20260920_0018
+params     ENGINE=1 ED_K=4 DENSE_P=4 BAKED=1 N_ENGINES=1
+timing     WNS=0.346293 TNS=0.000000 WHS=0.022239
+bitstream  C:/Users/dhritiaravind/m4_conv2/m4_conv2.runs/impl_1/design_1_wrapper.bit
+xsa        C:/Users/dhritiaravind/m4_conv2/builds/ed_k4_performance_explore_20260920_0018/design_1_wrapper.xsa
+built      Sun Sep 20 00:21:17 -0400 2026

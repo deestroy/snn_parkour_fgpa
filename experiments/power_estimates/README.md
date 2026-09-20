@@ -32,6 +32,12 @@ the ARM subsystem's estimate and dominates every total.
 | ed_k4_dvsg_20260919_1324 | ED K=4 DVS-Gesture (pass 10) | 0.190 | 1.750 | 1.604 | 0.145 | 0.017 | 0.010 | 0.015 | 0.030 | — | 1.533 | 72.0 |
 | ed_k4_x8_20260917_2251 | ED K=4 x8 N-MNIST (pass 7) | 0.430 | 1.933 | 1.775 | 0.157 | 0.031 | 0.032 | 0.045 | 0.133 | — | 1.533 | 241.0 |
 | ed_k8_20260917_2106 | ED K=8 N-MNIST (pass 5) | 0.332 | 1.731 | 1.587 | 0.144 | 0.017 | 0.008 | 0.012 | 0.017 | — | 1.533 | 54.0 |
+| ed_k4_dvsg_x4_20260920_0010 | ED K=4 DVS-Gesture x4 (pass 13) | 0.119 | 1.926 | 1.769 | 0.157 | 0.027 | 0.032 | 0.049 | 0.128 | 0.000 | 1.533 | 236.0 |
+| dense_p4_dvsg_x2_20260920_1127 | dense P=4 DVS-Gesture x2 (pass pending) | 0.842 | 1.956 | 1.805 | 0.151 | 0.053 | 0.036 | 0.136 | 0.045 | 0.000 | 1.533 | 270.0 |
+| ed_k4_performance_explore_20260920_0018 | ED K=4 N-MNIST, strategy Performance_Explore (C0019, not on board) | 0.346 | 1.733 | 1.589 | 0.144 | 0.016 | 0.007 | 0.010 | 0.024 | 0.000 | 1.533 | 57.0 |
+| ed_k4_congestion_spreadlogic_high_20260920_0021 | ED K=4 N-MNIST, strategy Congestion_SpreadLogic_high (C0019, not on board) | 0.499 | 1.727 | 1.583 | 0.144 | 0.017 | 0.007 | 0.010 | 0.016 | 0.000 | 1.533 | 50.0 |
+| dense_p4_performance_explore_20260920_0023 | dense P=4 N-MNIST, strategy Performance_Explore (C0019, not on board) | 0.388 | 1.750 | 1.607 | 0.144 | 0.021 | 0.013 | 0.026 | 0.013 | 0.000 | 1.533 | 73.0 |
+| dense_p4_congestion_spreadlogic_high_20260920_0026 | dense P=4 N-MNIST, strategy Congestion_SpreadLogic_high (C0019, not on board) | 0.354 | 1.753 | 1.609 | 0.144 | 0.022 | 0.013 | 0.028 | 0.013 | 0.000 | 1.533 | 76.0 |
 
 Rows marked superseded are earlier attempts of the same configuration
 (a wrong-top build, a build without the board preset, launcher failures)

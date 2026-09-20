@@ -1,0 +1,6 @@
+tag        ed_k4_congestion_spreadlogic_high_20260920_0021
+params     ENGINE=1 ED_K=4 DENSE_P=4 BAKED=1 N_ENGINES=1
+timing     WNS=0.499131 TNS=0.000000 WHS=0.010849
+bitstream  C:/Users/dhritiaravind/m4_conv2/m4_conv2.runs/impl_1/design_1_wrapper.bit
+xsa        C:/Users/dhritiaravind/m4_conv2/builds/ed_k4_congestion_spreadlogic_high_20260920_0021/design_1_wrapper.xsa
+built      Sun Sep 20 00:23:53 -0400 2026

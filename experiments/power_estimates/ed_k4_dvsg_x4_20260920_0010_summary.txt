@@ -1,0 +1,6 @@
+tag        ed_k4_dvsg_x4_20260920_0010
+params     ENGINE=1 ED_K=4 DENSE_P=4 BAKED=1 N_ENGINES=4
+timing     WNS=0.119083 TNS=0.000000 WHS=0.020239
+bitstream  C:/Users/dhritiaravind/m4_conv2/m4_conv2.runs/impl_1/design_1_wrapper.bit
+xsa        C:/Users/dhritiaravind/m4_conv2/builds/ed_k4_dvsg_x4_20260920_0010/design_1_wrapper.xsa
+built      Sun Sep 20 00:13:33 -0400 2026

@@ -1,0 +1,6 @@
+tag        dense_p4_performance_explore_20260920_0023
+params     ENGINE=0 ED_K=4 DENSE_P=4 BAKED=1 N_ENGINES=1
+timing     WNS=0.388272 TNS=0.000000 WHS=0.021857
+bitstream  C:/Users/dhritiaravind/m4_conv2/m4_conv2.runs/impl_1/design_1_wrapper.bit
+xsa        C:/Users/dhritiaravind/m4_conv2/builds/dense_p4_performance_explore_20260920_0023/design_1_wrapper.xsa
+built      Sun Sep 20 00:26:54 -0400 2026
