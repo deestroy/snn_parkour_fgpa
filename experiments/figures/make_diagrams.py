@@ -322,8 +322,78 @@ def d_perception():
     save(fig, "fig_perception_loop", "The perception loop and its deadline. Latency numbers from experiments/p1_distill and the board records. Sections 4.10, 6.8.")
 
 
+# ------------------------------------------------------------------ 11. wrapper FSM (axis_conv)
+def d_fsm_wrapper():
+    """hdl/dense/axis_conv.v lines 166-277. State names and transitions read from the RTL."""
+    fig, ax = canvas(h=58, figsize=(12.5, 6.6), y0=2)
+    for n, x, y, sub in [("S_CLR", 10, 44, "start the engine's\nclear pass"), ("S_CLRW", 28, 44, "wait eng_done"),
+                         ("S_RX", 48, 44, "receive WORDS_IN words\nfor this timestep"), ("S_UNPACK", 70, 44, "ED only: expand\nthe word into spikes"),
+                         ("S_GO", 48, 32, "pulse start"), ("S_RUNW", 48, 21, "wait eng_done"),
+                         ("S_TXRD", 65, 21, "address out_words"), ("S_TXCAP", 78, 21, "register the word"),
+                         ("S_TXSEND", 91, 21, "hold until\nm_axis_tready")]:
+        box(ax, x - 6.5, y - 3.5, 13, 7, n, sub, fc=FAB if "TX" not in n else "#fdf0e0", bold=True, fs=8.5)
+    arrow(ax, (16.5, 44), (21.5, 44))
+    arrow(ax, (34.5, 44), (41.5, 44), "eng_done")
+    arrow(ax, (54.5, 45.5), (63.5, 45.5), "ED", fs=7, off=(0, 1.1))
+    arrow(ax, (63.5, 42.5), (54.5, 42.5))
+    arrow(ax, (48, 40.5), (48, 35.5), "rx_words ==\nWORDS_IN-1", off=(12, 0), fs=7)
+    arrow(ax, (48, 28.5), (48, 24.5))
+    arrow(ax, (54.5, 21), (61.5, 21), "eng_done")
+    arrow(ax, (71.5, 21), (72.5, 21)); arrow(ax, (84.5, 21), (85.5, 21))
+    # S_TXSEND -> S_TXRD, more words in this timestep
+    ax.plot([91, 91], [24.5, 29], color=EDGE, lw=1.2); ax.plot([91, 65], [29, 29], color=EDGE, lw=1.2)
+    arrow(ax, (65, 29), (65, 24.5))
+    ax.text(78, 30.2, "more words in this timestep", ha="center", fontsize=7.5)
+    # S_TXSEND -> S_RX, next timestep (routed left of the S_GO column)
+    ax.plot([91, 91], [17.5, 12], color=EDGE, lw=1.2); ax.plot([91, 36], [12, 12], color=EDGE, lw=1.2)
+    ax.plot([36, 36], [12, 44], color=EDGE, lw=1.2); arrow(ax, (36, 44), (41.5, 44))
+    ax.text(63, 13.2, "next timestep (T = 4 per sample)", ha="center", fontsize=7.5)
+    # S_TXSEND -> S_CLR, sample finished
+    ax.plot([91, 91], [17.5, 6.5], color=EDGE, lw=1.2); ax.plot([91, 10], [6.5, 6.5], color=EDGE, lw=1.2)
+    arrow(ax, (10, 6.5), (10, 40.5))
+    ax.text(53, 7.7, "sample finished", ha="center", fontsize=7.5)
+    box(ax, 4, 50, 44, 5.5, "assign s_axis_tready = (state == S_RX);", "the wrapper is ready ONLY in S_RX", fc="#eef7ee", fs=8)
+    box(ax, 52, 50, 46, 5.5, "S_RX: if (s_axis_tvalid) ...", "a word is accepted on VALID ALONE, not on valid && ready", fc="#ffe9e9", fs=8)
+    ax.text(50, 2.4, "Consistent inside one engine, because its own ready IS (state == S_RX). Not consistent across replicated engines:\n"
+                     "the bus ready is instance 0's, so a replica that re-enters S_RX earlier latches whatever word the bus is holding, once per cycle.",
+            ha="center", va="bottom", fontsize=8.5, color="#b71c1c")
+    save(fig, "fig_fsm_wrapper", "The AXI-Stream wrapper's state machine, transcribed from hdl/dense/axis_conv.v (lines 166-277). Receive and transmit alternate once per timestep, four times per sample. Sections 4.7, 5.4.")
+
+
+# ------------------------------------------------------------------ 12. the two engines' schedules side by side
+def d_fsm_engines():
+    fig, ax = canvas(h=52, figsize=(12.5, 6.0), y0=1)
+    ax.text(27, 49, "dense: conv_layer_p.v", ha="center", fontsize=11, fontweight="bold")
+    ax.text(76, 49, "event-driven sweep: ed_conv_layer.v", ha="center", fontsize=11, fontweight="bold")
+    ax.plot([52, 52], [3, 47], color="#bbbbbb", lw=1)
+    box(ax, 3, 38, 12, 6, "S_IDLE", fc=NEUT, fs=8.5)
+    box(ax, 19, 38, 14, 6, "S_CLEAR", "zero the banks", fc=NEUT, fs=8.5)
+    box(ax, 3, 26, 30, 7, "S_MAC  x  taps", "one input bit + P weights per cycle;\ntaps = 9 x C_IN (18 / 144 / 288)", fc=DENSE, bold=True, fs=8.5)
+    for i, (n, sub) in enumerate([("S_TAIL", "consume the last\nweight read"), ("S_VRD", "membrane read\nlands"), ("S_VREG", "timing register"), ("S_UPDATE", "LIF + write back,\nclear acc")]):
+        box(ax, 2 + i * 12.2, 14, 11.4, 7, n, sub, fc="#ffd9c9", fs=7.5)
+        if i: arrow(ax, (2 + i * 12.2 - 0.7, 17.5), (2 + i * 12.2, 17.5))
+    arrow(ax, (15, 41), (19, 41)); arrow(ax, (18, 38), (18, 33.5), "", rad=0.2)
+    arrow(ax, (18, 26), (7.7, 21))
+    ax.add_patch(Rectangle((1.4, 13.4), 47.2, 8.2, fc="none", ec="#b71c1c", lw=1.5, ls="--"))
+    ax.text(25, 11.5, "4 cycles per output group per timestep, strictly serial", ha="center", fontsize=8.5, color="#b71c1c", fontweight="bold")
+    ax.text(25, 7.6, "cost = (N/P) x T x (taps + 4) + 4, exact on all six layer-dataset pairs.\n"
+                     "The tail is 18.2 % of C1 (taps=18), 2.7 % of C2, 1.4 % of C3.", ha="center", va="top", fontsize=8)
+    # ED side
+    box(ax, 56, 38, 18, 6, "scatter (per spike)", fc=ED, fs=8.5)
+    box(ax, 56, 26, 40, 8, "sweep: TWO cycles per neuron", "beat A presents neuron n's addresses;\nbeat B updates neuron n-1 at the same time", fc=ED, bold=True, fs=8.5)
+    arrow(ax, (65, 38), (65, 34.5))
+    ax.add_patch(Rectangle((55.4, 25.4), 41.2, 9.2, fc="none", ec="#1b5e20", lw=1.5, ls="--"))
+    ax.text(76, 22.5, "read n+1 while updating n -- C0030", ha="center", fontsize=8.5, color="#1b5e20", fontweight="bold")
+    ax.text(76, 18.5, "C0030 took this from 4 cycles per neuron to 2, and says why:\n"
+                      "at 4 the event-driven floor was 18.5k of 27.1k cycles and the margin\n"
+                      "was 'too thin to build an energy argument on'.\n\n"
+                      "The same overlap was never applied to the dense engine's tail.",
+            ha="center", va="top", fontsize=8)
+    save(fig, "fig_fsm_engines", "The two engines' schedules, transcribed from the RTL. The event-driven sweep was explicitly pipelined; the dense tail was not, and on C1 -- the only layer on silicon -- that tail is 18.2 % of the dense cycle count. Sections 4.4, 4.5, 6.7.")
+
+
 if __name__ == "__main__":
-    for fn in (d_system, d_toolflow, d_paradigms, d_dense, d_ed, d_banks, d_lif, d_measurement, d_verification, d_perception):
+    for fn in (d_system, d_toolflow, d_paradigms, d_dense, d_ed, d_banks, d_lif, d_measurement, d_verification, d_perception, d_fsm_wrapper, d_fsm_engines):
         try:
             fn()
         except Exception as e:
