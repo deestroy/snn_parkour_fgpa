@@ -12,7 +12,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-REVISED = "2026-09-20p"
+REVISED = "2026-09-20q"
 ONEDRIVE = os.path.expanduser("~/OneDrive - Carleton University/Research Papers/Final_thesis_images")
 GREEN, RED, BLUE = RGBColor(0x1B, 0x5E, 0x20), RGBColor(0xB7, 0x1C, 0x1C), RGBColor(0x0D, 0x47, 0xA1)
 PURPLE, ORANGE = RGBColor(0x6A, 0x1B, 0x9A), RGBColor(0xE6, 0x51, 0x00)
@@ -43,6 +43,11 @@ OUTLINE = [
     "Supervisor (Dr. Ahmadi), committee, the lab's GPU hosts (MI210 box, 1080 Ti box), whoever lends the DMM, the extreme-parkour and snnTorch authors for released code. One page.",
 ]),
 (0, "List of Acronyms", ACRONYMS),
+(0, "List of Symbols", [
+    "WHERE: docs/notation.md holds the full version, written out for a reader who has not lived in the repository; paste its tables here and trim. It defines, with what each one changes: the network (C1/C2/C3/FC, C_IN/C_OUT, H/W, N as output-neuron count, the 34- and 64-geometries, and the repo's c1/g1/r1/i1 vector-set naming); the neuron (V, I, s, theta, beta, pending, T, and the quantisation shift k); the two engines (dense vs ED, P lanes, K banks, matched parallelism K = P, s as the spike count, N_ENGINES for replication, activity, crossover) with both cost models; the board (PS/PL, LUT/FF/BRAM/DSP, WNS/WHS, AXI/AXI-Stream/DMA, BURST, bitstream); the three energy quantities; and the housekeeping identifiers (M-numbers, D-numbers, C-numbers, golden model, pre-registration).",
+    "TODO: resolve the one genuine collision before submission -- N is the output-neuron count in the cycle model (2NT) and also the engine replication count in the metering builds (N_ENGINES, written x8 / x4 / x2). Rename one; the cycle-model N is the more entrenched, so N_ENGINES should probably become R or M in the thesis text.",
+    "Keep the symbol table to one page: only symbols that appear in more than one chapter. Anything used once is defined where it is used.",
+]),
 (0, "1  Introduction", [
     "Open wide, then narrow: SNNs are justified by an energy argument; the field's numbers are overwhelmingly tool estimates; the one careful measurement (Loihi 2 vs GPU: 3-3.5 W vs > 50 W, power not energy) shows how estimates and measurements can diverge. This thesis builds both canonical datapaths on one fabric and measures.",
     "End with the one-sentence thesis: on this fabric the event-driven datapath wins latency at matched parallelism K=P=4 and loses at K=P=8; on real data it wins below ~30 % input activity and loses above; whether it wins ENERGY is answered with a meter, not a model.",
