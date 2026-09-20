@@ -6,6 +6,25 @@ the editable one). These are SCHEMATICS -- unlike make_figures.py they carry no
 measured data, so nothing here needs regenerating when results change; edit the
 drawing code, not the file. Numbers that do appear (cycle-model terms, widths,
 resource counts) are labels, and each says where it comes from.
+
+
+PROVENANCE OF THE NUMBERS THAT APPEAR AS LABELS
+-----------------------------------------------
+12.5 / 13.5 BRAM tiles at K=4 / K=8, and 19.5 predicted at K=16 -- the two
+  measured values are docs/results_ledger.md section 1 (passes 3 and 5); the
+  prediction is derived in measure/k_energy_prereg_2026-09-20.md (K5).
+4,624 = 16*17*17, the N-MNIST C1 output neurons; 18,432 bits = one RAMB18.
+288-byte weight table, 2,304 bits, 1.6 % utilised at K=16 -- C0052, derived
+  from ed_scatter.v's array declaration (C_IN*9*C_OUT entries of 8 bits).
+88.0 cycles per neuron per T=4 inference -- the C1 case of the general dense
+  law (N/P) * T * (9*C_IN + 4) + 4; C2 is 592 and C3 is 1,168.
+2NT + 5.0 s + 71.7 s/K -- the C1 event-driven model, fitted in
+  experiments/dvsgesture/latency_sim/README.md.
+1.73 ms mean / 2.75 ms worst robot frames, dense 3.60 ms -- C0048, from
+  experiments/p1_distill/isaac_i1_ed_k4_cycles_64.txt (64 rows).
+48-270 mW fabric, PS7 1.533 W -- experiments/power_estimates/README.md.
+State names and transitions in the two FSM diagrams are transcribed from
+  hdl/dense/axis_conv.v (166-277) and hdl/dense/conv_layer_p.v (78-300).
 """
 import os
 import matplotlib

@@ -3,7 +3,26 @@ Run: python3 docs/thesis_tables/make_tables.py   -> writes docs/thesis_tables/*.
 Data-derived tables: utilisation (Vivado power reports), ladder (check_all.sh),
 vector sets (sim/vectors + runner geometry), RTL inventory (hdl/), quantisation
 (golden npz + golden-check logs). The hand-written tables (timing_closure.md,
-lessons.md) live beside them and are edited directly."""
+lessons.md) live beside them and are edited directly.
+
+PROVENANCE OF EVERY CONSTANT IN THIS FILE
+-----------------------------------------
+53,200 LUT / 106,400 FF / 140 BRAM tiles / 220 DSP  -- XC7Z020 capacities,
+  docs/environment.md and the Vivado utilisation reports' own denominators.
+32,767 / 32,768  -- the positive and negative int16 limits the hardware
+  membranes must fit; docs/notation.md section 2.
+100  -- cycles per microsecond at the 100 MHz PL clock.
+T = 4  -- timesteps per inference (docs/notation.md); note the synthesis top
+  and the board server hardwire this, so no other T has run on hardware.
+9 * C_IN  -- taps per output neuron for a 3x3 kernel; the dense cost law is
+  (N/P) * T * (taps + 4) + 4, exact on all six layer-dataset pairs.
+1.533 W  -- the PS7 estimate common to every build, experiments/power_estimates.
+Geometry (N = C_OUT * H_out * W_out): N-MNIST C1 16*17*17, C2 32*9*9,
+  C3 64*5*5; DVS-Gesture C1 16*32*32, C2 32*16*16, C3 64*8*8.
+Every other number is parsed from the file named at the point of use; the
+parallelism crossover in particular is refitted from the cycle files on every
+run rather than quoted (C0049).
+"""
 import glob, os, re
 import numpy as np
 

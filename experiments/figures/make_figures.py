@@ -2,7 +2,32 @@
 (never from numbers typed in here). Run: python3 experiments/figures/make_figures.py
 Writes experiments/figures/*.png. Each figure states sim vs board in its title.
 Traces (*.npz) are local-only; figures that need them are skipped with a note
-if they are absent."""
+if they are absent.
+
+PROVENANCE OF EVERY CONSTANT IN THIS FILE
+-----------------------------------------
+Board latencies (us, engine-only as the server reports it -- which brackets the
+DMA round trip, not the fabric alone; see docs/thesis_tables/deadline.md):
+  688.5   ED K=4  N-MNIST      experiments/board_ed_k4_20260905.md    (pass 3)
+  575.5   ED K=8  N-MNIST      experiments/board_ed_k8_20260917.md    (pass 5)
+ 1048.9   dense P=4 N-MNIST    experiments/board_dense_p4_20260906.md (pass 4)
+  540.3   dense P=8 N-MNIST    experiments/board_dense_p8_20260917.md (pass 6)
+ 2970.8   ED K=4  DVS-Gesture  experiments/dvsgesture/board_ed_k4_20260919.md    (pass 10)
+ 3706.5   dense P=4 DVS-Gesture experiments/dvsgesture/board_dense_p4_20260919.md (pass 11)
+  All six are also the rows of docs/results_ledger.md sections 1 and 3.
+Cycle-model constants (2*N*T + 5.0*s + 71.7*s/K), fitted on DVS-Gesture C1 and
+  reproduced on N-MNIST C1 to 8 cycles on the engine-only basis:
+  experiments/dvsgesture/latency_sim/README.md. NOTE 5.0 and 71.7 are C1
+  constants; C2/C3 have their own (experiments/rate_sweep*/README.md).
+Dense C1 cycle count 1,441,788 (DVS-Gesture, P=1):
+  experiments/dvsgesture/latency_sim/dense_p1.txt (TB_PASS line).
+Geometry: N-MNIST C1 out = 16*17*17 = 4,624 neurons; C2 32*9*9; C3 64*5*5.
+  DVS-Gesture C1 out = 16*32*32 = 16,384; C2 32*16*16; C3 64*8*8.
+  docs/environment.md 'The network'.
+32,767 = the int16 ceiling the hardware membranes must fit (docs/notation.md).
+100 = cycles per microsecond at the 100 MHz PL clock (every cycle file).
+Everything else is read from the data files named at the point of use.
+"""
 import glob
 import os
 import re
@@ -36,9 +61,11 @@ def dense_cycles(path):
 def fig_kp_sweep():
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     sets = [("N-MNIST C1 (16 samples)", "experiments/latency_sim/ksweep_c0035",
-             {4: 688.5, 8: 575.5}, {4: 1048.9, 8: 540.3}, "total"),
+             {4: 688.5, 8: 575.5},        # ED board: passes 3 and 5
+             {4: 1048.9, 8: 540.3}, "total"),  # dense board: passes 4 and 6
             ("DVS-Gesture C1 (8 clips)", "experiments/dvsgesture/latency_sim",
-             {4: 2970.8}, {4: 3706.5}, "engine")]
+             {4: 2970.8},               # ED board: pass 10
+             {4: 3706.5}, "engine")]   # dense board: pass 11
     for ax, (title, d, ed_board, dn_board, kind) in zip(axes, sets):
         ks = [1, 2, 4, 8, 16]
         ed = []
@@ -196,7 +223,7 @@ def fig_tsweep():
     a1.legend(fontsize=8)
     a1.set_xscale("log", base=2); a1.set_xticks([4, 8, 16]); a1.set_xticklabels([4, 8, 16]); a1.set_xlabel("timesteps T"); a1.set_ylabel("float test accuracy (%)")
     a1.set_title("DVS-Gesture accuracy vs T (one point per seed)"); a1.grid(alpha=.3)
-    a2.axhline(32767, color="r", ls="--", label="int16 ceiling (32,767)")
+    a2.axhline(32767, color="r", ls="--", label="int16 ceiling (32,767)")  # the hardware membrane width
     a2.set_xscale("log", base=2); a2.set_xticks([4, 8, 16]); a2.set_xticklabels([4, 8, 16]); a2.set_xlabel("timesteps T"); a2.set_ylabel("fc membrane |V| max (golden integer)")
     a2.set_title("FC membrane |V| max vs T, per seed (N-MNIST stays far below)"); a2.grid(alpha=.3); a2.legend(fontsize=8)
     fig.tight_layout(); fig.savefig(os.path.join(OUT, "fig_tsweep_int16.png")); plt.close(fig)
@@ -245,6 +272,8 @@ def fig_per_sample():
     from experiments/dvsgesture/latency_sim/README.md); dense is a constant. Board points where they
     exist (N-MNIST K=4 and K=8, DVS-Gesture K=4), simulation for the robot frames (not yet on the board)."""
     fig, axes = plt.subplots(1, 3, figsize=(13, 4))
+    # C1 cycle model; constants fitted in experiments/dvsgesture/latency_sim/README.md.
+    # 2*n_out*4 = the sweep floor 2NT at T=4; /100 converts cycles to us at 100 MHz.
     model = lambda s, n_out, K: (2 * n_out * 4 + 5.0 * s + 71.7 * s / K) / 100.0
     # N-MNIST: 16 check samples; per-sample K=8 and K=4 engine-only board latency from the K=8 record
     spk = _popcount_words(np.load("host/conv_test_data.npz")["tx_words"])
@@ -259,7 +288,8 @@ def fig_per_sample():
     ax.plot(ss, model(ss, 16 * 17 * 17, 8), "-", color="C2", lw=1, label="cycle model, K=8")
     ax.plot(spk[idx], [k4[i] for i in idx], "o", color="C0", label="ED K=4, board")
     ax.plot(spk[idx], [k8[i] for i in idx], "^", color="C2", label="ED K=8, board")
-    ax.axhline(1048.9, color="C1", ls="--", label="dense P=4, board"); ax.axhline(540.3, color="C3", ls="--", label="dense P=8, board")
+    ax.axhline(1048.9, color="C1", ls="--", label="dense P=4, board")   # pass 4
+    ax.axhline(540.3, color="C3", ls="--", label="dense P=8, board")     # pass 6
     ax.set_title("N-MNIST C1 (16 check samples, board)"); ax.set_xlabel("input spikes per inference (T = 4)")
     ax.set_ylabel("latency per inference (us, engine-only)"); ax.grid(alpha=.3); ax.legend(fontsize=7)
     # DVS-Gesture: 8 clips; spikes from the latency_sim README table, board from the ED K=4 record
@@ -277,7 +307,7 @@ def fig_per_sample():
     ss = np.linspace(2000, 15500, 50)
     ax.plot(ss, model(ss, 16 * 32 * 32, 4), "-", color="C0", lw=1, label="cycle model, K=4")
     ax.plot([dspk[i] for i in idx], [dboard[i] for i in idx], "o", color="C0", label="ED K=4, board")
-    ax.axhline(3706.5, color="C1", ls="--", label="dense P=4, board")
+    ax.axhline(3706.5, color="C1", ls="--", label="dense P=4, board")   # pass 11
     for i in idx:
         ax.annotate("clip %d" % i, (dspk[i], dboard[i]), textcoords="offset points", xytext=(4, 4), fontsize=7)
     ax.set_title("DVS-Gesture C1 (8 clips, board)"); ax.set_xlabel("input spikes per inference (T = 4)"); ax.grid(alpha=.3); ax.legend(fontsize=7)
@@ -291,6 +321,7 @@ def fig_per_sample():
     ss = np.linspace(rspk.min() * 0.9, rspk.max() * 1.1, 50)
     ax.plot(ss, model(ss, 16 * 32 * 32, 4), "-", color="C0", lw=1, label="cycle model, K=4")
     ax.plot(rspk, rcyc, "o", color="C0", ms=4, label="ED K=4, sim")
+    # dense DVS-Gesture C1 at P=1 is 1,441,788 cycles (latency_sim/dense_p1.txt); /4 for P=4, /100 for us
     ax.axhline(1441788 / 4 / 100.0, color="C1", ls="--", label="dense P=4, sim")
     ax.axhline(rcyc.max(), color="C0", ls=":", lw=1, label="ED worst frame (%.2f ms)" % (rcyc.max() / 1000))
     ax.set_title("Robot event frames, 64x64 (%d frames, sim)" % len(rcyc)); ax.set_xlabel("input spikes per inference (T = 4, frame repeated)"); ax.grid(alpha=.3); ax.legend(fontsize=7)
