@@ -35,7 +35,8 @@ during the session are recorded as deviations. Procedure details live in
 | 5 | ED K=4, DATASET=1 (DVS-Gesture) | ed_k4_dvsg_20260919_1324 | the per-clip activity crossover in ENERGY |
 | 6 | dense P=4, DATASET=1 | (rebuilding 2026-09-19) | its pair |
 | 7-8 | ED K=8 / dense P=8, N-MNIST | ed_k8_20260917_2106 / dense_p8_20260917_2221 | the parallelism crossover in energy, if time |
-| 9-10 | ED K=4 / dense P=4, DATASET=1, **N_ENGINES=4** (x8 does not fit: g1 ED engine 21 BRAM tiles, g1 dense 7.3k LUT / 17k FF) | VM queue 848b933, 2026-09-19 night | resolvable DVS-Gesture delta; per-engine = delta / 4 |
+| 9 | ED K=4, DATASET=1, **N_ENGINES=4** (x8 does not fit: g1 ED engine 21 BRAM tiles) | ed_k4_dvsg_x4_20260920_0010 (pass 13, 8/8) | resolvable DVS-Gesture ED delta; per-engine = delta / 4 |
+| 10 | dense P=4, DATASET=1, **N_ENGINES=2** (N=4 does not place: 65k decoded-enable output flops, addendum 7c) | (building 2026-09-20) | its pair; per-engine = delta / 2 |
 
 Samples: the 16 N-MNIST check samples (BURST sweep over all 16 = the
 mean over the set) and the 8 DVS-Gesture clips. For #5-6 each clip is
@@ -185,3 +186,28 @@ stands as the contrary prediction.
   9-10 added); per-engine energy from them is delta / 4. Predicted input
   delta at 12 V / 0.85: ED ~4 x 72 mW -> ~28 mA (upper bound; the N=1
   figure includes the fixed wrapper share), dense ~4 x 135 mW -> ~53 mA.
+
+### 7c. Addendum 2026-09-20 11:40 -- row 9 on silicon; row 10 drops to N = 2
+
+- Row 9 (ED K=4 DVS-Gesture, N_ENGINES = 4) is on silicon: pass 13, 8/8
+  clips, every per-clip latency equal to the N = 1 pass to 0.1 us, 86 BRAM
+  tiles, WNS +0.119 ns, Vivado estimate 1.926 W total (record:
+  experiments/dvsgesture/board_ed_k4_x4_20260920.md). The equal per-clip
+  latency is what the matrix assumed (same BURST N as row 5).
+- Dense P=4 DVS-Gesture at N = 4 does NOT place ("Placer could not place
+  all instances": ~65k decoded-enable output flops), so row 10 is built at
+  **N_ENGINES = 2**. Consequences, fixed before the meter:
+  - per-engine dense energy = delta / 2, and the predicted input delta
+    halves: ~2 x 135 mW -> ~26 mA at 12 V / 0.85, i.e. about the same size
+    as the ED x4 delta (~28 mA). Both sit well above the 0.1 mA resolution,
+    so the DVS-Gesture pair is still resolvable; what is lost is the
+    4x-vs-4x symmetry, not the measurement.
+  - P8 (DVS-Gesture tool ratio 2.3x in ED's favour) is unchanged: it is a
+    per-engine ratio, and the fixed wrapper share is removed by the
+    N = 1 subtraction in both cases (section 7a).
+  - The dense engine's inability to replicate is itself a resource fact
+    for the thesis (the dense g1 layer at 7.3k LUT / 17k FF per engine does
+    not fit four times on the XC7Z020 beside the ED engine's memory need),
+    to be quoted next to the fabric-fit rows of docs/results_ledger.md.
+- Not yet on silicon: row 10 (N = 2 build in progress on the VM). Its
+  numbers will be added here when the peer session reports them.
