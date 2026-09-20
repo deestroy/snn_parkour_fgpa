@@ -12,7 +12,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-REVISED = "2026-09-20l"
+REVISED = "2026-09-20m"
 ONEDRIVE = os.path.expanduser("~/OneDrive - Carleton University/Research Papers/Final_thesis_images")
 GREEN, RED, BLUE = RGBColor(0x1B, 0x5E, 0x20), RGBColor(0xB7, 0x1C, 0x1C), RGBColor(0x0D, 0x47, 0xA1)
 PURPLE, ORANGE = RGBColor(0x6A, 0x1B, 0x9A), RGBColor(0xE6, 0x51, 0x00)
@@ -229,7 +229,7 @@ OUTLINE = [
     "What 'matched parallelism' buys and what it hides: K and P are both 'work units per cycle' but of different kinds (bank adders vs neuron lanes); iso-resource and iso-latency comparisons (C0021) as the two alternatives, and why K=P was chosen as primary with resources reported beside it.",
     "The wrapper's own cost (C0014, C0035, C0041): 6.3k-8.2k cycles per inference of framing and DMA; how it is attributed and why engine-only ticks are reported for latency but wrapper-inclusive totals are used for board-vs-sim comparison.",
     "FIG: [todo] Wrapper block diagram: AXIS in/out, frame parser, engine instance (ENGINE, DATASET, K or P, N_ENGINES), tick counter, CRC, the replicated-engine fan-out used for the metering builds.",
-    "TAB: [todo] Prediction vs measurement for every silicon pass (1-14): build, predicted cycles/latency, measured, error, pre-registered hypotheses held/failed.",
+    "TAB: [exists] (docs/thesis_tables/passes.md from experiments/silicon_ledger.md; per-sample predicted-vs-board columns are in each record) Prediction vs measurement for every silicon pass (1-14): build, predicted cycles/latency, measured, error, pre-registered hypotheses held/failed.",
 ]),
 (1, "4.8  Golden-Model Verification Methodology and Hardware Constraints", [
     "Fixed point: int8 weights (power-of-two scales), int16 membranes, integer thresholds 2^k, shift leak; no multiplier anywhere in the datapath. The int16 membrane budget as a real constraint: overflows on DVS-Gesture at T=16, at T=8 for one seed in three, and at 34 % activity on every seed (C0046) -- the options (18-bit, fc k=7, T=4).",
@@ -298,7 +298,7 @@ OUTLINE = [
     "Silicon sign-off as a procedure: the pre-card-write checklist (parameter read-back, WNS gate, PING build and dataset, golden mock first), the pre-registration file, the pass record; RESULT: fourteen passes, zero correctness misses, two wrong-bitstream deliveries rejected before any number was recorded.",
     "The negative test: the ladder's corner set fails on pre-C0044 RTL (proved by checking out the old RTL), so the guard is known to guard; say this explicitly, a check that has never failed proves little.",
     "TAB: [exists] (docs/thesis_tables/ladder.md, 33 rows) The ladder: check number, what it compares, vectors, comparison count, runtime, what class of bug it catches (from check_all.sh; 33 rows, or grouped into ~10 classes if the full table is too long for the body).",
-    "TAB: [exists] Silicon passes 1-14: pass, date, build tag, dataset, engine, N_ENGINES, samples, bit-identical, latency, WNS, tiles (docs/results_ledger.md section 1 and 3 plus the DVS-Gesture x4/x2 records).",
+    "TAB: [exists] (experiments/silicon_ledger.md; docs/thesis_tables/passes.md) Silicon passes 1-14: pass, date, build tag, dataset, engine, N_ENGINES, samples, bit-identical, latency, WNS, tiles (docs/results_ledger.md section 1 and 3 plus the DVS-Gesture x4/x2 records).",
 ]),
 (0, "6  Results and Evaluation", [
     "Every table carries the brief's metrics (energy measured / estimated, latency, deadline-miss where applicable, mean power, LUT-FF-BRAM-DSP, firing rate per layer, accuracy) and says sim or board in the caption. Either crossover outcome is a valid result; nothing is tuned toward one. Target 25-35 pages.",
@@ -316,7 +316,7 @@ OUTLINE = [
     "Report the rate-regulariser's reach: what conv rates it produced (2-35 %), that C1's input activity is unmovable, and the accuracy price at each point with seeds.",
     "FIG: [exists] Accuracy vs achieved conv activity, both datasets, mean +- sd over 3 seeds (experiments/figures/fig_accuracy_vs_activity.png).",
     "FIG: [exists] Per-layer firing rate per epoch, N-MNIST binarised (experiments/m0_firing_rates_binarised.png); optionally the counts arm beside it (D0003).",
-    "TAB: [exists] (docs/thesis_tables/quantisation.md gives the per-layer k, threshold, clip fraction and membrane range; accuracy/rate rows still to assemble from the READMEs) Accuracy and rates: dataset, seed, T, float accuracy, golden integer accuracy, per-layer rate (c1, c2, c3, fc), peak fc membrane as % of int16 -- one row per trained network used anywhere in Chapter 6.",
+    "TAB: [exists] (docs/thesis_tables/accuracy_rates.md, 46 networks; quantisation.md for the per-layer k, threshold, clip fraction and membrane range) Accuracy and rates: dataset, seed, T, float accuracy, golden integer accuracy, per-layer rate (c1, c2, c3, fc), peak fc membrane as % of int16 -- one row per trained network used anywhere in Chapter 6.",
 ]),
 (1, "6.3  Resource Utilisation and Timing", [
     "RESULT: per build -- ED K=4 ~3.4k LUT / 12.5 tiles / WNS +0.508; dense P=4 5,760 LUT / 6.5 tiles / +0.299; ED K=8 13.5 tiles / +0.332; dense P=8 8.5 tiles / +0.101; ED K=4 x8 11,733 LUT / 86 tiles / +0.430; dense P=4 x8 27,829 LUT (52 %) / 46 tiles / +0.041; DVS-Gesture ED K=4 +0.190, dense P=4 +1.091 (rev 3); ED K=4 DVS-Gesture x4 86 tiles / +0.119; dense P=4 DVS-Gesture x2 21 tiles / +0.842 and x4 does not place. DSP = 0 everywhere. The honest asymmetry is STATE not logic. WHERE: experiments/board_*.md utilisation sections.",
@@ -355,8 +355,8 @@ OUTLINE = [
     "FIG: [exists] Fitted crossover activity vs K = P for C2/C3 on both datasets at K=P=4/8/16 (experiments/figures/fig_crossover_vs_kp.png).",
     "FIG: [exists] DVS-Gesture accuracy and fc membrane range vs T per seed with the int16 ceiling, N-MNIST beside it (experiments/figures/fig_tsweep_int16.png).",
     "FIG: [exists] (experiments/figures/fig_crossover_heatmap.png: log2 dense/ED over activity x K=P for DVS-Gesture C2 with the dense = ED contour of every fitted layer) Crossover surface as a heat map or contour: ED/dense ratio over (activity, K=P) from the cycle model, with the benched points overlaid and the measured operating points of each network marked.",
-    "TAB: [todo] Crossover table: axis, layer, dataset, K=P, crossover value, basis (model / sim / board), the operating point of the trained network, verdict at the operating point.",
-    "TAB: [todo] T sweep: dataset, T, seeds, accuracy mean +- sd, fc membrane % of int16 (min-max over seeds), golden-clean (y/n), projected ED and dense latency.",
+    "TAB: [exists] (docs/thesis_tables/crossover.md, 15 rows) Crossover table: axis, layer, dataset, K=P, crossover value, basis (model / sim / board), the operating point of the trained network, verdict at the operating point.",
+    "TAB: [exists] (docs/thesis_tables/tsweep.md) T sweep: dataset, T, seeds, accuracy mean +- sd, fc membrane % of int16 (min-max over seeds), golden-clean (y/n), projected ED and dense latency.",
 ]),
 (1, "6.7  Lessons from Sign-Off: What Simulation Could Not See", [
     "As findings: multi-ported accumulator -> 62k LUTs; multipliers on address paths WNS -4.5; dividers in spike decode WNS -3.5; BRAM latches; two-stage ROM init -> all-zero silicon; the LIF->obits path at the DVS-Gesture geometry (WNS -0.696 -> rev 3); the sweep bug invisible to a centred dataset (C0044); wrong-bitstream deliveries caught by the checklist; the baked-weight provenance near miss (tracked npz + check_baked_weights.py).",
@@ -373,7 +373,7 @@ OUTLINE = [
     "FIG: [todo] One still per terrain (gap, hurdle, parkour, step) from the teacher and student GIFs, side by side, with success annotated (experiments/p1_distill/gifs/ once copied).",
     "FIG: [todo] Per-frame latency on the 64 real event frames: ED K=4 and dense, sorted by input spike count, with the worst-case and the 10 Hz budget line; add the student-driven set as a second series.",
     "TAB: [todo] Success rate per terrain: teacher, FPGA student (58k spiking encoder), stock depth student (reference), ES-Parkour Fig. 5; with episodes per terrain and the protocol line.",
-    "TAB: [todo] Robot-frame latency: frame set (teacher-driven / student-driven), frames, input density mean / range, ED mean / worst, dense, ratio, fraction of the 100 ms budget, projected deadline-miss rate at 20 / 50 / 100 Hz.",
+    "TAB: [exists] (docs/thesis_tables/deadline.md: per-sample distributions, worst as % of the 100 ms budget, max sustainable rate, miss rates; student-driven set to add) Robot-frame latency: frame set (teacher-driven / student-driven), frames, input density mean / range, ED mean / worst, dense, ratio, fraction of the 100 ms budget, projected deadline-miss rate at 20 / 50 / 100 Hz.",
 ]),
 (1, "6.9  Discussion", [
     "Two crossover axes; on N-MNIST no trained network reaches the C2/C3 crossover while DVS-Gesture straddles the C1 one per clip, now on silicon; the int16 ceiling as the binding constraint on the harder dataset; direct-coding cost (C0047); the tool-vs-meter disagreement once measured.",

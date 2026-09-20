@@ -9,6 +9,11 @@ Markdown tables ready to paste into the thesis, each traceable to repository fil
 | vector_sets.md | 4.8 / 5.1 (vector sets and corner exposure) | sim/run_ed_tb.sh, sim/vectors/*_thresh.txt, *_exposure.txt | generated (exposure as last exported; the ladder regenerates the default sets) |
 | rtl_inventory.md | 5.3 (RTL inventory) | hdl/ (line counts); roles in the script | generated |
 | quantisation.md | 2.6 / 4.2 / 6.2 (quantisation per layer) | golden/*.npz, golden-check logs | generated |
+| accuracy_rates.md | 6.2 (accuracy and rates per trained network) | train logs / rate CSVs, golden-check logs | generated |
+| tsweep.md | 6.6 (T sweep and the int16 ceiling) | golden-check logs per T and seed | generated |
+| crossover.md | 6.6 (every crossover: axis, layer, dataset, K=P, basis, operating point) | latency_sim files, rate-sweep bench files, traces | generated |
+| passes.md | 5.6 / 6.4 (silicon passes with prereg outcome) | experiments/silicon_ledger.md | generated (copy of the ledger table) |
+| deadline.md | 6.8 (per-sample latency vs perception period, max sustainable rate) | per-sample cycle and board files | generated |
 | timing_closure.md | 5.5 (timing-closure history) | docs/decisions.md | hand-maintained |
 | lessons.md | 6.7 (lessons from sign-off) | docs/decisions.md, docs/corrections.md | hand-maintained |
 | (silicon passes 1-14) | 5.6 / 6.4 | experiments/silicon_ledger.md already is that table | existing |
