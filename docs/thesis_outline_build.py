@@ -12,7 +12,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-REVISED = "2026-09-20f"
+REVISED = "2026-09-20g"
 ONEDRIVE = os.path.expanduser("~/OneDrive - Carleton University/Research Papers/Final_thesis_images")
 GREEN, RED, BLUE = RGBColor(0x1B, 0x5E, 0x20), RGBColor(0xB7, 0x1C, 0x1C), RGBColor(0x0D, 0x47, 0xA1)
 PURPLE, ORANGE = RGBColor(0x6A, 0x1B, 0x9A), RGBColor(0xE6, 0x51, 0x00)
@@ -83,56 +83,61 @@ OUTLINE = [
     "TAB: [todo] Headline table: one row per result (latency at K=P=4 and 8, per-clip crossover, trained-activity crossovers, T ceiling, energy measured vs estimated, student success), with the basis column (sim / board / gpu) and the section.",
 ]),
 (1, "1.6  Thesis Organization", [
-    "One paragraph mapping chapters 2-7; say that Chapter 4 is the decision log (docs/decisions.md) turned into prose and Chapter 6 reports sim and board with the basis in every caption.",
+    "One paragraph mapping chapters 2-7: Chapter 2 is the literature review (what the field has established and what it leaves open), Chapter 3 the closest prior work, the threats to validity of energy comparisons and the gap, Chapter 4 the decision log (docs/decisions.md) turned into prose and the mitigations of those threats, Chapter 5 the implementation, Chapter 6 the results with sim or board in every caption and the residual risk per threat, Chapter 7 the answers to RQ1-RQ3.",
 ]),
 (0, "2  Background", [
-    "Every concept Chapters 4-6 need, defined at first use. Keep biology to half a page; related work has its own chapter. Target 15-20 pages.",
+    "This chapter is a literature review, not a description of the design: each subsection surveys what the field has established (with citations), organises it around the questions the thesis needs answered, and closes with what the literature leaves unsettled -- the design decisions Chapter 4 then makes are cited back to those open points. Implementation specifics (the exact LIF semantics built, the sign-off rules, this thesis's numbers) do not appear here. Target 15-20 pages, ~40-60 references.",
+    "Writing pattern per subsection: (1) the concept and the canonical references, (2) the variants in the literature and what each trades, (3) how hardware papers in particular have handled it, (4) one paragraph 'what this leaves open', pointing to the section of Chapter 4 that decides it.",
 ]),
 (1, "2.1  Spiking Neural Networks and the Leaky Integrate-and-Fire Neuron", [
-    "The LIF neuron and the EXACT semantics implemented: delayed reset-by-subtraction, strict '>' threshold, beta = 0.875 as a shift (V - V>>3); why each is load-bearing for bit-exactness (D0002, D0007). Cross-check: snnTorch and the hand-written loop agree to max |V| diff 0.0 (train/00_lif_demo.py, experiments/m0_lif_demo.png).",
-    "Neuron-model choice justified by citation and a hardware-cost table, not assertion (C0043). Reset variants (to zero vs by subtraction) and why subtraction keeps the residual charge; hard vs soft threshold; what a rate-coded readout is.",
-    "Spike coding and why SNNs promise efficiency (a spike is a 1-bit event, so a synapse costs an add, not a multiply; silence costs nothing in an event-driven design) -- and why the promise has to be measured (queues, memory and static power are paid whether or not spikes arrive).",
-    "FIG: [exists] LIF membrane trace with input spikes, threshold crossings and delayed subtraction reset, snnTorch vs the integer loop overlaid (experiments/m0_lif_demo.png; regenerate at 300 dpi from train/00_lif_demo.py).",
-    "TAB: [todo] Neuron models and their hardware cost: IF, LIF with shift leak, LIF with multiply leak, adaptive-threshold; columns = state bits, arithmetic per update, DSP use, citation, chosen? (C0043).",
+    "Survey neuron models from biophysical to phenomenological: Hodgkin-Huxley, Izhikevich, adaptive exponential, LIF, IF; the surveys to anchor on (Roy, Jaiswal and Raghunathan, Nature 2019; Tavanaei et al. 2019; Eshraghian et al., Proc. IEEE 2023 'Training SNNs using lessons from deep learning'). Why the accelerator literature converges on IF/LIF: one state variable, add-compare-subtract per update.",
+    "Reset semantics in the literature: reset-to-zero vs reset-by-subtraction (Rueckauer et al. 2017 on conversion accuracy; Han et al. 2020 'RMP-SNN'), hard vs soft reset, and the timing of the reset relative to the threshold check as implemented by frameworks (snnTorch snn.Leaky defaults, Norse, SpikingJelly). Point out that papers rarely state which they built, which makes bit-level reproduction impossible -- the gap 4.2 closes by stating it exactly.",
+    "Leak implementations in hardware: multiply by beta, shift-based leak (V - V>>k), no leak (IF); what each costs in a fabric and what accuracy it costs in the literature (cite the hardware-cost comparisons in the FPGA accelerator papers of 3.1, e.g. Cerebron's IF choice, Cheng 2025's LIF).",
+    "What this leaves open: which exact semantics a hardware implementer should fix so that a software reference and the silicon agree bit-for-bit; whether a shift leak at beta = 0.875 costs accuracy (decided in 4.2 with the beta sweep).",
+    "FIG: [exists] LIF membrane trace with input spikes, threshold crossings and delayed subtraction reset (experiments/m0_lif_demo.png), used here as the illustration of the model defined in the literature.",
+    "TAB: [todo] Neuron models as used by the surveyed hardware works: model, reset, leak implementation, state bits, arithmetic per update, source paper -- a literature table, not a design table (C0043).",
 ]),
 (1, "2.2  Clock-Driven and Event-Driven Execution of Spiking Networks", [
-    "Dense: every neuron and synapse every timestep; cost = neurons x fan-in x T / P; data-independent latency. Event-driven: spike queue, scatter to fan-out targets in K banks, then a sweep; cost = sweep floor + per-spike work / K; data-dependent latency.",
-    "Where a crossover must come from (the sweep floor and queue overhead vs the dense walk), and why it must be established per fabric by measurement. Matched parallelism K = P as the fair axis (decisions 2026-09-06, C0029).",
-    "The sweep floor 2NT: the event-driven engine still visits every neuron once per timestep to apply leak and threshold, so it can never be cheaper than that; the sweep-skip question (C0006, D0025) and the touched-neuron fraction that decided it (experiments/touched_fraction.md).",
-    "FIG: [todo] Side-by-side schematic: dense walk (P lanes striding through N neurons, every timestep) vs event-driven (spike list -> scatter into K banks -> sweep). Annotate each with its cost term. Draw once, reuse in 4.4/4.5.",
-    "FIG: [todo] Conceptual crossover sketch: cycles vs activity for both designs, the dense line flat, the ED line rising, the crossing marked; then the real one in 6.6 replaces it.",
+    "The two execution paradigms and their lineage: address-event representation (Mahowald 1992; Boahen 2000) and the asynchronous digital descendants (TrueNorth, Merolla et al. Science 2014; Loihi, Davies et al. IEEE Micro 2018; SpiNNaker, Furber et al. 2014) vs time-multiplexed, clock-driven neuron update in FPGA accelerators (Cerebron, FireFly, Li 2021).",
+    "The theoretical case that event-driven cost is proportional to activity and the counter-case that its fixed machinery is not: Sorbaro et al. 2020 (energy vs activity in neuromorphic hardware); Davidson and Furber, Frontiers 2021 ('Comparison of artificial and spiking neural networks on digital hardware': SNNs lose their advantage above a modest activity); Yik et al. 2025 NeuroBench on how to benchmark; note that every crossover claim in this literature is analytical or simulated.",
+    "Event-driven layer engines on FPGA: Minitaur (Neil and Liu, TVLSI 2014) and Cheng et al. (TCAS-I 2025) as the closest designs; how they queue spikes and resolve write conflicts into shared membrane memory (arbiters, sorting, banking); what they compare against (none against a clock-driven twin on the same fabric).",
+    "The sweep problem in the literature: leak and threshold must be applied to every neuron every timestep unless neurons are visited lazily (event-driven leak with timestamps, as in Loihi's compartment update) -- the fixed floor that bounds any event-driven design's advantage; how each surveyed work handles it (skip, lazy, or full sweep).",
+    "What this leaves open: the crossover activity for a specific fabric at matched parallelism, established by measurement rather than analysis; what 'matched parallelism' should mean when the two designs' work units differ (decided in 4.7, C0029).",
+    "FIG: [todo] Schematic of the two paradigms as drawn in the literature (dense time-multiplexed update vs AER queue and scatter), one panel each, with the cost expressions from the cited works.",
 ]),
 (1, "2.3  Event-Based Vision and Input Encoding", [
-    "How a DVS works (per-pixel log-intensity change, ON/OFF polarity, microsecond timestamps); events simulated from depth for the robot workload (frame-difference on inverse depth, contrast threshold, 10 Hz; robot/isaac/event_sim_torch.py).",
-    "Encoding: T bins per sample, binarised (D0003); what binarisation discards (0.13 % of pixel-bins clipped at T=4, ~0 at T=16). Direct coding (one frame repeated over T) vs consecutive windows (C0047) and what each costs the event-driven engine.",
-    "Input density as the variable that drives everything downstream: N-MNIST 13.6 % mean, DVS-Gesture 22-27 % mean and 9-44 % per clip, robot frames after the 2 m clip and binarisation (quote from experiments/p1_distill/).",
-    "FIG: [exists] An N-MNIST sample as T=4 binarised frames per polarity (experiments/m0_nmnist_sample.png); extend to a three-panel figure with one DVS-Gesture clip and one robot event frame (from the exported vector sets) at the same scale.",
-    "TAB: [todo] Input statistics per source: resolution, polarity channels, T, mean density, per-sample density range, clip fraction from binarisation.",
+    "Event cameras: the DVS principle (Lichtsteiner, Posch and Delbruck 2008), the DAVIS and later sensors, and the survey by Gallego et al. (TPAMI 2022) for representations; why event streams suit SNNs (sparse, asynchronous, polarity-coded).",
+    "Event representations for networks: binary frames, event counts, time surfaces (Lagorce et al. 2017 HOTS), voxel grids (Zhu et al. 2019), and direct (repeated-frame) coding vs rate coding vs latency coding for SNN inputs (Guo et al. 2021 on coding schemes; Kim et al. 2022 on rate vs direct coding accuracy and robustness). What each discards and what each costs an event-driven engine (repeated frames repeat the scatter).",
+    "Simulated events from conventional frames: ESIM (Rebecq et al. 2018), v2e (Hu et al. 2021), and the frame-difference-with-threshold approximation used by ES-Parkour on depth; the gap between simulated and real event statistics reported in that literature.",
+    "The standard datasets and their published statistics: N-MNIST (Orchard et al. 2015) and DVS-Gesture (Amir et al. CVPR 2017); accuracies reported at various network sizes and T (so the reader can place the 58k-parameter results of Chapter 6).",
+    "What this leaves open: the activity distribution a hardware engine actually sees depends on the encoding chosen (binarisation, T, window) -- an encoding decision (4.10, D0003, C0047) rather than a dataset property.",
+    "FIG: [exists] An N-MNIST sample as T=4 binarised frames per polarity (experiments/m0_nmnist_sample.png); pair with a DVS-Gesture clip and a simulated robot event frame at the same scale as the illustration of the representations discussed.",
+    "TAB: [todo] Published results on N-MNIST and DVS-Gesture: work, network, parameters, T, accuracy -- to situate the accuracy this thesis accepts in exchange for a fabric-sized network.",
 ]),
 (1, "2.4  FPGA Architecture, Timing Closure and Power Estimation", [
-    "Zynq-7020 PS+PL; LUT/FF/BRAM/DSP budgets (53,200 / 106,400 / 140 tiles / 220); AXI-Stream and DMA; timing closure and WNS; why 100 MHz; why everything stays on-chip (off-chip reads ~200x a multiply). Fixed-point arithmetic: shifts not multiplies, so DSP = 0 by construction.",
-    "What a block RAM physically provides and the port discipline learned on silicon (one write + one read port per bank, no multipliers on address paths, single-stage ROM init): decisions 2026-09-06, sim/lint_synth_safety.sh.",
-    "How Vivado's power report is produced (vectorless activity propagation, default toggle rates, warning 33-332 on every report) and what it omits; what a board-input measurement includes (C0004); the replication trick for a resolvable delta (C0003).",
-    "Static vs dynamic power on a 28 nm fabric and why the PS7 estimate (1.533 W in every build) dominates the total: the engine is a 48-270 mW perturbation on a ~1.7 W board, which is why the shunt resolution and replication matter.",
-    "FIG: [todo] Zynq-7020 block diagram: ARM PS, DDR, HP0 port, AXI DMA, AXI-Stream into the PL wrapper; mark the 100 MHz PL clock domain.",
-    "TAB: [todo] XC7Z020 resources vs the target network's budget (161 KB = 26 % of BRAM) and vs the largest build actually placed (dense P=4 x8: 52 % LUT, 46 tiles; ED K=4 x8: 86 tiles).",
+    "The Zynq-7000 class of SoC FPGA (PS + PL) and the 7-series fabric primitives (LUT6, FF, BRAM36, DSP48E1) from the vendor documentation (UG474, UG473); what an SoC FPGA adds for a host-in-the-loop experiment (DMA, AXI) and what it costs (a 1.5 W processor beside a 50 mW datapath).",
+    "On-chip memory as the binding constraint for SNN accelerators in the literature: every surveyed FPGA design keeps weights and state in BRAM; off-chip DRAM access energy vs a MAC (Horowitz, ISSCC 2014: ~200x) as the reason; how designs trade replication against memory.",
+    "How vendor power estimation works and what is known about its accuracy: Vivado's report_power methodology (UG907), vectorless vs SAIF-driven activity, the switching-activity warning; academic assessments of estimator accuracy against measurement on FPGAs (TODO: find 2-3, e.g. studies of XPE/Vivado vs board measurement for DSP or ML workloads) -- the finding to extract is the typical magnitude and sign of the error.",
+    "Board-level power measurement practice on development boards: onboard PMBus/INA226 rails (ZCU102/104, PYNQ-Z1) vs boards without them (ZedBoard), inline shunts and current monitors, idle-vs-active deltas; papers that report both an estimate and a measurement, in any domain, and the gap they saw.",
+    "What this leaves open: for an event-driven datapath with data-dependent activity, whether vectorless estimation is even meaningfully defined, and how large the estimate-to-meter gap is on a 28 nm fabric -- the question of 4.9 and 6.5.",
+    "FIG: [todo] Zynq-7020 block diagram (PS, DDR, HP ports, AXI DMA, PL) drawn from the vendor reference, with the power-report boundary and the board-input measurement boundary marked -- reused in 4.9.",
 ]),
 (1, "2.5  Benchmarks and the Quadruped Perception Workload", [
-    "N-MNIST (2x34x34) and DVS-Gesture (11 gestures, downsampled to 2x64x64; C0012 for why a second benchmark): input densities N-MNIST 13.6 %, DVS-Gesture 22-27 % mean and 9-44 % per clip -- the independent variable. Raw N-MNIST is class-ordered (D0009).",
-    "The perception workload: extreme-parkour (Cheng et al.) teacher-student recipe (scandots teacher by PPO, depth student by DAgger with yaw supervision) and ES-Parkour's changes (events from depth at 10 Hz, spiking ResNet-18, IF, T=4, GRU, spiking MLP); its Fig. 5 success rates (gap 45 / step 60 / hurdle 71 / parkour 29 %) and Table III theoretical energy; the paper's code was never released, so the recipe was rebuilt on extreme-parkour (C0022).",
-    "What each benchmark is for: N-MNIST for comparability with the surveyed accelerators and as the low-activity point; DVS-Gesture as the harder, denser, per-clip-variable point that exposed C0044; the robot frames as the workload whose latency has a deadline.",
-    "TAB: [todo] Dataset table: classes, native and used resolution, train/test counts, T, encoding, mean density, accuracy of the float model here vs a published reference at similar size.",
+    "Learned legged locomotion in simulation-to-real: Lee et al. Science Robotics 2020, Rudin et al. CoRL 2022 (massively parallel IsaacGym training), Cheng et al. 2023 (extreme parkour: scandots teacher, depth student by DAgger), Zhuang et al. 2023 (robot parkour learning); the teacher-student recipe as the field's standard.",
+    "Event cameras and spiking networks on robots: ES-Parkour (Zhang et al., ICME 2025: events from depth at 10 Hz, spiking ResNet-18, theoretical energy in Table III), Guerra-Hernandez et al. 2017 (FPGA SNN CPG on a quadruped), and TODO: two or three event-vision drone/legged perception works 2022-2026; the recurring pattern that energy is reported as counted operations.",
+    "Why perception latency is a correctness constraint in this setting: control periods (10-50 Hz), the effect of stale observations in learned policies (cite works on action/observation delay in RL locomotion), and the deadline-miss framing from real-time systems.",
+    "What this leaves open: how a fabric-sized spiking encoder performs inside the paper's own pipeline, and what its latency distribution looks like on real event frames -- 4.10 and 6.8.",
+    "TAB: [todo] Legged-locomotion perception works: work, sensor, network, simulator, success metric, energy reported and how obtained.",
 ]),
 (1, "2.6  Training and Fixed-Point Quantisation of Spiking Networks", [
-    "Surrogate gradients (snnTorch, arctan), rate-decoded readout; post-training quantisation to int8 weights with power-of-two scales (threshold = 2^k, D0008), int16 membranes, FC pool/4 folded into its scale (D0004). Firing-rate regularisation as an experimental knob (train/03_train.py --rate_target); what it does and does not move (C1's cost is set by the input data).",
-    "RESULT: N-MNIST 96.60 % float -> 96.75 % golden integer; DVS-Gesture 63.26 -> 63.26 % (seed 0). Beta sweep 0.5-0.97 flat, 0.875 stands (experiments/beta_sweep/README.md).",
-    "Why quantisation is post-training and not quantisation-aware here: the per-layer power-of-two scale keeps every operation a shift, the accuracy cost was within seed noise on both datasets, and the same npz feeds golden model, baked RTL and board (provenance: sim/check_baked_weights.py).",
-    "The int16 membrane as a design constant with a measurable margin: the golden check reports each layer's peak |V| as a percentage of int16 (train/06_golden_check.py); how the margin depends on fan-in, T and activity (C0046) is a Chapter 6 result, introduce the quantity here.",
-    "FIG: [exists] Per-layer firing rate and accuracy per epoch on N-MNIST (experiments/m0_firing_rates_binarised.png) -- the M0 plot that established the operating range.",
-    "TAB: [todo] Quantisation per layer: weight scale 2^k, clip fraction, threshold, peak membrane as % of int16 at T=4, float vs integer accuracy, for both geometries (from train/05_quantise.py and 06_golden_check.py logs).",
+    "Training methods: ANN-to-SNN conversion (Rueckauer 2017; Sengupta 2019) vs direct training with surrogate gradients (Neftci, Mostafa and Zenke 2019; Wu et al. 2018 STBP); frameworks (snnTorch, SpikingJelly, Norse); why direct training is preferred at small T.",
+    "Quantisation for SNN hardware: integer weights with power-of-two scales, post-training vs quantisation-aware (Jacob et al. 2018 for ANNs; Putra and Shafique 2021 'Q-SpiNN'; Brevitas), membrane bit-width choices in the surveyed accelerators (typically 16-bit) and any reported overflow handling; the observation that membrane range is rarely characterised.",
+    "Activity control during training: rate regularisation (Sorbaro 2020; Pellegrini et al. 2021 low-activity SNNs), threshold scaling, and reports of the accuracy-activity trade-off -- the literature's version of the thesis's activity axis (4.9's regulariser).",
+    "What this leaves open: whether int16 membranes suffice across T and activity for a given geometry (a Chapter 6 result), and how much activity can be traded for accuracy on the two benchmarks at this network size.",
+    "FIG: [exists] Per-layer firing rate and accuracy per epoch on N-MNIST (experiments/m0_firing_rates_binarised.png) as the illustration of the activity-accuracy behaviour the literature describes.",
 ]),
 (0, "3  Related Work", [
-    "Three groups, each closed with what they did not do; then the gap statement. A comparison table with a 'power obtained by' column is the chapter's centrepiece (docs/baseline_table.md). Target 10-15 pages.",
+    "Closest prior work, grouped, each group closed with what it did not do; then the threats to validity that the literature and the corrections review identify for energy comparisons; then the gap statement. A comparison table with a 'power obtained by' column is the chapter's centrepiece (docs/baseline_table.md). Target 10-15 pages.",
 ]),
 (1, "3.1  FPGA Accelerators for Spiking Neural Networks", [
     "RESULT: rows transcribed 2026-09-19 -- Harmeling NCE 2026, Cheng TCAS-I 2025 (ZCU104, 96.0 % N-MNIST, Vivado + SAIF), Cerebron TVLSI 2022 (XC7Z100, on-chip power report), Li TCAS-I 2021 (VC707, Vivado + SAIF), Minitaur TVLSI 2014 (idle/peak watts, method unstated), FireFly-P 2026 (Artix-7, post-implementation report). Four of five state a Vivado estimate; none measures at a board input. TODO: FireFly-S and Spiker+ rows.",
@@ -142,7 +147,7 @@ OUTLINE = [
 ]),
 (1, "3.2  Event-Driven and Address-Event Architectures", [
     "Minitaur's event-driven DBN and Cheng's event-driven neuron update as the closest architectural relatives; how their queue/bank schemes differ from the K-bank scatter here; none compares against a clock-driven twin on the same fabric.",
-    "Address-event representation as the origin of the idea (Mahowald; AER buses) and its digital descendants (TrueNorth, Loihi, SpiNNaker): what 'event-driven' means at chip scale vs inside one layer engine. Keep to one page; the thesis is about one engine, not a many-core chip.",
+    "Chip-scale event-driven systems (TrueNorth, Loihi, SpiNNaker) as context only: their energy numbers are for whole chips with routers and cores, not for one layer engine, and are measured by the vendor rather than by an independent board-level meter. One page.",
     "The bank-conflict problem in the literature (scatter-add into shared membrane memory) and the choices others made (arbiters, sorting, replication); the channel-interleaved K-bank choice here avoids an arbiter by construction (Section 4.6).",
 ]),
 (1, "3.3  Neuromorphic Perception and Control for Legged Robots", [
@@ -151,13 +156,22 @@ OUTLINE = [
     "Why the encoder and not the whole policy is the hardware target: the encoder is the bulk of the compute per frame, the GRU/MLP policy is small and stays on the host; the 58k geometry was chosen to fit the fabric on-chip (docs/environment.md).",
 ]),
 (1, "3.4  Measured versus Estimated Energy in Neuromorphic Systems", [
-    "The Loihi 2 vs GPU study (Nagy et al.: 3-3.5 W vs > 50 W, R^2 0.89 vs 0.94 -- power, not energy per inference); why tool estimates and meters can rank designs differently; C0001-C0004, C0038.",
+    "The Loihi 2 vs GPU study (Nagy et al.: 3-3.5 W vs > 50 W, R^2 0.89 vs 0.94 -- power, not energy per inference); why tool estimates and meters can rank designs differently; the C0022 addendum's 2026 paper that states this thesis's question as open.",
     "TODO: one or two FPGA works that DID measure at a board or rail (any domain, e.g. ANN accelerators reporting wall-plug power) to show the practice exists and is cheap; contrast with the SNN rows that did not.",
     "The formal statement this thesis tests (C0027): the tool's ratio of dense to ED energy vs the meter's ratio; agreement in sign, in magnitude, or neither; each outcome and what it would mean for the surveyed papers' claims.",
 ]),
-(1, "3.5  Summary of the Gap", [
-    "Same-fabric clock-driven vs event-driven comparison with bit-identical outputs, board-measured energy, swept over parallelism and activity, on a learned perception workload: not present in any row above.",
-    "TAB: [todo] Gap matrix: rows = surveyed works plus this thesis; columns = same-fabric twin, bit-identical to a reference, activity sweep, parallelism sweep, measured energy, learned perception workload; tick marks. This is the one table a reader remembers from the chapter.",
+(1, "3.5  Threats to the Validity of Energy Comparisons", [
+    "Threats drawn from the literature above and from the project's own corrections review (docs/corrections.md), stated here BEFORE the design so that Chapter 4 can be read as the mitigations and Chapter 6 reports the residual risk of each. Group them as construct, internal, external and statistical validity.",
+    "Construct validity (is the number the thing claimed?): power reported instead of energy per inference (Nagy et al.; C0007); the measurement boundary unstated -- fabric delta vs board input vs per control period (C0004, C0038); a single replayed sample's energy presented as the design's (C0018); theoretical operation counts presented as energy (ES-Parkour Table III; every SNN accelerator row of 3.1).",
+    "Internal validity (could something else explain the difference?): static and idle power omitted or measured once rather than per bitstream (C0001); no noise floor before comparing deltas (C0002); implementation-seed and placement variance (C0019); die temperature differing between idle and active windows (C0009, C0020); the wrapper and host attributed unevenly to the two designs (C0014, C0041); an unfair baseline with no parallelism knob (C0029) and comparison at iso-frequency only (C0021); regulator non-linearity between the measurement point and the fabric (C0026).",
+    "External validity (does it generalise?): one fabric, one clock, one network size (C0010); synthetic Bernoulli activity in place of spatially clustered real events (C0040); one dataset -- and the demonstrated case that bit-identity on a centred dataset hid an RTL bug (C0044); direct coding vs windowed encoding changing the activity the engine sees (C0047); three geometries conflated in a log (C0036).",
+    "Statistical validity: 8-16 samples for cycle checks vs 264 for accuracy; single seeds; unresolvable deltas at the meter's floor (C0003); class-biased sample sets (C0039, C0016); no confidence intervals in the surveyed works.",
+    "For each threat name which surveyed works it applies to (from their methods sections) and the forward reference to the mitigation in Chapter 4 (pre-registration, replication, idle-per-bitstream, randomised order, three runs, corner sets, two datasets, K = P with iso-resource reported).",
+    "TAB: [todo] Threats to validity: threat, type (construct / internal / external / statistical), source (paper or C-number), prior work affected, mitigation in this thesis (section), residual risk to be reported in 6.9.",
+]),
+(1, "3.6  Summary of the Gap", [
+    "Same-fabric clock-driven vs event-driven comparison with bit-identical outputs, board-measured energy, swept over parallelism and activity, on a learned perception workload, with the threats of 3.5 addressed by design: not present in any row above.",
+    "TAB: [todo] Gap matrix: rows = surveyed works plus this thesis; columns = same-fabric twin, bit-identical to a reference, activity sweep, parallelism sweep, measured energy, learned perception workload, threats addressed; tick marks. This is the one table a reader remembers from the chapter.",
 ]),
 (0, "4  System Design and Methodology", [
     "Top-down: goals and system, neuron, network and budget, each datapath, the banking scheme, the comparison methodology, hardware considerations, the measurement methodology, and the perception workload in simulation. Every judgement call is a D-number in docs/decisions.md; this chapter is that log turned into prose. Target 30-40 pages, the longest chapter.",
@@ -361,12 +375,13 @@ OUTLINE = [
     "TAB: [todo] Success rate per terrain: teacher, FPGA student (58k spiking encoder), stock depth student (reference), ES-Parkour Fig. 5; with episodes per terrain and the protocol line.",
     "TAB: [todo] Robot-frame latency: frame set (teacher-driven / student-driven), frames, input density mean / range, ED mean / worst, dense, ratio, fraction of the 100 ms budget, projected deadline-miss rate at 20 / 50 / 100 Hz.",
 ]),
-(1, "6.9  Discussion and Threats to Validity", [
-    "Two crossover axes; on N-MNIST no trained network reaches the C2/C3 crossover while DVS-Gesture straddles the C1 one per clip, now on silicon; the int16 ceiling as the binding constraint on the harder dataset; direct-coding cost (C0047); the tool-vs-meter disagreement once measured; threats to validity (one fabric, 100 MHz, 8-16 samples for cycles vs 264 for accuracy, single seeds where noted, the constant board offsets).",
+(1, "6.9  Discussion", [
+    "Two crossover axes; on N-MNIST no trained network reaches the C2/C3 crossover while DVS-Gesture straddles the C1 one per clip, now on silicon; the int16 ceiling as the binding constraint on the harder dataset; direct-coding cost (C0047); the tool-vs-meter disagreement once measured.",
     "Answer the reader's objections in order: 'the dense engine is unoptimised' (it has the same knobs and the same discipline; its 88 cycles/neuron are within 2 of the model); 'K=P is arbitrary' (iso-resource and iso-latency readings given beside it); 'C1 only on silicon' (C2/C3/FC bit-identical in sim, per-spike constants transfer); 'accuracy is low' (activity is the variable, accuracy reported at every point); 'no physical robot' (simulation-in-the-loop with charged wall-clock).",
+    "Residual risk per threat of Section 3.5, now that the results exist: walk the threats table and say for each whether the mitigation held (e.g. the delta resolved above the noise floor; the strategy-variant spread was smaller than the tool gap; the corner set caught C0044; sim-vs-board within 1.5 %) or what remains (one fabric, 8-16 cycle samples, single seeds where noted, the constant board offsets attributed but not decomposed further).",
     "Generalisation limits: one 28 nm fabric at one clock; a different fabric changes the per-cycle power of banks vs lanes and so the energy crossover but not the cycle one; the cycle model transfers across layers and datasets here, which is the evidence for the claim's scope (C0010).",
     "What would change the conclusion: an 18-bit membrane (removes the T ceiling), a skip-scatter for repeated frames (cuts ED cost at direct coding by up to 4x on the scatter term), an event-driven FC on silicon (C0015), a per-rail meter (separates PS from PL).",
-    "TAB: [todo] Threats to validity: threat, type (internal / external / construct / statistical), mitigation taken, residual risk, section.",
+    "TAB: [todo] Residual-risk table: threat (from 3.5), mitigation, evidence it held (number and section), residual.",
 ]),
 (0, "7  Conclusion and Future Work", [
     "Close the loop from Chapter 1 with numbers attached. 4-6 pages.",
