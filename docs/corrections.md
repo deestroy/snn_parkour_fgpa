@@ -1274,6 +1274,43 @@ inputs are sparse, which is the spiking case. Adopt their vocabulary in
 Chapter 2 and 4 -- call the dense engine output-stationary and the
 event-driven one input-stationary (scatter) -- rather than inventing terms.
 
+**5. Instrumented power measurement of SNN hardware on FPGA DOES exist, and the
+Chapter 1 claim must be softened.** Found 2026-09-20 in an IEEE/ACM-indexed
+search:
+- **Lindqvist et al., "Fast Algorithms for Spiking Neural Network Simulation
+  with FPGAs", arXiv:2405.02019.** On an Intel Agilex 7 they "use the Terasic
+  Dashboard GUI to measure ... current rails going into the board and the FPGA
+  itself, allowing us to measure both" board and fabric power, reporting 44.9 W
+  board against 16.3 W fabric. That is a **genuine instrumented measurement,
+  and finer-grained than ours** -- they separate the fabric rail; we only reach
+  the board input. It is an SNN **simulator** for a cortical circuit, not an
+  inference accelerator, and it compares simulator algorithms rather than
+  datapaths.
+- **FeNN (arXiv:2506.11760)**, a RISC-V vector processor for SNNs, measured
+  whole-system power at the mains socket with a consumer meter when neither the
+  Jetson nor the KV260 exposed sensors.
+**Consequence:** "across roughly 25 published FPGA spiking accelerators,
+essentially none report externally instrumented power" is **false as written**
+and must become: *of the FPGA SNN **accelerators** surveyed here (seven in
+docs/baseline_table.md), none reports instrumented power; instrumented
+measurement does exist in the adjacent SNN **simulator** literature and for an
+SNN processor measured at the wall.* Fix this in Chapter 1 before submission.
+
+**6. A 2025 DATE paper makes the design decision our crossover would inform,
+without measuring it.** "Exploring the Sparsity-Quantization Interplay on a
+Novel Hybrid SNN Event-Driven Architecture" (DATE 2025, arXiv:2411.15409)
+builds "a dense core to efficiently process the input layer and sparse cores
+optimized for event-driven spiking convolutions" on a Virtex UltraScale+.
+**It does not compare the two datapaths on the same layer.** The assignment
+comes from a layer-wise workload model whose stated goal is "to partition
+resources to minimize the execution latency difference between the most and
+least workload-intensive layers" -- resource balancing, not a crossover -- and
+its power is Vivado instance-level dynamic power. So the field is already
+making dense-versus-event-driven architectural choices per layer **on
+intuition and workload balance, with no measured threshold to justify them.**
+That is the strongest available motivation for this thesis and should be cited
+as such in Chapter 1.
+
 **What survives as the gap, stated carefully:**
 no published work compares an event-driven and a clock-driven **layer datapath
 on the same fabric**, verified bit-identical against a common reference, swept
@@ -1282,6 +1319,14 @@ rather than estimated. Each clause is doing work: Marostica et al. have the
 comparison but at neuron scale with an estimate, the BCPNN work has the
 instrument but no spiking and no datapath comparison, and SCNN has the
 crossover but for non-spiking hardware with no sweep floor.
+
+**Search coverage, stated honestly.** This was a web search of indexed records
+plus full-text reading of the eleven papers obtained, not a systematic review.
+IEEE Xplore's own search needs an institutional login and renders through
+JavaScript, so it was not queried directly. A Boolean full-text search of IEEE
+Xplore and the ACM DL ("event-driven" AND "clock-driven" AND spiking AND FPGA;
+spiking AND FPGA AND ("measured power" OR "power measurement")) is still owed
+and needs the user's library access.
 
 **Actions.**
 - Rewrite Chapter 3's gap statement to the sentence above, and add all three
