@@ -65,6 +65,16 @@ def fig_kp_sweep():
         ax.plot(ks, dn, "s--", label="dense P (sim)")
         ax.plot(list(ed_board), list(ed_board.values()), "o", ms=11, mfc="none", mec="C0", mew=2, label="ED on silicon")
         ax.plot(list(dn_board), list(dn_board.values()), "s", ms=11, mfc="none", mec="C1", mew=2, label="dense on silicon")
+        # fitted crossover, computed here from the same curves (never typed in; C0049)
+        ok = ~np.isnan(np.array(dn, dtype=float))
+        A = np.vstack([np.ones(len(ks)), 1.0 / np.array(ks, float)]).T
+        a_ed, b_ed = np.linalg.lstsq(A, ed[:, 0], rcond=None)[0]
+        Pk = np.array(ks, float)[ok]; B = np.vstack([1.0 / Pk, np.ones(len(Pk))]).T
+        c_dn, d_dn = np.linalg.lstsq(B, np.array(dn, dtype=float)[ok], rcond=None)[0]
+        kx = (c_dn - b_ed) / (a_ed - d_dn)
+        ax.axvline(kx, color="k", lw=1, ls=":")
+        ax.annotate("crossover K = P = %.1f" % kx, xy=(kx, a_ed + b_ed / kx),
+                    xytext=(4, 14), textcoords="offset points", fontsize=8, rotation=90, va="bottom")
         ax.set_xscale("log", base=2); ax.set_xticks(ks); ax.set_xticklabels(ks)
         ax.set_xlabel("K = P (banks = lanes)"); ax.set_ylabel("latency per inference (us, engine-only, 100 MHz)")
         ax.set_title(title); ax.grid(alpha=.3); ax.legend(fontsize=8)

@@ -1013,6 +1013,36 @@ note. The lesson joins C0044's: a claim about N samples needs the N-row file
 beside it (the per-sample figure now reads the 64-row file directly).
 **Done when:** done.
 ---
+## C0049 — The N-MNIST parallelism crossover was quoted as 6.6; it is 7.4 (P1, arithmetic, fixed)
+**Problem.** From 2026-09-06 the headline parallelism crossover for N-MNIST C1
+was stated as "K = P ~ 6.6" in the K-sweep README, the results ledger, the
+silicon ledger, the repository README, two pre-registrations, a board record,
+the Vivado session notes and the thesis outline. It does not follow from the
+two fits printed beside it. With ED = 45,172 + 90,347/K and dense =
+406,912/P + 2,331 (least squares over the cycle files; the dense fit
+reproduces the measured P = 4 value of 104,059 exactly), equating them gives
+**K = P = 7.39** — 7.31 on the engine-busy basis, i.e. the same answer with the
+wrapper constant removed from both sides. Geometric interpolation of the
+measured ratios (1.536 at K = P = 4, 0.942 at 8) gives 7.35. The data always
+said ~7.4.
+**Impact.** None on any measurement, table or silicon result: every cycle
+count, every board latency and the bracket itself (ED wins at 4, dense at 8)
+are unchanged. The corrected value sits closer to the K = P = 8 pair, which is
+consistent with dense winning there by only 6 % while ED's best sample still
+beats it. DVS-Gesture's 5.8 was checked at the same time and is correct (5.76).
+**Fix (2026-09-20).** Corrected in the living documents (K-sweep README with
+the derivation shown, results ledger, silicon ledger, repository README,
+session notes, outline); the dated records that quoted it — two
+pre-registrations and one board record — keep their original text with a
+correction footnote, because rewriting a pre-registration would defeat its
+purpose. The number is no longer typed anywhere it matters:
+`docs/thesis_tables/crossover.md` recomputes it from the cycle files on every
+table build.
+**Lesson.** A derived number that is quoted more often than it is recomputed
+drifts from its own inputs. Every derived headline now has a generator
+(the tables) or a figure that reads the data.
+**Done when:** done.
+---
 ## Closing note on this review
 Three passes have been made: methodology (C0001–C0017), measurement
 accuracy and missing experiments (C0018–C0027), design and internal

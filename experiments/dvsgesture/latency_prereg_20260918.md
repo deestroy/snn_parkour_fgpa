@@ -77,3 +77,9 @@ higher input density moves the crossover less than one might guess.
    property (4.8x range in spikes per clip). Recorded as a miss.
 3. Dense within 1 % of 1,443k/P at every P — held (within 0.1 %).
 4. Crossover at K = P = 5.8, inside 4-8 — held; Builds 3-4 unchanged.
+
+> **Footnote added 2026-09-20 (C0049).** This file compares the
+> DVS-Gesture crossover (5.8, correct) with "6.6" on N-MNIST; the N-MNIST
+> value is 7.4. The comparison's direction — the crossover moves LEFT on
+> the dataset with the bigger sweep floor — is unchanged and slightly
+> stronger.

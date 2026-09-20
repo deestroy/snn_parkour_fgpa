@@ -59,3 +59,10 @@ offset both ED builds showed on silicon (K=4: +10.5 us, K=8: +10.9 us).
 5. Server overhead: **117.5 us** — held.
 6. Resources: 8.5 BRAM tiles (P=4: 6.5), 5,362 LUTs, DSP 0 — held in kind (no doubling); LUT comparison clouded by the synthesis-mode change.
 Nothing falsified. Crossover between K = P = 4 and 8 on silicon.
+
+> **Footnote added 2026-09-20 (C0049).** The "K = P ~ 6.6" cycle-model
+> estimate quoted in this pre-registration was an arithmetic slip; the
+> correct value from the same two fits is K = P = 7.4. The prediction made
+> here and its outcome are left exactly as written — the dense P=8 result
+> (dense wins at K = P = 8) is unaffected, and 7.4 is still inside the
+> 4-to-8 bracket this pair was built to test.

@@ -40,7 +40,9 @@ are recorded as such.
 | 4 | 688.5 us | 1,048.9 us | **1.52x** (ED) | 16 of 16 |
 | 8 | 575.5 us | 540.3 us | **0.94x** (dense) | 2 of 16 |
 
-Crossover between 4 and 8 on silicon; the cycle models put it at ~6.6.
+Crossover between 4 and 8 on silicon; the cycle models put it at 7.4
+(N-MNIST) and 5.8 (DVS-Gesture). The N-MNIST figure read ~6.6 until
+2026-09-20; see C0049.
 
 **Activity (DVS-Gesture C1, 8 clips, 20.9 % mean density), K = P = 4:**
 

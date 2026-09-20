@@ -48,7 +48,7 @@ list below.
 
 ## Build 3 + 4 — the K = P = 8 pair (brackets the parallelism crossover)
 
-Why: on C1 at this activity the cycle models cross at K = P ~ 6.6
+Why: on C1 at this activity the cycle models cross at K = P = 7.4 (C0049; ~6.6 as written before 2026-09-20)
 (experiments/latency_sim/ksweep_c0035): ED wins at 4 (measured 1.52x),
 dense should win at 8 (sim 0.94x). Two builds put both sides of the
 crossover on silicon. No new RTL beyond the C0044 line: K and P are parameters of the same

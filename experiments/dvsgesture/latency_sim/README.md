@@ -37,7 +37,9 @@ same three constants reproduce the N-MNIST C1 fit (37.0k + 6.3k +
 per inference, exactly the N-MNIST figure per neuron.
 
 **Crossover in the parallelism dimension: K = P = 5.8** (solve
-165,259 + 490,120/K = 1,441,788/K), against 6.6 on N-MNIST. The
+165,259 + 490,120/K = 1,441,788/K; recomputed from the files 5.76),
+against 7.4 on N-MNIST (corrected 2026-09-20, C0049: that comparison said
+6.6 until then). The
 board pair at K = P = 8 (Builds 3-4) still brackets it.
 
 ## The activity crossover, on real data, per sample

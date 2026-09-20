@@ -41,7 +41,7 @@ sim, and every silicon or simulated run is bit-identical to the golden model.
 | result | value | where |
 |---|---|---|
 | Matched parallelism, N-MNIST C1, silicon | **ED K=4 beats dense P=4 by 1.52x** (688.5 vs 1048.9 us); at K=P=8 **dense wins** (540.3 vs 575.5 us) | `experiments/board_*.md` |
-| Parallelism crossover | K = P ~ 6.6 (N-MNIST), 5.8 (DVS-Gesture); cycle model `2NT + 5.0 s + 71.7 s/K` vs dense `88 N/P`, within 0.3 % of simulation and ~1 % of silicon | `experiments/latency_sim/`, `experiments/dvsgesture/latency_sim/` |
+| Parallelism crossover | K = P = 7.4 (N-MNIST), 5.8 (DVS-Gesture); cycle model `2NT + 5.0 s + 71.7 s/K` vs dense `88 N/P`, within 0.3 % of simulation and ~1 % of silicon | `experiments/latency_sim/`, `experiments/dvsgesture/latency_sim/` |
 | Activity crossover on real data (sim) | DVS-Gesture at K=P=4: ED wins on clips below ~30 % input density and loses on the two densest; **2.88 ms mean vs 3.60 ms dense, but 4.57 ms on the worst clip** | `experiments/dvsgesture/latency_sim/` |
 | DVS-Gesture on silicon | **the per-clip activity crossover on hardware**: ED K=4 2,970.8 us mean vs dense P=4 3,706.5 us flat, ED 1.25x at the mean, wins 6 of 8 clips and loses the two densest, exactly as pre-registered from simulation | `experiments/dvsgesture/board_*_20260919.md` |
 | Activity by training (sim) | N-MNIST networks at 2-30 % conv rates, accuracy flat to 16 %; ED over dense on C2/C3 from 10-14x at 2 % to 1.6-1.9x at 30 %, crossovers ~48 % / ~57 % | `experiments/rate_sweep/` |

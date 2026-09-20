@@ -3255,3 +3255,28 @@ in one bench: 8,388,608 comparisons bit-identical, ED K=4 1.73 ms mean /
 shrinks -- the deadline reading moves the right way for the thesis's
 argument (worst case matters more than mean). Corrected in place in the
 ledger, the robot README and the outline; recorded as C0048.
+
+## 2026-09-20 — C0049: the parallelism crossover is 7.4 on N-MNIST, not 6.6
+
+Building the generated crossover table (docs/thesis_tables/crossover.md)
+recomputed the parallelism crossover from the cycle files and disagreed
+with the number this project has quoted since 2026-09-06. The fits are
+ED = 45,172 + 90,347/K and dense = 406,912/P + 2,331 (residuals < 5
+cycles; the dense fit reproduces the measured P = 4 point exactly);
+equating them gives K = P = 7.39, not 6.6. The engine-busy basis gives
+7.31, and geometric interpolation of the measured ratios (1.536 at 4,
+0.942 at 8) gives 7.35. It was an arithmetic slip in the K-sweep
+README's closing paragraph, propagated by quotation to eight files.
+
+Nothing measured changes. The silicon bracket is unchanged and the
+corrected value explains it better: at K = P = 8 dense wins by only
+6 % and ED's best sample still beats it, which is what a crossover at
+7.4 predicts and 6.6 does not. DVS-Gesture's 5.8 was checked at the
+same time and is right (5.76).
+
+Corrected in the living documents; the two pre-registrations and the
+board record that quoted it keep their text with a dated footnote,
+since rewriting a pre-registration would defeat its purpose. The value
+is no longer typed anywhere that matters: the table generator computes
+it from the cycle files on every run. Recorded as C0049, with the
+lesson that a derived headline needs a generator, not a quotation.

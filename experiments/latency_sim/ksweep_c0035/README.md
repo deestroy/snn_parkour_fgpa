@@ -55,10 +55,25 @@ Dense P=2, 8, 16 run through the same harness (bit-identical at each P;
 | 8 | 56,464 | 48,317-64,225 | 53,195 | 0.94x — dense wins (silicon 2026-09-17: 0.939x) |
 | 16 | 50,822 | 45,301-56,091 | 27,763 | 0.55x — dense wins |
 
-Dense fits 407.2k/P + 2.0k; ED fits 45.2k + 90.3k/K. Equating them puts
-the **parallelism crossover at K = P ~ 6.6** for C1 at this activity —
+Dense fits 406,912/P + 2,331; ED fits 45,172 + 90,347/K (least squares
+over the five K points, residual < 5 cycles; the dense fit reproduces the
+measured P = 4 value of 104,059 exactly). Equating them puts the
+**parallelism crossover at K = P = 7.4** for C1 at this activity —
 between the 4 (ED wins on every sample) and 8 (dense wins at the mean;
 ED's best sample, 48,317, still beats dense's 53,195) that we can build.
+
+> **Correction 2026-09-20 (C0049).** This paragraph said "K = P ~ 6.6"
+> from 2026-09-06 until 2026-09-20. The number does not follow from the
+> two fits printed beside it: 45,172 + 90,347/K = 406,912/K + 2,331 gives
+> K = 7.39 (7.31 on the engine-busy basis, which is the same answer with
+> the wrapper constant removed from both sides). Interpolating the
+> measured ratios geometrically — 1.536 at K = P = 4, 0.942 at 8 — gives
+> 7.35, so the data always said ~7.4. It was an arithmetic slip, not a
+> data problem: every table, every measurement and the silicon bracket
+> (ED wins at 4, dense at 8) are unchanged, and 7.4 sits closer to the
+> K = P = 8 pair, which is why dense wins there by only 6 %. Recomputed
+> from the cycle files by `docs/thesis_tables/make_tables.py`
+> (`docs/thesis_tables/crossover.md`).
 The mechanism: dense parallelism divides ALL its work; ED parallelism
 divides only the scatter, never the neuron sweep. At high parallelism the
 dense engine's "wasted" work is cheap enough that ED's fixed sweep cost

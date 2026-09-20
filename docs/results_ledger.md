@@ -31,7 +31,8 @@ Sim-vs-board agreement 0.4-1.5 % throughout (cycle model, C0028/C0035).
 | 8 | 56,464 | 53,195 | 0.94x (board 0.939x) |
 | 16 | 50,822 | ~27k | 0.53x |
 
-ED = 45.2k + 90.3k/K; crossover K = P ~ 6.6. Refined model (2026-09-18):
+ED = 45.2k + 90.3k/K, dense 406.9k/P + 2.3k; crossover K = P = 7.4
+(C0049: quoted as ~6.6 until 2026-09-20; arithmetic, not data). Refined model (2026-09-18):
 `cycles = 2NT + 5.0 s + 71.7 s/K`, dense `88.0 N/P` per T = 4 inference,
 validated to 0.3 % per sample on a second dataset.
 
@@ -45,7 +46,7 @@ validated to 0.3 % per sample on a second dataset.
   spikes per clip = ~30.5 % density. Mean 2.88 ms vs dense 3.60 ms
   (1.25x); worst clip 4.57 ms (deadline reading: dense wins).
   `experiments/dvsgesture/latency_sim/`, pre-registered.
-- Parallelism crossover K = P = 5.8 on this dataset (N-MNIST 6.6).
+- Parallelism crossover K = P = 5.8 on this dataset (N-MNIST 7.4).
 - T sweep (3 seeds at every T): 65.0 / 65.7 / 69.3 % mean at T = 4 / 8 / 16;
   the fc membrane sits at 98-121 % of int16 at T = 16 (2 of 3 overflow), at
   88-101 % at T = 8 (1 of 3), and at T = 8 the ceiling also moves down to

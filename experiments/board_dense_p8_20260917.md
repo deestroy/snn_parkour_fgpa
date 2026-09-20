@@ -149,3 +149,8 @@ M4's done-when is met: correct results back from real hardware.
 [board] BURST sample 15: 200 iterations in 0.132 s -> 657.9 us/inference (1520 inf/s), 0 mismatches, crc 89e867eb  [engine 540.3 us + server 117.6 us]  die 37.7->37.8 degC
 [board] BURST sample 0: 1600 iterations in 1.053 s -> 657.9 us/inference (1520 inf/s), 0 mismatches, crc 89e867eb  [engine 540.3 us + server 117.6 us]  die 38.0->38.0 degC
 ```
+
+> **Footnote added 2026-09-20 (C0049).** The "K = P ~ 6.6" cycle-model
+> figure quoted in this record is corrected to 7.4. The measured result on
+> this page (dense P=8 at 540.3 us flat, beating ED K=8's 575.5 us mean by
+> 1.065x) is a measurement and does not change.
