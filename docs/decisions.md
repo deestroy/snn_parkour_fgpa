@@ -3196,3 +3196,13 @@ experiments/dvsgesture/board_ed_k4_x4_20260920.md.
 P=4}, baked variants, hostile handshake: 240/240 bit-identical
 (experiments/axis_stress/). The wrapper's handshake is now tested far
 beyond the single seed of the ladder and the DMA's one pattern.
+
+## 2026-09-20 — Pass 14: dense P=4 x2 on DVS-Gesture; both replicated pairs complete
+
+dense_p4_dvsg_x2_20260920_1127 (WNS +0.842, 21 tiles, 1.956 W est.):
+8/8, 3,706.5 us on every clip -- equal to N=1. N=4 does not place
+(65k decoded-enable output flops), recorded as a fabric-fit fact. The
+meter session now has all ten pre-registered bitstreams on silicon:
+N-MNIST ED K=4 / dense P=4 at N=1 and N=8, K=P=8 pair, DVS-Gesture
+ED K=4 / dense P=4 at N=1, ED x4, dense x2. Fourteen passes, zero
+correctness misses.
