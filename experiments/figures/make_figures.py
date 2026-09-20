@@ -183,8 +183,41 @@ def fig_tsweep():
     fig.tight_layout(); fig.savefig(os.path.join(OUT, "fig_tsweep_int16.png")); plt.close(fig)
 
 
+# ---------------------------------------------------------------- 6. crossover activity vs K = P (from the fitted lines), C2/C3, both datasets
+def fig_crossover_surface():
+    cfg = [("N-MNIST", "experiments/rate_sweep", "golden/traces_m1.npz", {"c2": ("c1_S", 16 * 17 * 17, 4624 * 0 + 32 * 9 * 9), "c3": ("c2_S", 32 * 9 * 9, 64 * 5 * 5)}),
+           ("DVS-Gesture", "experiments/rate_sweep_dvsg", "golden/traces_dvsgesture.npz", {"g2": ("c1_S", 16 * 32 * 32, 32 * 16 * 16), "g3": ("c2_S", 32 * 16 * 16, 64 * 8 * 8)})]
+    tags = ["base", "0.02", "0.04", "0.08", "0.16", "0.30"]
+    fig, ax = plt.subplots(figsize=(7, 4.2))
+    ci = 0
+    for name, d, base_tr, layers in cfg:
+        for L, (key, inbits, _n) in layers.items():
+            ks, cross = [], []
+            for K in (4, 8, 16):
+                xs, ys = [], []
+                for t in tags:
+                    f = os.path.join(d, "bench", "ed_k%d_%s_%s.txt" % (K, t, L))
+                    tr = base_tr if t == "base" else os.path.join(d, "traces_rate%s.npz" % t)
+                    if not (os.path.exists(f) and os.path.exists(tr)):
+                        continue
+                    xs.append(int((np.load(tr)[key] != 0).sum()) / 16); ys.append(cycles_file(f).mean())
+                if len(xs) < 3:
+                    continue
+                dn = dense_cycles(os.path.join(d, "bench", "dense_p4_base_%s.txt" % L)) / (K / 4)
+                A = np.vstack([np.ones(len(xs)), xs]).T; (a, b), _, _, _ = np.linalg.lstsq(A, np.array(ys), rcond=None)
+                ks.append(K); cross.append(100 * ((dn - a) / b) / (4 * inbits))
+            if ks:
+                ax.plot(ks, cross, "o-", color="C%d" % ci, label="%s %s" % (name, L.upper().replace("G", "C")))
+                ci += 1
+    ax.set_xscale("log", base=2); ax.set_xticks([4, 8, 16]); ax.set_xticklabels([4, 8, 16])
+    ax.set_xlabel("K = P (matched parallelism)"); ax.set_ylabel("crossover input activity (%): ED wins below, dense above")
+    ax.set_title("Where dense catches up: fitted crossover activity vs parallelism (sim)")
+    ax.grid(alpha=.3); ax.legend(fontsize=8)
+    fig.tight_layout(); fig.savefig(os.path.join(OUT, "fig_crossover_vs_kp.png")); plt.close(fig)
+
+
 if __name__ == "__main__":
-    for fn in (fig_kp_sweep, fig_perclip, fig_activity, fig_accuracy, fig_tsweep):
+    for fn in (fig_kp_sweep, fig_perclip, fig_activity, fig_accuracy, fig_tsweep, fig_crossover_surface):
         try:
             fn(); print("wrote", fn.__name__)
         except Exception as e:

@@ -84,8 +84,11 @@ DVS-Gesture (`experiments/rate_sweep_dvsg/`, 3 seeds): a 3 pp accuracy
 step between the 2-5 % and 10-35 % regimes; the 34 % network overflows
 int16 in fc at T = 4 on every seed. C2 / C3 benches (12/12 bit-identical):
 ED over dense 8.4x / 11.0x at 3 % activity, 1.33x / 1.36x at 32-35 %,
-fitted crossovers ~43 % / ~48 %; per-spike constants match N-MNIST's
-(40.4 vs 41.0, 74.0 vs 76.4 cycles). N-MNIST seeds: accuracy flat 2-8 %,
+fitted crossovers ~43 % / ~48 % at K=P=4; per-spike constants match
+N-MNIST's (40.4 vs 41.0, 74.0 vs 76.4 cycles). At K=P=8 / 16 (24 more
+bit-identical runs) the crossover activity falls to ~36 / ~26 % (C2) and
+~44 / ~37 % (C3), and at K=P=16 the 32 %-activity network is past it on
+C2 (0.85x) -- the first real-data point where dense wins a conv layer. N-MNIST seeds: accuracy flat 2-8 %,
 -0.5 / -1.9 pp at 16 / 30 % (sd 0.2-0.6).
 
 ## 5. Year two on the paper's own stack (gpu; `robot/isaac/`, `experiments/p1_distill/`)

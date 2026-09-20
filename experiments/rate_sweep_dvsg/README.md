@@ -105,3 +105,37 @@ per-sample spread grows with activity (up to 4.0x at 32 %): the deadline
 reading is worse here than the mean reading, as on C1. The int16 fc
 overflow at 34 % (above) bites before the ED engine loses a conv layer. Weights `dvsg_rate<r>_int8.npz`
 committed; traces local + on the AMD box (checkpoints there too).
+
+## Parallelism x activity: ED at K = 4 / 8 / 16 vs dense P = 4 on C2 and C3 (2026-09-20)
+
+Same networks and check set; ED K=8 and K=16 runs all bit-identical (24/24).
+Dense P=4 is the fixed reference (the dense cost scales exactly 1/P, so the
+dense P=8 / P=16 columns are that constant divided by 2 / 4).
+
+### C2 (dense P=4 1,212,412 cycles; P=8 606,206; P=16 303,103)
+
+| network | input rate | ED K=4 | ED K=8 | ED K=16 | dense/ED at K=P=4 | at K=P=8 | at K=P=16 |
+|---|---|---|---|---|---|---|---|
+| baseline | 0.068 | 245,522 | 166,738 | 127,346 | 4.94x | 3.64x | 2.38x |
+| target 0.02 | 0.031 | 145,136 | 110,341 | 92,944 | 8.35x | 5.49x | 3.26x |
+| target 0.04 | 0.046 | 186,961 | 133,839 | 107,278 | 6.48x | 4.53x | 2.83x |
+| target 0.08 | 0.095 | 317,397 | 207,105 | 151,959 | 3.82x | 2.93x | 1.99x |
+| target 0.16 | 0.193 | 576,345 | 352,572 | 240,685 | 2.10x | 1.72x | 1.26x |
+| target 0.30 | 0.320 | 912,405 | 541,428 | 355,940 | 1.33x | 1.12x | 0.85x |
+
+Fits `ED = a + b x spikes` and matched-parallelism crossovers: K=P=4: a=64,464, b=40.4, crossover 43 %; K=P=8: a=65,008, b=22.7, crossover 36 %; K=P=16: a=65,280, b=13.9, crossover 26 %
+
+### C3 (dense P=4 1,196,028 cycles; P=8 598,014; P=16 299,007)
+
+| network | input rate | ED K=4 | ED K=8 | ED K=16 | dense/ED at K=P=4 | at K=P=8 | at K=P=16 |
+|---|---|---|---|---|---|---|---|
+| baseline | 0.134 | 358,813 | 206,816 | 130,818 | 3.33x | 2.89x | 2.29x |
+| target 0.02 | 0.032 | 109,021 | 73,503 | 55,744 | 10.97x | 8.14x | 5.36x |
+| target 0.04 | 0.048 | 147,954 | 94,280 | 67,443 | 8.08x | 6.34x | 4.43x |
+| target 0.08 | 0.092 | 255,481 | 151,678 | 99,777 | 4.68x | 3.94x | 3.00x |
+| target 0.16 | 0.181 | 471,421 | 266,944 | 164,706 | 2.54x | 2.24x | 1.82x |
+| target 0.30 | 0.349 | 877,602 | 483,756 | 286,834 | 1.36x | 1.24x | 1.04x |
+
+Fits `ED = a + b x spikes` and matched-parallelism crossovers: K=P=4: a=32,222, b=74.0, crossover 48 %; K=P=8: a=32,503, b=39.5, crossover 44 %; K=P=16: a=32,643, b=22.2, crossover 37 %
+
+Reading: at K = P = 8 the ED engine's per-spike cost halves but the dense reference halves too, and the ED sweep floor (2NT) does not shrink -- so the crossover activity FALLS with parallelism: C2 ~43 / ~36 / ~26 % and C3 ~48 / ~44 / ~37 % at K = P = 4 / 8 / 16. At K = P = 16 the 32-35 % networks are past the crossover on both layers; at K = P = 8 the 32-35 % networks are within ~10 % of it. This is the same parallelism-activity trade the C1 board pair showed (ED wins at 4, dense at 8 on N-MNIST), one geometry up and on the deeper layers.

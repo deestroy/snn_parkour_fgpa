@@ -12,6 +12,7 @@ which are regenerable and not tracked.
 | fig_dvsg_perclip.png | DVS-Gesture per-clip latency, ED sim and board vs dense sim and board | dvsgesture/latency_sim, dvsgesture/board_*_20260919.md |
 | fig_activity_c2c3.png | dense/ED cycle ratio vs trained activity, C2 and C3, both datasets | rate_sweep*/bench, traces |
 | fig_accuracy_vs_activity.png | accuracy vs achieved conv rate, mean +- sd over 3 seeds | rate_sweep*/train_*.log |
+| fig_crossover_vs_kp.png | fitted crossover activity vs K = P for C2/C3 on both datasets (where present; N-MNIST has K=4 only so far) | rate_sweep*/bench, traces |
 | fig_tsweep_int16.png | DVS-Gesture accuracy and fc membrane range vs T, per seed, with the int16 ceiling | dvsgesture/**/golden_check_seed*.log |
 
 Missing on purpose until the data exists: the energy figures (measured vs
