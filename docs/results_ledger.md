@@ -20,7 +20,10 @@ All bit-identical to the golden model (16/16, plus thousands of burst
 inferences at zero CRC mismatches). Matched-parallelism verdicts on
 silicon: **ED wins 1.52x at K = P = 4, dense wins 1.065x (0.939x) at
 K = P = 8** — the parallelism crossover between 4 and 8 is on hardware.
-Sim-vs-board agreement 0.4-1.5 % throughout (cycle model, C0028/C0035).
+Sim-vs-board agreement 0.5-2.3 % (ED K=4 +1.6 %, K=8 +1.9 %, dense P=4 +0.8 %,
+P=8 +1.6 %). It is better read as a constant per pass than as a percentage:
++10.9 us ED and +8.3 us dense on N-MNIST, +29.4 / +20.0 us on DVS-Gesture
+against wrapper-inclusive totals.
 
 ## 2. Simulation: parallelism and activity, N-MNIST C1 (sim, `experiments/latency_sim/ksweep_c0035/`)
 
@@ -31,7 +34,12 @@ Sim-vs-board agreement 0.4-1.5 % throughout (cycle model, C0028/C0035).
 | 8 | 56,464 | 53,195 | 0.94x (board 0.939x) |
 | 16 | 50,822 | ~27k | 0.53x |
 
-ED = 45.2k + 90.3k/K, dense 406.9k/P + 2.3k; crossover K = P = 7.4
+ED = 45.2k + 90.3k/K, dense 406.9k/P + 2.3k, both on the WRAPPER-INCLUSIVE
+basis; engine-only they are 43.3k + 90.4k/K and 406.9k/P + 4. Crossover
+K = P = 7.4 (7.3 engine-only); mixing the two bases gives 7.0 or 7.7, so
+always state which. The dense engine has essentially no fixed cost of its
+own -- its +2.3k is the wrapper -- which is the real asymmetry: ED carries a
+43.3k floor it cannot divide. Crossover K = P = 7.4
 (C0049: quoted as ~6.6 until 2026-09-20; arithmetic, not data). Refined model (2026-09-18):
 `cycles = 2NT + 5.0 s + 71.7 s/K`, dense `88.0 N/P` per T = 4 inference,
 validated to 0.3 % per sample on a second dataset.
@@ -131,8 +139,8 @@ equal DVS-Gesture's at every K (`experiments/rate_sweep/README.md`).
 
 ## 6. What is NOT here, and why
 
-- **Energy.** Nothing above is a joule. Tool estimates now exist for seven
-  builds (experiments/power_estimates/: fabric 48 mW ED K=4, 62.6 mW per
+- **Energy.** Nothing above is a joule. Tool estimates now exist for fourteen
+  builds (ten board builds plus four C0019 strategy variants) (experiments/power_estimates/: fabric 48 mW ED K=4, 62.6 mW per
   dense P=4 engine from the x8 build, 135 mW dense DVS-Gesture ...) and
   predict ED 3.2x in energy at K=P=4; the meter does not yet exist;
   C0001-C0003 hold. Pre-registered: measure/metering_prereg_2026-09-19.md.
@@ -148,7 +156,7 @@ equal DVS-Gesture's at every K (`experiments/rate_sweep/README.md`).
 
 ## Verification state
 
-Ladder 30 checks (`check_all.sh`), all bit-identity or self-test; every
+Ladder 33 checks (`check_all.sh`), all bit-identity or self-test; every
 board build's exact configuration was through the baked AXIS harness
 with the hostile handshake before synthesis; the C0044 sweep bug found
 by the second benchmark is fixed, guarded (synthetic corner set in the

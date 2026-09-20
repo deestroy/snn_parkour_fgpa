@@ -34,7 +34,9 @@ verdict is now unambiguous at the top: **the 34 % network overflows the fc
 membrane on all three seeds** (138-186 % of int16), while the 21 %
 networks use 62-85 % -- the usable band as built is roughly 5-20 %
 activity at T = 4. Golden gate failures by accuracy on 264 samples
-remain frequent (6 of 15 runs) and are noise, not a bias.
+remain frequent (5 of 15 runs fail the accuracy gate; 3 more fail on the
+membrane at the 0.30 target, 8 of 15 in total) and are noise, not a bias.
+Corrected 2026-09-20.
 
 ## Reading it
 

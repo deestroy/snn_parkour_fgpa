@@ -10,7 +10,8 @@ AXIS testbench with no gaps, per-sample cycles. `sweep.csv`, plot
 - dense: 436,247 cycles regardless of input (data-independent).
 - ED K=1: 121.9k + 75.8 cycles/spike -> crosses dense at ~45 % input rate.
 - ED K=4: 121.8k + 21.9 cycles/spike -> 300.8k at 89 %: never crosses.
-- Trained C1 input rate is ~6 %; there the ED engines sit at 1.2-1.5 ms
+- Trained C1 input rate is **13.6 %** (corrected 2026-09-20; ~6 % was wrong);
+  there the ED engines sit at 1.5 ms (K=4) to 2.3 ms (K=1)
   against 4.36 ms dense.
 
 This is latency at 100 MHz, in simulation, verified against the board to

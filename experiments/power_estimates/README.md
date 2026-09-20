@@ -39,6 +39,12 @@ the ARM subsystem's estimate and dominates every total.
 | dense_p4_performance_explore_20260920_0023 | dense P=4 N-MNIST, strategy Performance_Explore (C0019, not on board) | 0.388 | 1.750 | 1.607 | 0.144 | 0.021 | 0.013 | 0.026 | 0.013 | 0.000 | 1.533 | 73.0 |
 | dense_p4_congestion_spreadlogic_high_20260920_0026 | dense P=4 N-MNIST, strategy Congestion_SpreadLogic_high (C0019, not on board) | 0.354 | 1.753 | 1.609 | 0.144 | 0.022 | 0.013 | 0.028 | 0.013 | 0.000 | 1.533 | 76.0 |
 
+**The four rows marked (superseded/intermediate run) have NO report in this
+directory** -- no `_power.rpt` and no `_summary.txt`; those files exist only on
+the build VM. Their numbers are transcriptions and are not checkable in-tree.
+Cite only the fourteen named rows, each of which has both files here.
+(Flagged 2026-09-20.)
+
 Rows marked superseded are earlier attempts of the same configuration
 (a wrong-top build, a build without the board preset, launcher failures)
 kept only because their reports existed; cite the named rows.

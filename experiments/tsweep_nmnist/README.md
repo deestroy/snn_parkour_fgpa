@@ -7,13 +7,13 @@ the 10,000-sample test set. T = 4 rows from the M1 baseline and its seeds.
 
 | T | float test acc, seeds 0 / 1 / 2 | golden integer | fc |V| range (worst seed) | share of int16 | rates c1 / c2 / c3 / fc (seed 0) |
 |---|---|---|---|---|---|---|
-| 4 | 96.6 / 97.0 / 97.0 (3-seed spread ~0.4 pp) | 96.75 (seed 0) | 2,850 (M1) | 9 % | .069 / .081 / .103 / .262 |
+| 4 | 96.60 / 97.27 / 97.22 (3-seed spread 0.67 pp) | 96.75 (seed 0) | 2,850 (M1) | 9 % | .069 / .081 / .103 / .262 |
 | 8 | 97.51 / 97.69 / 97.59 | 97.51 / 97.83 / 97.65 | -3,921 .. 2,194 | 12 % | .058 / .066 / .085 / .178 |
 | 16 | 98.00 / 97.87 / 98.19 | 98.08 / 97.86 / 98.12 | -8,111 .. 2,622 | 25 % | .040 / .050 / .056 / .090 |
 
 - Accuracy gains ~+0.7 pp per doubling of T (96.9 -> 97.6 -> 98.0 %), with
   the seed spread ~0.2 pp; golden integer tracks float within 0.15 pp on
-  every run (15/15 gates pass).
+  every run (9/9 gates pass; 15 was the rate-sweep run count, corrected 2026-09-20).
 - **The int16 ceiling does not bind N-MNIST**: the fc membrane uses 9-25 %
   of the range even at T = 16. The DVS-Gesture overflow (C0046) is a
   property of that geometry (fc fan-in 1,024 at 2x64x64 vs 256 here) and

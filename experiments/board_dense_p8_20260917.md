@@ -23,10 +23,12 @@ Die 36.5-38.0 degC.
 - vs cycle model 53,195 cycles = 531.95 us: **+1.57 %**, i.e. +8.35 us.
 - vs the pre-registered ~543 us (model + ~11 us offset): -0.5 %.
 - The per-pass offset is engine-specific, not universal: dense P=4 was
-  +8.3 us (1048.9 - 1040.6), dense P=8 +8.35 us; ED K=4 +10.5, ED K=8
+  +8.3 us (1048.9 - 1040.6), dense P=8 +8.35 us; ED K=4 +10.9, ED K=8
   +10.9. Two constants, each stable across its own parallelism sweep;
   the ~2.5 us difference sits in the ED wrapper's start/finish path.
-  Use +8.3 (dense) and +10.7 (ED) from here on.
+  Use +8.3 (dense) and +10.9 (ED) from here on. (Corrected 2026-09-20: the
++10.5 came from the rounded 678 us rather than the cycle file's 677.56; both
+ED offsets are 10.89 us.)
 
 ## The K = P = 8 comparison, both engines on silicon
 
@@ -72,7 +74,8 @@ models (ED 45.2k + 90.3k/K, dense 407.2k/P + 2.0k) now have two silicon
 points each, all within 2 % after their per-engine offsets. This is the
 latency half of the M7 result: the event-driven design's advantage is
 a function of how much parallelism the dense design is given, not a
-constant, and at C1's ~31 % activity it is gone by P = 8. The energy
+constant, and at C1's 13.6 % activity it is gone by P = 8. (Corrected
+2026-09-20: ~31 % is the model-derived break-even density, not C1's activity.) The energy
 half waits on the meter.
 
 ## Resources (utilization_hier.rpt, Date Thu Sep 17 22:25:50 2026, routed)

@@ -33,7 +33,9 @@ are recorded as such.
 
 ## The two crossovers, measured
 
-**Parallelism (N-MNIST C1, ~31 % input density), matched K = P:**
+**Parallelism (N-MNIST C1, 13.6 % measured input density), matched K = P:**
+(the ~31 % figure that stood here was the model-derived break-even density,
+not the operating point -- corrected 2026-09-20)
 
 | K = P | ED mean | dense | dense / ED | ED wins on |
 |---|---|---|---|---|
@@ -56,7 +58,7 @@ flips with input density inside one dataset.
 
 ## Cycle models vs silicon
 
-ED = 45.2k + 90.3k/K cycles; dense = 407.2k/P + 2.0k (N-MNIST C1);
+ED = 45.2k + 90.3k/K cycles; dense = 406.9k/P + 2.3k (N-MNIST C1, wrapper-inclusive; 406.9k/P + 4 engine-only);
 both transfer to DVS-Gesture with slope 0.9998. Board exceeds the
 wrapper-inclusive simulation by a per-pass constant: N-MNIST ED 10.7 us
 / dense 8.3 us (872 DMA words), DVS-Gesture ED 29.4 / dense 20.0 us

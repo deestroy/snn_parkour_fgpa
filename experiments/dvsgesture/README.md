@@ -19,7 +19,7 @@ any event in a pixel-bin -> 1). Train 1,077 samples, test 264.
 | train | 1,077 | 22.3 % | 0.133 % |
 | test | 264 | 27.2 % | 0.135 % |
 
-Input density is ~4x N-MNIST's (~5-6 %): DVS-Gesture sits near the C1
+Input density is ~2x N-MNIST's (13.6 % on the check set, 27.2 % on the test set here; corrected 2026-09-20, the '~4x N-MNIST's ~5-6 %' that stood here was wrong on both figures): DVS-Gesture sits near the C1
 activity crossover (~31 % from the cycle model), which is the point —
 an event-driven advantage here is not a foregone conclusion.
 
@@ -121,7 +121,11 @@ numbers differ). Logs: `train_seed{1,2}.log`, `quantise_seed{1,2}.log`,
 
 Packed with `04b_pack_dvsgesture.py --T <T>` into `packed_dvsgesture_t<T>`,
 trained with `03_train.py --T <T>`; each run through quantise and golden.
-`t8/`, `t16/` hold the logs and firing-rate CSVs.
+`t8/`, `t16/` hold the seed 1 and seed 2 logs and firing-rate CSVs. **Seed 0's
+original T=8/T=16 golden logs were lost on 2026-09-20 (C0051)**; its numbers
+below are the transcription made at the time, and a RETRAIN of seed 0 (a
+different network -- training does not reproduce at a fixed seed, C0050) is in
+`c0046/rerun_seed0/`.
 
 | T | test input density | float | int8 | golden integer | golden - float | fc |V| range | fits int16? | rates c1 / c2 / c3 / fc |
 |---|---|---|---|---|---|---|---|---|
@@ -134,7 +138,12 @@ Reading:
   gesture's motion is split into more bins; the gain from 4 to 16 bins
   (+5.7 pp) is about the size of the seed spread at T = 4 (5.3 pp), so it
   is real but not large, and one seed per T.
-- **At T = 16 the fc membrane overflows int16** (-34,472 below the
+- **At T = 16 the fc membrane overflows int16 on this run.** C0050 qualifies
+  this: the same configuration and seed lands on either side of the ceiling
+  depending on the training run (98 % and 102 % in two runs of identical code),
+  so 'T = 16 overflows' is a statement about runs, not about a configuration.
+  See `c0046/README.md`. Original reading follows:
+- At T = 16 the fc membrane overflows int16 (-34,472 below the
   -32,768 floor). The golden model computes in unbounded integers, so its
   70.83 % is NOT what the hardware would produce; the RTL's 16-bit
   membrane would wrap. This is the hardware limit of the encoding as

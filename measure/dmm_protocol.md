@@ -60,7 +60,9 @@ barrel before wiring the ammeter). P = V x I.
 - energy per inference, measured (uJ), +/- SEM, and Vivado's estimate
   beside it (1.73 W total on-chip for the ED build; the fabric-only estimate
   from the power report is the fairer comparator -- record both);
-- latency per inference (from BURST, already measured: ED K=4 1.51 ms;
+- latency per inference (from BURST, SUPERSEDED (C0030/C0035; corrected 2026-09-20 -- the current figures are
+ED K=4 688.5 us and dense P=4 1,048.9 us, so --burst 12000 is ~8.3 s, not 18 s):
+already measured: ED K=4 1.51 ms;
   dense predicted 4.4 ms);
 - resources (LUT/FF/BRAM/DSP), firing rate, accuracy -- from decisions.md.
 

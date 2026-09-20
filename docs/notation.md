@@ -87,17 +87,30 @@ engine the *same* partition the event-driven one already used: output channels
 split by `channel mod P`, with P banked weight reads and P accumulators
 advancing together. Because both engines then split the same thing the same
 way, **K and P count the same unit of hardware, and K = P is matched
-parallelism by construction** rather than by assertion. When the dense engine
-got its knob, the C1 verdict flipped: dense P=4 beat ED K=4 by 8 % in
-simulation, which is how the crossover was found in the first place.
+parallelism by construction** rather than by assertion. When the dense engine got its knob the C1 verdict flipped to dense by 8 %
+(D0026, 2026-08-20) -- and then flipped back when the wrapper was
+re-baselined (C0037): at K = P = 4 on C1 the event-driven engine now wins
+1.54x in simulation and 1.52x on silicon. What survives from that episode is
+not the verdict but the axis: giving the dense engine its knob is what moved
+the crossover onto parallelism, where it has stayed.
 
 **The cost models** (cycles per inference, validated against simulation and
 silicon):
 
 ```
+These are the C1 constants. The general forms, verified on all six
+layer-dataset pairs, are below them.
+
 dense:  88.0 x N / P            per T = 4 inference   (data-independent)
 ED:     2 N T  +  5.0 s  +  71.7 s / K                (data-dependent)
         ^sweep    ^queue   ^scatter
+
+general dense:  (N / P) x T x (9 C_IN + 4) + 4    exact to the cycle; the +4
+                per neuron is the engine's serial tail (S_TAIL, S_VRD,
+                S_VREG, S_UPDATE), 18.2 % of C1 and 1.4 % of C3
+general ED:     2 N T + 5.0 s + (~1.12 x 4 C_OUT) s / K   empirical, ~4 %
+                spread; the 4 is the stride-2 3x3 fan-out (a 2x2 block of
+                output positions), NOT the T = 4 of the dense law
 ```
 
 The crossover exists because the ED **sweep** term `2NT` does not shrink when

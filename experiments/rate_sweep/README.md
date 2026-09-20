@@ -17,14 +17,15 @@ MI210: ~9-14 s per epoch. Seed 0, 10 epochs, one seed per point.
 
 | target | achieved c1 / c2 / c3 / fc | float | int8 | golden integer | golden - float | shifts k (c1/c2/c3/fc) | max membrane bits |
 |---|---|---|---|---|---|---|---|
-| none (M1 baseline) | .069 / .081 / .103 / .262 | 96.60 % | 96.69 % | 96.60 % | 0.00 | 6/6/6/6 | -- |
+| none (M1 baseline) | .069 / .081 / .103 / .262 | 96.60 % | 96.69 % | 96.75 % | -0.15 | 6/6/6/6 | -- |
 | 0.02 | .024 / .026 / .022 / .222 | 96.91 % | 96.91 % | 96.90 % | -0.01 pp | 5/6/5/6 | 12 |
 | 0.04 | .042 / .042 / .041 / .266 | 97.18 % | 97.30 % | 97.26 % | +0.08 pp | 5/6/6/6 | 12 |
 | 0.08 | .081 / .079 / .080 / .275 | 96.92 % | 96.93 % | 96.96 % | +0.04 pp | 6/6/7/6 | 13 |
 | 0.16 | .160 / .158 / .158 / .324 | 96.82 % | 96.80 % | 96.81 % | -0.01 pp | 6/7/6/6 | 13 |
 | 0.30 | .297 / .297 / .298 / .305 | 95.62 % | 95.64 % | 95.49 % | -0.13 pp | 6/6/6/6 | 14 |
 
-The penalty lands within 0.003 of the target at every point. Accuracy
+The penalty lands within 0.006 of the target at every point (0.0058 at the
+0.02 target; within 0.003 at the other four). Corrected 2026-09-20. Accuracy
 is FLAT from 2 % to 16 % (96.8-97.2 %, within the 3-seed spread of the
 baseline) and drops 1.2 pp at 30 %: on N-MNIST the network does not need
 its activity, which is the strongest possible case for an event-driven

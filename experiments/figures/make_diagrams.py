@@ -208,7 +208,7 @@ def d_banks():
         ax.text(64 + i * 4, 24.2, "b%d" % k, ha="center", va="center", fontsize=6.5, color="#666666")
     arrow(ax, (53, 29), (61, 30))
     ax.text(78, 20.5, "K = 4 shown. Because consecutive channels live in different banks, K read-modify-writes\n"
-                      "are issued per cycle with no arbitration and no conflict.\n\n"
+                      "are issued per two-cycle beat (S_RD presents addresses, S_ADD writes) with no arbitration and no conflict.\n\n"
                       "Block RAM does NOT simply grow with K. Each bank holds 4624/K x 16 bits and the smallest\n"
                       "primitive is an 18,432-bit RAMB18, so from K=2 to K=8 the per-bank primitive halves exactly\n"
                       "as the bank count doubles and bank memory stays FLAT at 4.0 tiles; at K=16 it cannot halve\n"
