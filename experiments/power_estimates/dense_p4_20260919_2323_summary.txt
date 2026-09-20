@@ -1,0 +1,6 @@
+tag        dense_p4_20260919_2323
+params     ENGINE=0 ED_K=4 DENSE_P=4 BAKED=1 N_ENGINES=1
+timing     WNS=0.768059 TNS=0.000000 WHS=0.014750
+bitstream  C:/Users/dhritiaravind/m4_conv2/m4_conv2.runs/impl_1/design_1_wrapper.bit
+xsa        C:/Users/dhritiaravind/m4_conv2/builds/dense_p4_20260919_2323/design_1_wrapper.xsa
+built      Sat Sep 19 23:26:24 -0400 2026
