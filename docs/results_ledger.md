@@ -136,6 +136,11 @@ equal DVS-Gesture's at every K (`experiments/rate_sweep/README.md`).
   dense P=4 engine from the x8 build, 135 mW dense DVS-Gesture ...) and
   predict ED 3.2x in energy at K=P=4; the meter does not yet exist;
   C0001-C0003 hold. Pre-registered: measure/metering_prereg_2026-09-19.md.
+- **Energy against K** (C0025): pre-registered 2026-09-20
+  (`measure/k_energy_prereg_2026-09-20.md`), needs three to five new
+  bitstreams and the meter. Predicts the fabric-energy optimum at K = 8
+  against a latency optimum at K = 16, and a board-level optimum at K = 16
+  either way -- so the "most efficient K" depends on where the probe goes.
 - **Seeds** on the sweeps and on DVS-Gesture's T points (running / one seed).
 - **A student on the real stack** (training); the MuJoCo recreation's
   58k student is the placeholder for weights.

@@ -661,6 +661,16 @@ latency-optimal K. That is a clean, quotable design result.
 **Action.** Build and meter at least K ∈ {1, 4, 16}: `P_idle`, ΔP, energy
 per inference, BRAM. Identify the energy-optimal K and state whether it
 differs from the latency-optimal one.
+**Pre-registered 2026-09-20:** `measure/k_energy_prereg_2026-09-20.md` fixes
+the build list (K in {1, 2, 4, 8, 16}, R=1 plus replicated pairs at each end),
+inherits the instrument and statistics from the M5 pre-registration, and
+records seven falsifiable predictions before any build exists. The headline
+one, K3, says the fabric-energy optimum is K = 8 while the latency optimum is
+K = 16; K4 says the board-level optimum is K = 16 regardless, so the answer
+depends on which of C0038's three quantities is asked for. K3 is flagged as
+genuinely at risk: the predicted 4-to-8 gap is 6 %, comparable to the
+measurement spread, so "flat, optimum unresolved" is a likely third outcome
+and will be reported as such.
 **Done when:** an energy-versus-K table exists with the optimum identified.
 ---
 ## C0026 — The 12 V measurement point sits behind non-linear regulators (P2)
