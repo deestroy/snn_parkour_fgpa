@@ -12,7 +12,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-REVISED = "2026-09-20o"
+REVISED = "2026-09-20p"
 ONEDRIVE = os.path.expanduser("~/OneDrive - Carleton University/Research Papers/Final_thesis_images")
 GREEN, RED, BLUE = RGBColor(0x1B, 0x5E, 0x20), RGBColor(0xB7, 0x1C, 0x1C), RGBColor(0x0D, 0x47, 0xA1)
 PURPLE, ORANGE = RGBColor(0x6A, 0x1B, 0x9A), RGBColor(0xE6, 0x51, 0x00)
@@ -53,7 +53,7 @@ OUTLINE = [
     "The estimation problem: tool estimates count arithmetic and under-weight memory traffic, static power and time; the baseline table shows four of five surveyed FPGA accelerators reporting a Vivado estimate as their power method and none measuring at a board input (docs/baseline_table.md).",
     "Why an FPGA: same fabric, toolchain, wrapper, host and vectors for both datapaths -- the only variable is the datapath (D0011, D0021). Why a robot workload: latency is a correctness constraint for a learned quadruped perception policy (ES-Parkour, ICME 2025); the same encoder is trained in the paper's own simulator.",
     "State early what 'measured' means here: current at the board's 12 V input with a shunt, idle-run-idle deltas, replicated engines to lift the delta above the meter's floor (C0001-C0003). Everything before Section 6.5 is cycles or a tool estimate, and the text must say so each time.",
-    "FIG: [todo] Measurement-boundary diagram: 12 V input -> regulators -> PS (ARM, DDR) and PL (fabric) -> engine; shade what a Vivado report covers vs what the shunt sees (C0004, C0026, C0038). One figure, reused in 4.9 and 6.5.",
+    "FIG: [exists] (experiments/figures/diagrams/fig_measurement_boundary.svg) Measurement-boundary diagram: 12 V input -> regulators -> PS (ARM, DDR) and PL (fabric) -> engine; shade what a Vivado report covers vs what the shunt sees (C0004, C0026, C0038). One figure, reused in 4.9 and 6.5.",
     "TAB: [todo] The three energy quantities (C0038): name, definition, what it includes, how obtained (delta at fabric, delta at board input, per inference at the control-loop duty), and which sections report each.",
 ]),
 (1, "1.2  Problem Statement and Research Questions", [
@@ -103,7 +103,7 @@ OUTLINE = [
     "Event-driven layer engines on FPGA: Minitaur (Neil and Liu, TVLSI 2014) and Cheng et al. (TCAS-I 2025) as the closest designs; how they queue spikes and resolve write conflicts into shared membrane memory (arbiters, sorting, banking); what they compare against (none against a clock-driven twin on the same fabric).",
     "The sweep problem in the literature: leak and threshold must be applied to every neuron every timestep unless neurons are visited lazily (event-driven leak with timestamps, as in Loihi's compartment update) -- the fixed floor that bounds any event-driven design's advantage; how each surveyed work handles it (skip, lazy, or full sweep).",
     "What this leaves open: the crossover activity for a specific fabric at matched parallelism, established by measurement rather than analysis; what 'matched parallelism' should mean when the two designs' work units differ (decided in 4.7, C0029).",
-    "FIG: [todo] Schematic of the two paradigms as drawn in the literature (dense time-multiplexed update vs AER queue and scatter), one panel each, with the cost expressions from the cited works.",
+    "FIG: [exists] (experiments/figures/diagrams/fig_paradigms.svg) Schematic of the two paradigms as drawn in the literature (dense time-multiplexed update vs AER queue and scatter), one panel each, with the cost expressions from the cited works.",
 ]),
 (1, "2.3  Event-Based Vision and Input Encoding", [
     "Event cameras: the DVS principle (Lichtsteiner, Posch and Delbruck 2008), the DAVIS and later sensors, and the survey by Gallego et al. (TPAMI 2022) for representations; why event streams suit SNNs (sparse, asynchronous, polarity-coded).",
@@ -180,8 +180,8 @@ OUTLINE = [
     "Constraints: local simulation with a golden-model contract, Vivado in a VM, everything on-chip, hand-written Verilog for both datapaths. System figure: Mac -> framed UART -> bare-metal server -> AXI DMA -> AXIS wrapper -> ENGINE (dense | ED) -> back. Walk the loop once.",
     "The flow from data to silicon: train (GPU) -> quantise (npz) -> golden model -> exported vectors -> testbench -> baked RTL -> synthesis (VM) -> SD card -> board pass against the same vectors. Say which artefact is the contract at each arrow.",
     "Design goals ranked: (1) bit-identity, (2) same wrapper and host for both engines, (3) resolvable energy delta, (4) parallelism as a parameter, (5) simplicity over throughput -- and what was traded for each (e.g. no inter-layer chaining on silicon, C0034).",
-    "FIG: [todo] System block diagram: host Mac, UART link with CRC framing, Zynq PS running conv_server, AXI DMA, AXIS wrapper with the ENGINE parameter, the engine, DDR buffers; label the timing boundary (engine-only ticks vs wrapper-inclusive).",
-    "FIG: [todo] Toolflow diagram from training to board pass (the arrow list above), with the check at each arrow (golden check, testbench, lint, WNS gate, PING build/dataset check, CRC).",
+    "FIG: [exists] (experiments/figures/diagrams/fig_system.svg) System block diagram: host Mac, UART link with CRC framing, Zynq PS running conv_server, AXI DMA, AXIS wrapper with the ENGINE parameter, the engine, DDR buffers; label the timing boundary (engine-only ticks vs wrapper-inclusive).",
+    "FIG: [exists] (experiments/figures/diagrams/fig_toolflow.svg) Toolflow diagram from training to board pass (the arrow list above), with the check at each arrow (golden check, testbench, lint, WNS gate, PING build/dataset check, CRC).",
 ]),
 (1, "4.2  Neuron Model and Fixed-Point Arithmetic", [
     "The recurrence: pending[n] = 1 if V[n-1] > theta; V[n] = beta V[n-1] + sum w s[n] - pending theta; s[n] = 1 if V[n] > theta. Why it matches snnTorch defaults exactly (D0002), quantisation on top (D0007, D0008).",
@@ -201,7 +201,7 @@ OUTLINE = [
     "Silicon-forced changes: banked output word file for timing (WNS -3.23 -> +0.30); single-stage weight ROM init after an all-zero build; registered output-bit write (rev 3) after WNS -0.696 at the DVS-Gesture geometry (decisions 2026-09-06, 2026-09-19).",
     "The dense engine's claim to fairness: it is not a straw man -- it has the same parallelism knob (C0029), the same LIF core, the same memory discipline and the same wrapper; its only disadvantage is the one the thesis is about (it does the work whether or not spikes arrive).",
     "Where the 88 cycles go: 3x3x C_IN multiply-free accumulations per output neuron per timestep, the LIF update, the output write; why the count is data-independent to within 2 cycles.",
-    "FIG: [todo] Dense datapath block diagram: input frame memory, P lanes, weight ROM addressing, shared lif_update, per-lane membrane bank, output word bank; annotate the 22 cycles per neuron per timestep.",
+    "FIG: [exists] (experiments/figures/diagrams/fig_dense_datapath.svg) Dense datapath block diagram: input frame memory, P lanes, weight ROM addressing, shared lif_update, per-lane membrane bank, output word bank; annotate the 22 cycles per neuron per timestep.",
     "TAB: [todo] Dense cost per layer and P: predicted 88 N/P vs simulated cycles for C1/C2/C3 on both geometries (from experiments/latency_sim and rate_sweep*/bench), error column.",
 ]),
 (1, "4.5  Event-Driven Datapath: Spike Queue, Scatter and Sweep", [
@@ -210,7 +210,7 @@ OUTLINE = [
     "RESULT: the sweep bug (C0044): the current-zero write was gated on the update pipeline's valid flag, so neuron 0 was never cleared; invisible on N-MNIST (zero corner exposure), caught by DVS-Gesture. hdl/eventdriven/ed_conv_layer.v.",
     "The three phases of one timestep and what bounds each: (i) address-list fill from the input frame, (ii) scatter, s spikes x (fan-out / K) cycles, (iii) sweep, 2N cycles. Which phase dominates at which activity, and why K only helps phase (ii).",
     "Stride-2 3x3 fan-out geometry: an input spike touches at most a 2x2 block of output positions x C_OUT channels; edge spikes touch fewer (corner exposure); how the scatter walks that block.",
-    "FIG: [todo] Event-driven datapath block diagram: input frame -> spike address list -> scatter unit (weight column fetch, K bank adders) -> K membrane banks -> two-beat sweep pipeline -> output words. Annotate the three cost terms on the blocks that cause them.",
+    "FIG: [exists] (experiments/figures/diagrams/fig_ed_datapath.svg) Event-driven datapath block diagram: input frame -> spike address list -> scatter unit (weight column fetch, K bank adders) -> K membrane banks -> two-beat sweep pipeline -> output words. Annotate the three cost terms on the blocks that cause them.",
     "FIG: [todo] Timeline of one inference at two activities (e.g. 9 % and 44 % clips): fill / scatter / sweep bars per timestep for K=4, showing the fixed sweep and the growing scatter; from the testbench's phase counters.",
     "TAB: [todo] Cycle-model terms: term, meaning, fitted constant, how found (fit / pre-registration miss), datasets it was checked on, error.",
 ]),
@@ -219,7 +219,7 @@ OUTLINE = [
     "Design options considered for the banks (arbitrated shared memory, output-row interleave, channel interleave, full replication) with the trade-off each makes (conflict rate, BRAM, logic, timing); why channel interleave is conflict-free for this fan-out pattern (D0017).",
     "Worst-case sizing as a deliberate trade (C0032): what it costs in BRAM at each geometry vs the risk of an overflow path that would need a stall or a drop, both of which would make latency non-deterministic in a way the deadline analysis could not bound.",
     "The two-word neuron state (membrane + current) and whether it is structural or an ordering artefact (C0033); the answer chosen and its BRAM cost.",
-    "FIG: [todo] Bank interleaving diagram: output channels striped across K banks, one spike's 2x2 x C_OUT footprint landing K-wide per cycle.",
+    "FIG: [exists] (experiments/figures/diagrams/fig_bank_interleave.svg) Bank interleaving diagram: output channels striped across K banks, one spike's 2x2 x C_OUT footprint landing K-wide per cycle.",
     "TAB: [todo] K options: K, banks, adders, BRAM tiles per engine, WNS on silicon where built, cycles at the mean N-MNIST and DVS-Gesture sample.",
 ]),
 (1, "4.7  A Shared Wrapper for Matched-Parallelism Comparison", [
@@ -236,7 +236,7 @@ OUTLINE = [
     "The golden-model rule as the central engineering contract: bit-identical, never close; corner-exposure reporting per check set (N-MNIST blind at all four C1 corners, the robot depth stream at the top two, only the synthetic set covers all four).",
     "What bit-identity does and does not prove: it proves the RTL computes the same function on the vectors tried; it does not prove port discipline, address timing, synthesis-tool behaviour, or coverage of untried input patterns -- each of those got its own check (lint_synth_safety, hostile-handshake wrapper bench, AXIS stress, corner set).",
     "Sample-set discipline: the class bias of the first check set (C0039) and the unbiased DVS-Gesture clip set; why 16 and 8 samples are enough for cycle checks (every sample is a full bit-identity test) but not for accuracy.",
-    "FIG: [todo] Verification flow: trained npz -> golden model -> vector files (inputs, expected outputs, threshold) -> testbench compare -> baked RTL -> board compare over the link; the ladder as the set of arrows.",
+    "FIG: [exists] (experiments/figures/diagrams/fig_verification_flow.svg) Verification flow: trained npz -> golden model -> vector files (inputs, expected outputs, threshold) -> testbench compare -> baked RTL -> board compare over the link; the ladder as the set of arrows.",
     "TAB: [exists] (docs/thesis_tables/vector_sets.md) Vector sets and their corner exposure: set, geometry, layer, samples, spikes per sample (range), corner-neuron activity count per corner, what it can and cannot catch (from sim/corner_exposure.py output).",
 ]),
 (1, "4.9  Energy Measurement Methodology and Pre-Registration", [
@@ -245,7 +245,7 @@ OUTLINE = [
     "The arithmetic, written out: delta I (mA) x 12 V / eta_reg = fabric-side delta power; per engine = delta / N_ENGINES minus the wrapper share found from the N=1 subtraction; energy per inference = per-engine power x engine-only latency; energy per control period = board power x period (C0005). Say which regulator efficiency is assumed and why the 12 V point is imperfect (C0026).",
     "Controls: die temperature logged or bounded (C0009, C0020); idle measured per bitstream, not once (C0001); noise floor from repeated idle windows before any comparison (C0002); BURST replays a set, not one sample (C0018); sample order randomised (C0016).",
     "Why replication (C0003) is legitimate: per-engine latency is unchanged at x8, x4 and x2 (passes 7, 8, 13, 14), so N engines doing N inferences in the same time is the same work; the wrapper share is removed by the N=1 subtraction.",
-    "FIG: [todo] Metering setup: schematic of the shunt in the 12 V lead with the DMM in mV mode, plus a photograph of the bench; timing diagram of idle / BURST / idle windows with the reading schedule.",
+    "FIG: [part] (experiments/figures/diagrams/fig_measurement_boundary.svg covers the shunt and the boundary) Metering setup: still to add a photograph of the bench and a timing diagram of the idle / BURST / idle windows with the reading schedule.",
     "TAB: [exists] The bitstream matrix rows 1-13 (measure/metering_prereg_2026-09-19.md section 2): row, build, archive tag, purpose, BURST N, predicted delta; then the same table with measured columns filled in 6.5.",
     "TAB: [exists] Pre-registered predictions P1-P9 with the tool's number and my contrary number side by side, and an empty 'outcome' column to be filled after the meter.",
 ]),
@@ -254,7 +254,7 @@ OUTLINE = [
     "The teacher-student pipeline as run: teacher by PPO on scandots (15,000 iterations), student by DAgger on the teacher's actions with the event encoder as the vision backbone (10,000 iterations, 192 camera environments, 13.6 s/iteration on the 1080 Ti); evaluation protocol identical to extreme-parkour's (success = episode reaches its length without termination, per terrain).",
     "What is charged to the FPGA and what is not: the encoder's latency (measured on the board on real frames) is the perception budget; the GRU and MLP run on the host; physics is lockstep so a late latent is stale, not skipped.",
     "The event simulator's parameters and their provenance from the paper (contrast threshold, 10 Hz, inverse depth) and the one deviation (frame repeat over T rather than four consecutive 25 ms windows, C0047) with its cost to the ED engine (the scatter repeats).",
-    "FIG: [todo] Perception-loop timing diagram: physics steps, camera frame at 10 Hz, event simulation, encoder budget, latent hand-off, stale-latent path on a miss.",
+    "FIG: [exists] (experiments/figures/diagrams/fig_perception_loop.svg) Perception-loop timing diagram: physics steps, camera frame at 10 Hz, event simulation, encoder budget, latent hand-off, stale-latent path on a miss.",
     "FIG: [todo] Event-simulation pipeline on one real frame: depth -> inverse depth -> difference -> threshold -> ON/OFF frames -> T bins -> binarised input to C1 (from robot/artifacts/isaac_event_frames.npz).",
     "TAB: [todo] Training configuration: teacher and student hyper-parameters, environments, iterations, wall time, hardware, seeds, the code paths changed vs stock extreme-parkour (robot/isaac/README.md).",
 ]),
@@ -271,7 +271,7 @@ OUTLINE = [
     "lif_update.v: one shared combinational LIF core used by the M2 neuron and both engines. Vendor-neutral Verilog, simulated in Icarus Verilog and linted with Verilator; weights inlined into generated module variants (sim/gen_weight_vh.py from the tracked npz files, checked by sim/check_baked_weights.py) because $readmemh is silently zeroed in this flow.",
     "M2 as the first bit-identical module: the single-neuron testbench replaying golden traces; how the same core is instantiated P times (dense) and once per sweep pipeline (ED) so that the neuron arithmetic is verified once and shared.",
     "Baked-weight provenance as a chain: tracked npz -> generator -> Verilog case tables -> check_baked_weights.py entry-for-entry compare; the near miss where synthetic hex overwrote the r1 tables and what now prevents it.",
-    "FIG: [todo] lif_update schematic: inputs (V, I, threshold, pending), the shift leak, the subtract, the compare, outputs (V', spike, pending'); one figure for the whole thesis's neuron.",
+    "FIG: [exists] (experiments/figures/diagrams/fig_lif_core.svg) lif_update schematic: inputs (V, I, threshold, pending), the shift leak, the subtract, the compare, outputs (V', spike, pending'); one figure for the whole thesis's neuron.",
 ]),
 (1, "5.3  RTL Implementation of the Two Datapaths", [
     "conv_layer_p.v; ed_scatter.v + ed_conv_layer.v; baked variants c1 / g1 / r1. The sign-off rules: one write + one read port per bank, no multipliers/dividers on address paths, re-registered BRAM outputs, use_dsp = no, single-stage ROM init.",
@@ -482,7 +482,7 @@ def plan_table(doc):
             for key in ("FIG:", "TAB:"):
                 if b.startswith(key):
                     rest = b[len(key):].strip()
-                    m = re.match(r"\[(exists|todo)\]\s*(.*)", rest, re.S)
+                    m = re.match(r"\[(exists|part|todo)\]\s*(.*)", rest, re.S)
                     status, text = (m.group(1), m.group(2)) if m else ("?", rest)
                     rows.append((title.split("  ")[0], key[:-1], status, text))
     t = doc.add_table(rows=1, cols=4); t.style = "Light Grid Accent 1"
@@ -496,8 +496,9 @@ def plan_table(doc):
             for para in c.paragraphs:
                 for run in para.runs: run.font.size = Pt(8)
     nf = sum(1 for r in rows if r[1] == "FIG"); nt = len(rows) - nf
-    ne = sum(1 for r in rows if r[2] == "exists")
-    doc.add_paragraph("%d figures and %d tables planned; %d exist, %d to make." % (nf, nt, ne, len(rows) - ne)).runs[0].italic = True
+    ne = sum(1 for r in rows if r[2] == "exists"); npart = sum(1 for r in rows if r[2] == "part")
+    doc.add_paragraph("%d figures and %d tables planned; %d exist, %d partial, %d to make."
+                      % (nf, nt, ne, npart, len(rows) - ne - npart)).runs[0].italic = True
     doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
 
