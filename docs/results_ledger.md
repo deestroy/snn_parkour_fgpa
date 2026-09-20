@@ -1,5 +1,9 @@
 # Results ledger — every measured and simulated number, with provenance (kept current; last revised 2026-09-19)
 
+> Current-versus-superseded index: [CURRENT.md](CURRENT.md). That page
+> decides when two files disagree.
+
+
 Every number here is either **measured on silicon** (board), **simulated
 bit-identically against the golden model** (sim), or **trained/evaluated
 on a GPU** (gpu). Nothing here is an energy number: the meter (M5) has

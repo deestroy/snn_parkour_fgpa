@@ -9,6 +9,13 @@ the board's power input**, not a synthesis-tool estimate. The workload is a
 learned quadruped perception network (ES-Parkour, Zhang et al., ICME 2025);
 N-MNIST and DVS-Gesture are the benchmarks.
 
+> **Read [docs/CURRENT.md](docs/CURRENT.md) first.** It is the one page that
+> says which numbers are current, which were corrected and what they used to
+> be, which files are superseded and must not be cited, and which open
+> questions still affect the results. Where any two files disagree, that page
+> decides. No energy has been measured yet: every energy figure in this
+> repository is a Vivado estimate.
+
 ## How it is built
 
 1. **Golden model first.** A Python fixed-point reference (`golden/`) is the
