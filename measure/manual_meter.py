@@ -96,19 +96,42 @@ def main():
     ap.add_argument("--label", default="run")
     ap.add_argument("--vivado-uj", type=float, default=None)
     ap.add_argument("--selftest", action="store_true")
+    # Shunt mode (2026-09-20): with a handheld meter the readings are
+    # millivolts across a series resistor, not amps -- a 3.5-digit handheld
+    # on its 10 A range cannot resolve a single engine (10 mA counts vs a
+    # ~5 mA delta), while 0.1 mV across 0.1 ohm is 1 mA. Type the mV as the
+    # meter shows them; converting fifteen readings by hand at the bench is
+    # where the mistake would be. I = mV / (1000 * R).
+    ap.add_argument("--shunt", type=float, default=None, metavar="OHMS",
+                    help="series shunt in ohms (e.g. 0.1): readings are entered in mV across it")
     a = ap.parse_args()
     if a.selftest:
         return selftest()
-    print("Readings in AMPS (e.g. 0.5121). Several per phase, space-separated.")
+    if a.shunt:
+        conv = lambda xs: [x / (1000.0 * a.shunt) for x in xs]
+        unit = "mV across the %.4g ohm shunt" % a.shunt
+        print("Readings in MILLIVOLTS across the shunt (e.g. 51.2 = %.4f A)."
+              % (51.2 / (1000.0 * a.shunt)))
+        print("Several per phase, space-separated.")
+    else:
+        conv = lambda xs: xs
+        unit = "A"
+        print("Readings in AMPS (e.g. 0.5121). Several per phase, space-separated.")
     v = _floats("supply voltage at the barrel (V): ")[0]
-    ib = _floats("idle BEFORE, currents (A): ")
-    ir = _floats("during BURST, currents (A): ")
-    ia = _floats("idle AFTER, currents (A): ")
+    ib = conv(_floats("idle BEFORE (%s): " % unit))
+    ir = conv(_floats("during BURST (%s): " % unit))
+    ia = conv(_floats("idle AFTER (%s): " % unit))
     n = int(_floats("burst N (iterations, from uart_client): ")[0])
     el = _floats("burst elapsed seconds (from uart_client): ")[0]
     r = compute(v, ib, ir, ia, n, el, a.vivado_uj)
     r.update({"label": a.label, "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+              "shunt_ohms": a.shunt,
               "readings": {"idle_before": ib, "run": ir, "idle_after": ia}})
+    if a.shunt:
+        # the shunt itself burns I^2 R inside the measurement boundary; it
+        # is common to idle and run, so it cancels in the delta, but record it
+        r["shunt_loss_idle_w"] = r["i_idle_before_a"] ** 2 * a.shunt
+        r["shunt_loss_run_w"] = r["i_run_a"] ** 2 * a.shunt
     report(r)
     os.makedirs(RUNS, exist_ok=True)
     path = os.path.join(RUNS, "%s_%s.json" % (time.strftime("%Y%m%d_%H%M%S"), a.label))

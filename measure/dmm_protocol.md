@@ -142,3 +142,36 @@ Never a single sample: BURST's sweep mode cycles the loaded sample set;
 energy is reported as mean +/- spread over samples. State-reset behaviour
 between iterations is documented in host/protocol.md and identical for
 both engines.
+
+---
+
+# Handheld meter + shunt (2026-09-20): the method when no bench DMM exists
+
+No bench DMM is available, so the session uses a handheld multimeter in
+**DC millivolts across a series shunt**, not its ammeter mode. The reason
+is resolution, not accuracy: a 3.5-digit handheld's 10 A range counts in
+10 mA, and a single engine's delta is ~5-7 mA, so idle and running would
+read the same. Across a **0.1 ohm** shunt the same meter's 200 mV range
+counts in 0.1 mV = **1 mA**, and the replicated builds (predicted 24-53 mA)
+are resolved with margin.
+
+- Shunt: 0.1 ohm, >= 2 W (5 W wirewound ideal), 1 %. At 0.6 A it drops
+  60 mV and dissipates ~36 mW -- inside the measurement boundary, common
+  to idle and run, so it cancels in the delta; `manual_meter.py` records
+  it per phase anyway.
+- Wiring: barrel-jack breakout on the 12 V input, shunt in series with the
+  +12 V conductor, meter in DC mV across the shunt (not in series).
+  Nothing is broken by a meter range change, which is the other advantage
+  over ammeter mode: the board cannot brown out mid-session.
+- Entry: `python3 measure/manual_meter.py --shunt 0.1 --label <tag>`
+  takes the readings as the meter shows them, in mV, and converts.
+- Order (pre-registration rows): the replicated builds FIRST -- they were
+  built to make the delta resolvable with exactly this class of meter.
+  A single-engine delta at ~5 mA is 5 counts and is reported with that
+  stated as its resolution limit, or as unresolvable if the noise floor
+  exceeds it. Both are legitimate results; neither is a failure.
+
+Rehearsed 2026-09-20 with fabricated readings to exercise the arithmetic,
+the drift flag and the resolvability flag end to end; the dry-run file was
+deleted rather than left in measure/runs/, where it could later be mistaken
+for a measurement.
