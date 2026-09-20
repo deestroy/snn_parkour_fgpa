@@ -25,10 +25,17 @@ import time
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from nmnist_raw import _split, _use_certifi_bundle, T  # noqa: E402
+import nmnist_raw  # noqa: E402
+from nmnist_raw import _split, _use_certifi_bundle, T as T_DEFAULT  # noqa: E402
+
+T = T_DEFAULT      # overridden by --T (C0023 sweep on N-MNIST); the pack dir then carries the T
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PACK_DIR = os.path.join(REPO, "data", "packed")
+
+
+def pack_dir_for(t: int) -> str:
+    return os.path.join(REPO, "data", "packed" + ("" if t == T_DEFAULT else "_t%d" % t))
 
 
 def pack(train: bool) -> None:
@@ -62,7 +69,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--split", choices=("train", "test", "both"),
                     default="both")
+    ap.add_argument("--T", type=int, default=T_DEFAULT, help="time bins (C0023); T != %d packs into data/packed_t<T>" % T_DEFAULT)
     args = ap.parse_args()
+    global T, PACK_DIR
+    T = args.T; PACK_DIR = pack_dir_for(T); nmnist_raw.T = T   # _split reads the module global at call time
 
     _use_certifi_bundle()
     if args.split in ("test", "both"):

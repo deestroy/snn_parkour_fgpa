@@ -111,7 +111,7 @@ def main() -> int:
     if args.dataset == "dvsgesture" and args.T != T_DEFAULT:
         pack_dir = "packed_dvsgesture_t%d" % args.T
     elif args.dataset == "nmnist" and args.T != T_DEFAULT:
-        raise SystemExit("N-MNIST is packed at T=%d only" % T_DEFAULT)
+        pack_dir = "packed_t%d" % args.T                 # train/04_pack_dataset.py --T
 
     if args.device == "auto":
         args.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -144,7 +144,7 @@ def main() -> int:
     if args.rate_target is not None:
         rate_reg = (args.rate_target, args.rate_lambda, tuple(args.rate_layers.split(",")))
         print("rate penalty: target %.3f, lambda %.1f, layers %s" % rate_reg)
-    if args.dataset == "nmnist" and rate_reg is None:
+    if args.dataset == "nmnist" and rate_reg is None and args.T == T_DEFAULT:
         csv_path = os.path.join(OUT_DIR, "m0_firing_rates_%s.csv" % tag)
     elif rate_reg is not None:
         csv_path = os.path.join(OUT_DIR, "rates_%s_%s_target%.3f_seed%d_t%d.csv"
