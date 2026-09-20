@@ -3312,3 +3312,39 @@ unprotected; their numbers survive only because they had been transcribed
 into the DVS-Gesture README, and they cannot be regenerated because of the
 finding above. The rule is narrowed to the Vivado names and the logs are
 now tracked. Recorded as C0050 and C0051.
+
+## 2026-09-20 — The GPU queue to 1 October, and the energy-versus-K pre-registration
+
+**C0025 pre-registered** (`measure/k_energy_prereg_2026-09-20.md`) before any
+of its bitstreams exist: does the energy-optimal bank count differ from the
+latency-optimal one? Seven predictions fixed in advance. K3 is the headline —
+fabric-energy optimum at K = 8 against a latency optimum at K = 16 — and it is
+flagged as genuinely at risk, because the predicted gap between K = 4 and 8 is
+6 %, comparable to the measurement's own spread; "flat, optimum unresolved" is
+named in advance as a likely third outcome. K4 predicts the board-level
+optimum is K = 16 regardless, so the most efficient configuration depends on
+which of C0038's three energy quantities is asked for. Build list: K = 16 and
+K = 1 at one engine first, then replicated pairs at each end, then K = 2.
+
+**GPU queue** (`robot/isaac/gpu_queue.sh`, armed on the 1080 Ti, runs to
+1 October). It waits for the distillation and its post chain, then runs four
+jobs back to back, each as smoke, full run, evaluation, with a disk guard:
+
+1. **the paper's own depth student** (their `train.py --use_camera`, 10k
+   iterations) — the same-stack reference this project has never had. Without
+   it "the 58k spiking encoder reaches X %" has nothing to be compared with
+   except the paper's figure, which is a different simulator seed and
+   protocol.
+2-3. **two further independent FPGA-student runs** at seeds 2 and 3. C0050
+   showed single training runs are not reproducible even at a fixed seed, so a
+   success rate reported as one number would be exactly the mistake that
+   correction warns about. Three runs give a spread.
+4. **C0047, the consecutive-window student**: four consecutive 25 ms event
+   windows instead of one frame repeated over T. This is the encoding
+   deviation from the paper, and it is also the thing that makes the
+   event-driven engine scatter the same frame four times, so it has a
+   latency consequence as well as a task one.
+
+About 156 hours of training plus evaluations, against roughly 240 hours of
+access. A fifth job (a T = 8 student) fits only if something above fails
+early, and is deliberately not queued.
