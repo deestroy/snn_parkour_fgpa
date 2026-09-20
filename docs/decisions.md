@@ -3420,3 +3420,40 @@ measures the design as built and as every board result on record was
 built; the `ram_style` saving is recorded here as a named, quantified
 improvement the sweep exposed. Re-baselining is the user's call and
 means rebuilding and re-validating all ED bitstreams.
+
+## 2026-09-20 (later still) — The crossover is basis-robust; the two wrappers are not the same constant
+
+The peer session's audit found the N-MNIST floor quoted on two bases
+(45.2k total vs 43.3k engine-busy, the 1.9k difference being the
+wrapper). Since C0049's corrected crossover was computed from those
+fits, I refit both engines on both bases from the cycle files
+(max residual 4 cycles on total, 0 on engine-busy):
+
+| | total basis | engine-busy basis |
+|---|---|---|
+| ED | 45,172 + 90,347/K | 43,279 + 90,356/K |
+| dense | 2,331 + 406,912/P | **4** + 406,912/P |
+
+**The dense "+2,331" is the wrapper, not an engine cost.** On the
+engine-busy basis the dense fixed term is 4 cycles. The honest
+statement of the dense model is a pure 406,912/P with no floor, which
+is the real contrast with ED's 43,279-cycle floor and is what the whole
+crossover argument rests on.
+
+**The wrappers differ by engine**: ED 1,885-1,896 cycles (drifting 11
+across K=1..16), dense 2,327 flat, on identical geometry and word
+counts. "~2k of wrapper" is true to one significant figure only and is
+not interchangeable.
+
+Crossover under each pairing: consistent total **7.39**, consistent
+engine-busy **7.31**, mixed ED-busy/dense-total 7.73, mixed
+ED-total/dense-busy 7.01. So C0049's 7.4 holds on either consistent
+basis and inside the silicon bracket, but **mixing bases moves it by up
+to 10 %, more than the C0049 correction itself**. Any future quotation
+of the crossover states its basis.
+
+Loose end raised to the peer: ksweep_c0035/dense_p4.txt does not exist,
+though the README quotes 104,059 for P=4 in three places. The value is
+exactly reproducible from the other three points (406,912/4 + 2,331 =
+104,059), so it is right, but it is a derived row with no file behind
+it and any generator parsing that directory reconstructs it silently.
