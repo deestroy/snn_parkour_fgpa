@@ -6,8 +6,8 @@
 # Edit QUEUE below to choose what runs. Results: m4_conv2/builds/<tag>/
 # and the queue log next to them.
 set QUEUE {
-    {set ENGINE 1; set ED_K 4; set DENSE_P 4; set DATASET 1; set N_ENGINES 8}
-    {set ENGINE 0; set ED_K 4; set DENSE_P 4; set DATASET 1; set N_ENGINES 8}
+    {set ENGINE 1; set ED_K 4; set DENSE_P 4; set DATASET 1; set N_ENGINES 4}   ;# g1 ED engine = 21 BRAM tiles: x8 (168) does not fit, x4 (84+2) does
+    {set ENGINE 0; set ED_K 4; set DENSE_P 4; set DATASET 1; set N_ENGINES 4}   ;# g1 dense engine = 7.3k LUT / 17k FF: x8 overflows, x4 = 29k LUT / 68k FF
     {set ENGINE 1; set ED_K 4; set DENSE_P 4; set STRATEGY Performance_Explore}
     {set ENGINE 1; set ED_K 4; set DENSE_P 4; set STRATEGY Congestion_SpreadLogic_high}
     {set ENGINE 0; set ED_K 4; set DENSE_P 4; set STRATEGY Performance_Explore}
