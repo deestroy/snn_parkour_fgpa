@@ -76,6 +76,11 @@ if {[info exists DATASET]} { set DS $DATASET; unset DATASET } else { set DS 0 }
 # N_ENGINES (C0003 replication for the meter): set before `source`, default 1.
 # Consumed and unset like REUSE_RUN so it cannot leak into the next build.
 if {[info exists N_ENGINES]} { set NENG $N_ENGINES; unset N_ENGINES } else { set NENG 1 }
+# STRATEGY (C0019, implementation-seed variation): an implementation
+# strategy name for impl_1, e.g. Performance_Explore or
+# Congestion_SpreadLogic_high; default = leave the run's current strategy.
+# Consumed per run; the tag gets _<strategy>.
+if {[info exists STRATEGY]} { set STRAT $STRATEGY; unset STRATEGY } else { set STRAT "" }
 # REUSE_RUN 1: do NOT rebuild -- take the already-completed impl_1 (must be
 # "write_bitstream Complete" and not out of date) and only do the checks,
 # reports and export.  For re-exporting after a post-build script error.
@@ -86,12 +91,13 @@ if {[info exists REUSE_RUN]} { set REUSE [expr {$REUSE_RUN ? 1 : 0}]; unset REUS
 if {$ENGINE} { set tag "ed_k${ED_K}" } else { set tag "dense_p${DENSE_P}" }
 if {$DS == 1} { set tag "${tag}_dvsg" }
 if {$NENG > 1} { append tag "_x${NENG}" }
+if {$STRAT ne ""} { append tag "_[string tolower $STRAT]" }
 set tag "${tag}_[clock format [clock seconds] -format %Y%m%d_%H%M]"
 set proj_dir [file dirname $PROJ]
 set out "$proj_dir/builds/$tag"
 file mkdir $out
 proc say {msg} { puts "\[build_engine\] $msg" }
-say "configuration: ENGINE=$ENGINE ED_K=$ED_K DENSE_P=$DENSE_P BAKED=$BAKED N_ENGINES=$NENG DATASET=$DS REUSE_RUN=$REUSE -> $out"
+say "configuration: ENGINE=$ENGINE ED_K=$ED_K DENSE_P=$DENSE_P BAKED=$BAKED N_ENGINES=$NENG DATASET=$DS STRATEGY=[expr {$STRAT eq "" ? "default" : $STRAT}] REUSE_RUN=$REUSE -> $out"
 
 # ---------------------------------------------------------------- project
 # Open the target project -- and refuse to build whichever OTHER project
@@ -105,6 +111,10 @@ if {[catch {set cur_dir [get_property DIRECTORY [current_project]]}]} {
 # implementations of the same netlist differ by 300k config bytes
 set_property AUTO_INCREMENTAL_CHECKPOINT 0 [get_runs synth_1]
 set_property AUTO_INCREMENTAL_CHECKPOINT 0 [get_runs impl_1]
+if {$STRAT ne ""} {
+    set_property strategy $STRAT [get_runs impl_1]
+    say "  impl_1 strategy -> $STRAT"
+}
 
 # ---------------------------------------------------------------- block design
 set bd [get_files -quiet design_1.bd]
