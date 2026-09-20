@@ -36,7 +36,7 @@ during the session are recorded as deviations. Procedure details live in
 | 6 | dense P=4, DATASET=1 | (rebuilding 2026-09-19) | its pair |
 | 7-8 | ED K=8 / dense P=8, N-MNIST | ed_k8_20260917_2106 / dense_p8_20260917_2221 | the parallelism crossover in energy, if time |
 | 9 | ED K=4, DATASET=1, **N_ENGINES=4** (x8 does not fit: g1 ED engine 21 BRAM tiles) | ed_k4_dvsg_x4_20260920_0010 (pass 13, 8/8) | resolvable DVS-Gesture ED delta; per-engine = delta / 4 |
-| 10 | dense P=4, DATASET=1, **N_ENGINES=2** (N=4 does not place: 65k decoded-enable output flops, addendum 7c) | dense_p4_dvsg_x2_20260920_1127 (built; board pass pending) | its pair; per-engine = delta / 2 |
+| 10 | dense P=4, DATASET=1, **N_ENGINES=2** (N=4 does not place: 65k decoded-enable output flops, addendum 7c) | dense_p4_dvsg_x2_20260920_1127 (pass 14, 8/8, per-clip latency = N=1) | its pair; per-engine = delta / 2 |
 
 Samples: the 16 N-MNIST check samples (BURST sweep over all 16 = the
 mean over the set) and the 8 DVS-Gesture clips. For #5-6 each clip is
@@ -216,7 +216,9 @@ stands as the contrary prediction.
 
 Row 10 (6e55859, experiments/power_estimates/): dense_p4_dvsg_x2_20260920_1127,
 N_ENGINES = 2, WNS +0.842 / WHS +0.028, 21 BRAM tiles, estimate 1.956 W
-total, fabric 270 mW. Board pass pending on the user's copy of the image.
+total, fabric 270 mW. On silicon 2026-09-20 (pass 14, 37ecf79): 8/8 bit-identical,
+3,706.4-3,706.5 us on every clip and the sweep, equal to N = 1. All ten
+matrix rows now have a bitstream on silicon.
 
 **Per-engine tool estimates by replication subtraction (section 7a
 method, fabric mW), written down before the meter:**
