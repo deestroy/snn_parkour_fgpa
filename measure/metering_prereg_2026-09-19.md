@@ -127,7 +127,7 @@ signals + BRAM (DSP 0); PS7 1.533 W in every build:
 | dense P=8 | 83 | 1.761 | 44.8 uJ |
 | ED K=4 DVS-Gesture | 72 | 1.750 | 214 uJ |
 | dense P=4 DVS-Gesture | 135 | 1.814 | ~499 uJ (latency predicted 3,697 us) |
-| dense P=4 N=1 N-MNIST | (rebuilding for its report) | | |
+| dense P=4 N=1 N-MNIST (rev 3, 2026-09-19 23:23, commit 48b2d62) | 73 (clocks 21 / logic 13 / signals 26 / BRAM 13) | 1.750 | 76.6 uJ |
 
 What this changes and what it does not:
 - **P1 revised numerically, not in kind:** single ED engine ~48 mW ->
@@ -158,3 +158,14 @@ What this changes and what it does not:
 - P3, P5, P6 unchanged. The x8 fabric numbers also give the fixed
   wrapper/DMA share: 48 - 30 = ~18 mW of the N=1 ED estimate is not the
   engine; this is why per-engine energy is quoted from the x8 delta.
+
+### 7a. Addendum 2026-09-19 23:30 -- the single-engine dense estimate
+
+dense P=4 N=1: fabric 73 mW -> 73 x 1,048.9 us = **76.6 uJ**; against ED
+K=4 N=1's 33.0 uJ the tool's single-engine ratio is **2.3x** (the x8-derived
+per-engine ratio is 3.2x; the difference is the fixed wrapper/DMA share,
+~10 mW on the dense build and ~18 mW on the ED build, which dilutes the
+N=1 ratio). P1 for the dense single engine: ~7.2 mA at 12 V / 0.85.
+Nothing else in section 7 changes: the tool still predicts ED wins energy
+at K=P=4 by 2.3x (N=1) to 3.2x (per engine from x8); my P2 (1.1-1.4x)
+stands as the contrary prediction.
