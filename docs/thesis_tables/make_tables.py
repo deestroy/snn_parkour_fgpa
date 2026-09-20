@@ -265,7 +265,7 @@ because training does not reproduce at a fixed seed (C0050).
 def crossover():
     rows = []
     # parallelism axis, C1: fit ED(K) = a + b/K over K=1..16 and dense(P) = c/P (+ measured P=4 point), solve ED = dense
-    for ds, d, extra in (("N-MNIST", "experiments/latency_sim/ksweep_c0035", {4: 104059}), ("DVS-Gesture", "experiments/dvsgesture/latency_sim", {})):
+    for ds, d, extra in (("N-MNIST", "experiments/latency_sim/ksweep_c0035", {}), ("DVS-Gesture", "experiments/dvsgesture/latency_sim", {})):
         Ks = [1, 2, 4, 8, 16]; ed = [cycles_file(os.path.join(d, "ed_k%d.txt" % k)).mean() for k in Ks]
         A = np.vstack([np.ones(5), 1.0 / np.array(Ks)]).T; a, b = np.linalg.lstsq(A, np.array(ed), rcond=None)[0]
         dn = dict(extra)

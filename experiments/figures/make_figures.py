@@ -55,10 +55,6 @@ def fig_kp_sweep():
                 dn.append(int(m.group(1)) / 100.0 if m else cycles_file(f).mean() / 100.0)
             else:
                 dn.append(np.nan)
-        # N-MNIST dense P=1/P=4 are not in files: P=4 measured 104,059 cycles (README), P=1 = 407.2k (fit)
-        if "N-MNIST" in title:
-            dn[ks.index(4)] = 104059 / 100.0
-            dn[ks.index(1)] = 407.2e3 / 100.0 + 20.0
         ed = np.array(ed)
         ax.errorbar(ks, ed[:, 0], yerr=[ed[:, 0] - ed[:, 1], ed[:, 2] - ed[:, 0]], fmt="o-", capsize=3,
                     label="event-driven K (sim, mean, min-max)")
