@@ -46,9 +46,14 @@ weights (threshold 16): corner exposure TL 0 / TR 0 / BL 24 / BR 20 of
 there), which is why the synthetic r1 set stays the ladder's guard.
 Both engines bit-identical on the real frames (ED K=4: 1,048,576
 comparisons, 19,372 input spikes; dense P=4: 1,572,864 comparisons).
-ED K=4 per sample: mean 185,616 cycles (1.86 ms), min 147,472, max
-251,872 (spread 1.71x) against dense P=4 at 360,444 cycles (3.60 ms):
-ED 1.94x on the mean, 1.43x on the worst frame. These are the year-two
+ED K=4 per sample over all 64 frames: mean 172,600 cycles (1.73 ms), min
+136,800, max 274,600 (spread 2.01x) against dense P=4 at 360,444 cycles
+(3.60 ms): ED 2.09x on the mean, 1.31x on the worst frame. (Correction
+2026-09-20: the first write-up quoted 1.86 / 2.52 ms and 1.94x / 1.43x; those
+were the exporter's default first 8 frames, not 64 -- C0048. The 64-frame
+bench needed the testbench's sample capacity made a parameter; per-frame
+cycles in experiments/p1_distill/isaac_i1_ed_k4_cycles_64.txt, 8,388,608
+comparisons bit-identical.) These are the year-two
 workload's C1 numbers with placeholder (MuJoCo-distilled) weights; the
 cycles are weight-independent for a given frame set, the accuracy is not.
 

@@ -115,8 +115,10 @@ equal DVS-Gesture's at every K (`experiments/rate_sweep/README.md`).
   ~13.6 s each, ETA 2026-09-21 ~03:00. Queued after it: GIFs per terrain,
   student evaluation, student-driven frames.
 - Real robot event frames (64, teacher-driven, direct coding): both
-  engines bit-identical; ED K=4 1.86 ms mean, 2.52 ms worst, dense 3.60
-  ms: **1.94x mean, 1.43x worst frame** (placeholder weights; cycles
+  engines bit-identical; ED K=4 1.73 ms mean, 2.75 ms worst (spread 2.01x),
+  dense 3.60 ms: **2.09x mean, 1.31x worst frame** over all 64 frames
+  (C0048: the earlier 1.86 / 2.52 ms were the first 8 frames only;
+  `experiments/p1_distill/isaac_i1_ed_k4_cycles_64.txt`) (placeholder weights; cycles
   are weight-independent).
 
 ## 6. What is NOT here, and why

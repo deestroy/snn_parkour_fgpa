@@ -12,7 +12,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-REVISED = "2026-09-20j"
+REVISED = "2026-09-20k"
 ONEDRIVE = os.path.expanduser("~/OneDrive - Carleton University/Research Papers/Final_thesis_images")
 GREEN, RED, BLUE = RGBColor(0x1B, 0x5E, 0x20), RGBColor(0xB7, 0x1C, 0x1C), RGBColor(0x0D, 0x47, 0xA1)
 PURPLE, ORANGE = RGBColor(0x6A, 0x1B, 0x9A), RGBColor(0xE6, 0x51, 0x00)
@@ -36,7 +36,7 @@ ACRONYMS = [
 OUTLINE = [
 (0, "Abstract", [
     "One paragraph (150-300 words), written last, in this order: the gap (SNN energy claims rest on tool estimates), what was built (dense and event-driven datapaths behind one wrapper on a Zynq-7020, bit-identical to a golden model on two datasets), how it was verified (33-check ladder, 14 silicon passes, zero misses), the two crossovers (parallelism, activity), the measured energy and its gap to the estimate, the perception workload.",
-    "RESULT: numbers to quote once final: ED K=4 beats dense P=4 by 1.52x on silicon (688.5 vs 1,048.9 us); dense wins at K=P=8 (540.3 vs 575.5 us); on DVS-Gesture ED wins 6 of 8 clips on silicon and loses the two densest (1.248x at the mean); accuracy 96.6-97.0 % N-MNIST, 63-69 % DVS-Gesture; robot frames ED 1.86 ms mean / 2.52 worst vs dense 3.60 ms.",
+    "RESULT: numbers to quote once final: ED K=4 beats dense P=4 by 1.52x on silicon (688.5 vs 1,048.9 us); dense wins at K=P=8 (540.3 vs 575.5 us); on DVS-Gesture ED wins 6 of 8 clips on silicon and loses the two densest (1.248x at the mean); accuracy 96.6-97.0 % N-MNIST, 63-69 % DVS-Gesture; robot frames ED 1.73 ms mean / 2.75 worst vs dense 3.60 ms (64 frames, sim).",
     "TODO: the measured-energy sentence (meter) and the student's success rates. No citations, figures or unexpanded acronyms in the abstract.",
 ]),
 (0, "Acknowledgements", [
@@ -79,7 +79,7 @@ OUTLINE = [
 ]),
 (1, "1.5  Summary of Results", [
     "Copy docs/results_ledger.md sections 1-5 as a one-page table; refresh when the meter and the student results land.",
-    "RESULT: silicon at 100 MHz, engine-only: ED K=4 688.5 us mean (554.8-815.8) vs dense P=4 1,048.9 us flat; ED K=8 575.5 vs dense P=8 540.3 us; DVS-Gesture ED K=4 2,970.8 us mean vs dense P=4 3,706.5 us flat (6 of 8 clips). Perception workload: teacher 95-99 % success per terrain; on 64 real robot event frames ED K=4 1.86 ms mean / 2.52 ms worst vs dense 3.60 ms.",
+    "RESULT: silicon at 100 MHz, engine-only: ED K=4 688.5 us mean (554.8-815.8) vs dense P=4 1,048.9 us flat; ED K=8 575.5 vs dense P=8 540.3 us; DVS-Gesture ED K=4 2,970.8 us mean vs dense P=4 3,706.5 us flat (6 of 8 clips). Perception workload: teacher 95-99 % success per terrain; on 64 real robot event frames ED K=4 1.73 ms mean / 2.75 ms worst vs dense 3.60 ms (sim).",
     "TAB: [todo] Headline table: one row per result (latency at K=P=4 and 8, per-clip crossover, trained-activity crossovers, T ceiling, energy measured vs estimated, student success), with the basis column (sim / board / gpu) and the section.",
 ]),
 (1, "1.6  Thesis Organization", [
@@ -365,10 +365,10 @@ OUTLINE = [
     "TAB: [exists] (docs/thesis_tables/lessons.md, 12 rows) Lessons table: date, symptom, where seen (synthesis / timing / silicon / second dataset), root cause, fix, guard added (check name), reference (decisions.md date or C-number).",
 ]),
 (1, "6.8  The Perception Workload: Distillation, Evaluation and Deployment", [
-    "RESULT: teacher 15,000 iterations (23.3 h, 1080 Ti), success gap 95.3 / hurdle 96.1 / parkour 97.2 / step 99.2 % under extreme-parkour's protocol (experiments/p1_distill/isaac_eval_README.md). FPGA-student distillation running (10k iterations, ETA 2026-09-21): TODO its success rates on the same protocol, GIFs per terrain (teacher and student), student-driven frames, then the stock depth student as the reference. Real robot event frames (64, direct coding): both engines bit-identical; ED K=4 1.86 ms mean / 2.52 ms worst vs dense 3.60 ms (1.94x / 1.43x). The MuJoCo recreation's earlier result (58k student vs the 11.19M reference) as precursor (experiments/p1_distill/results_fpga_*.md).",
-    "Deadline reading: per-frame spread 1.71x (robot), 2.30x (DVS-Gesture) -- the worst-case verdict differs from the mean one. TODO: FPGA-in-the-loop over SSH and the perception-rate sweep (energy per control cycle, deadline-miss rate) if time allows.",
+    "RESULT: teacher 15,000 iterations (23.3 h, 1080 Ti), success gap 95.3 / hurdle 96.1 / parkour 97.2 / step 99.2 % under extreme-parkour's protocol (experiments/p1_distill/isaac_eval_README.md). FPGA-student distillation running (10k iterations, ETA 2026-09-21): TODO its success rates on the same protocol, GIFs per terrain (teacher and student), student-driven frames, then the stock depth student as the reference. Real robot event frames (64, direct coding): both engines bit-identical; ED K=4 1.73 ms mean / 2.75 ms worst vs dense 3.60 ms (2.09x / 1.31x, all 64 frames; the first write-up's 1.86 / 2.52 ms were 8 frames, C0048). The MuJoCo recreation's earlier result (58k student vs the 11.19M reference) as precursor (experiments/p1_distill/results_fpga_*.md).",
+    "Deadline reading: per-frame spread 2.01x (robot, 64 frames), 2.24x (DVS-Gesture, board) -- the worst-case verdict differs from the mean one. TODO: FPGA-in-the-loop over SSH and the perception-rate sweep (energy per control cycle, deadline-miss rate) if time allows.",
     "How to read the student's success rates: against the teacher (the ceiling, privileged scandots), against the stock depth student (the paper's own recipe with an 11M-parameter ResNet), and against ES-Parkour's Fig. 5 (a different simulator seed and protocol, so only the ordering of terrains is comparable). State the distillation budget (10k vs the paper's unspecified) as the main caveat.",
-    "The deadline budget at 10 Hz is 100 ms; the encoder's worst frame on the board is 2.52 ms (ED) or 3.60 ms (dense), so both meet it with margin; the interesting number is the fraction of the budget and the spread, and what perception rate (20, 50, 100 Hz) each engine would first miss -- from the cycle model, then measured if the FPGA-in-the-loop run happens.",
+    "The deadline budget at 10 Hz is 100 ms; the encoder's worst frame is 2.75 ms (ED, sim over 64 frames) or 3.60 ms (dense, board-confirmed constant), so both meet it with margin; the interesting number is the fraction of the budget and the spread, and what perception rate (20, 50, 100 Hz) each engine would first miss -- from the cycle model, then measured if the FPGA-in-the-loop run happens.",
     "Student-driven frames vs teacher-driven frames: the student's own trajectories produce the activity distribution the hardware would see in deployment; compare density and ED latency between the two frame sets once the student frames are benched.",
     "FIG: [todo] One still per terrain (gap, hurdle, parkour, step) from the teacher and student GIFs, side by side, with success annotated (experiments/p1_distill/gifs/ once copied).",
     "FIG: [todo] Per-frame latency on the 64 real event frames: ED K=4 and dense, sorted by input spike count, with the worst-case and the 10 Hz budget line; add the student-driven set as a second series.",
@@ -388,7 +388,7 @@ OUTLINE = [
 ]),
 (1, "7.1  Summary of Findings", [
     "Answer RQ1-RQ3 in three paragraphs; revisit each objective from 1.3 with its number.",
-    "RQ1: crossover at K=P ~6 on both datasets (silicon-bracketed) and ~30 % input density per clip (silicon); trained-activity crossovers 43-57 % at K=P=4 falling to 26-44 % at 16 (sim). RQ2: TODO the measured ratio vs the tool's 3.1-3.2x. RQ3: the worst-case verdict flips on DVS-Gesture (dense wins the densest clips) and narrows on the robot frames (1.94x mean -> 1.43x worst).",
+    "RQ1: crossover at K=P ~6 on both datasets (silicon-bracketed) and ~30 % input density per clip (silicon); trained-activity crossovers 43-57 % at K=P=4 falling to 26-44 % at 16 (sim). RQ2: TODO the measured ratio vs the tool's 3.1-3.2x. RQ3: the worst-case verdict flips on DVS-Gesture (dense wins the densest clips) and narrows on the robot frames (2.09x mean -> 1.31x worst).",
     "One paragraph on the methodological finding (verification on one dataset is not verification; pre-registration caught one wrong model term and rejected two wrong bitstreams).",
 ]),
 (1, "7.2  Limitations", [

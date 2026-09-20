@@ -997,6 +997,22 @@ decision entry before it is built.
 **Done when:** both windows have a trained student and a bench row, or the
 decision log says why only one is reported.
 ---
+## C0048 — The "64 real frames" latency numbers were computed on 8 frames (P2, fixed)
+**Problem.** The 2026-09-18 write-up (decisions.md, ledger, robot/isaac/README.md,
+outline) quoted ED K=4 1.86 ms mean / 2.52 ms worst / 1.94x / 1.43x "on 64 real
+robot event frames". The vector exporter's default is 8 samples and the ED
+testbench's sample capacity was a fixed 16, so the bench ran on the first 8 frames;
+the committed cycle file has 8 rows. The numbers were correct for 8 frames and
+mislabelled as 64.
+**Fix (2026-09-20).** Testbench capacity made a parameter (MAX_SAMPLES, default
+16, behaviour unchanged; ladder spot check passes), the runner passes NS through,
+the exporter takes I1_SAMPLES; all 64 frames benched in one run: 8,388,608
+comparisons bit-identical, ED K=4 1.73 ms mean / 2.75 ms worst (spread 2.01x),
+dense 3.60 ms: 2.09x mean, 1.31x worst. Every quote corrected in place with a
+note. The lesson joins C0044's: a claim about N samples needs the N-row file
+beside it (the per-sample figure now reads the 64-row file directly).
+**Done when:** done.
+---
 ## Closing note on this review
 Three passes have been made: methodology (C0001–C0017), measurement
 accuracy and missing experiments (C0018–C0027), design and internal

@@ -3243,3 +3243,15 @@ build, the crossover heat map, the three input sources) and seven thesis
 tables generated from repository files (docs/thesis_tables/). The ED
 testbench's sample capacity became a parameter (MAX_SAMPLES, default 16,
 behaviour unchanged) so the 64 robot frames can be benched in one run.
+
+## 2026-09-20 — C0048: the robot-frame latency was an 8-frame number; all 64 frames now benched
+
+The 2026-09-18 "64 real frames" figures (1.86 ms mean / 2.52 ms worst,
+1.94x / 1.43x) came from the exporter's default 8 samples; the testbench's
+capacity was a fixed 16. Capacity is now a parameter, and all 64 frames ran
+in one bench: 8,388,608 comparisons bit-identical, ED K=4 1.73 ms mean /
+2.75 ms worst (spread 2.01x) against dense 3.60 ms: 2.09x on the mean,
+1.31x on the worst frame. The mean improves and the worst-case margin
+shrinks -- the deadline reading moves the right way for the thesis's
+argument (worst case matters more than mean). Corrected in place in the
+ledger, the robot README and the outline; recorded as C0048.
