@@ -68,7 +68,10 @@ ED's best sample, 48,317, still beats dense's 53,195) that we can build.
 > K = 7.39 (7.31 on the engine-busy basis, which is the same answer with
 > the wrapper constant removed from both sides). Interpolating the
 > measured ratios geometrically — 1.536 at K = P = 4, 0.942 at 8 — gives
-> 7.35, so the data always said ~7.4. It was an arithmetic slip, not a
+> 7.35, so the data always said ~7.4. The clearest way to see the error:
+> evaluate both models AT K = P = 6.6 and the ED engine is at 58,861 cycles
+> against the dense engine's 63,984 — dense still 9 % behind, so 6.6 was never
+> a crossing point. It was an arithmetic slip, not a
 > data problem: every table, every measurement and the silicon bracket
 > (ED wins at 4, dense at 8) are unchanged, and 7.4 sits closer to the
 > K = P = 8 pair, which is why dense wins there by only 6 %. Recomputed

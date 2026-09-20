@@ -1042,9 +1042,18 @@ correction footnote, because rewriting a pre-registration would defeat its
 purpose. The number is no longer typed anywhere it matters:
 `docs/thesis_tables/crossover.md` recomputes it from the cycle files on every
 table build.
+**Independently verified (2026-09-20, board session).** Rederived from its own
+copies of the fits: 7.389 on totals, 7.316 on the engine-busy basis, and 7.31
+from log-interpolating its own measured ratios (1.523 at K = P = 4, 0.939 at
+8) — agreeing with the value above to 0.08. Its decisive check is the clearest
+statement of the error: evaluating both models **at** K = P = 6.6 gives ED
+58,861 cycles against dense 63,984, so the dense engine is still 9 % behind
+there and 6.6 was never a crossing point at all; at 7.4 the two models are 62
+cycles apart.
 **Lesson.** A derived number that is quoted more often than it is recomputed
 drifts from its own inputs. Every derived headline now has a generator
-(the tables) or a figure that reads the data.
+(the tables) or a figure that reads the data. Two sessions rederiving it
+independently is what caught how far off it was.
 **Done when:** done.
 ---
 ## C0050 — Training is not reproducible at a fixed seed, and the difference straddles the int16 ceiling (P1)
