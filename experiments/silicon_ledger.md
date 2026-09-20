@@ -22,10 +22,11 @@ NOT measurements; the meter (M5) has not arrived.
 | 10 | 09-19 | ed_k4_dvsg_20260919_1324 | ED K=4 | DVS-Gesture | 1 | +0.190 | 8/8 | 2,970.8 us mean, 2,084.6-4,663.9 (2.24x) | held; offset basis corrected | dvsgesture/board_ed_k4_20260919.md |
 | 11 | 09-19 | dense_p4_dvsg_20260919_1447 | dense P=4 (rev 3) | DVS-Gesture | 1 | +1.091 | 8/8 | 3,706.5 us flat | held 5/5 | dvsgesture/board_dense_p4_20260919.md |
 | 12 | 09-19 | dense_p4_20260919_2323 | dense P=4 (rev 3) | N-MNIST | 1 | +0.768 | 16/16 | 1,048.9 us flat | (validation) | board_dense_p4_rev3_20260919.md |
+| 13 | 09-20 | ed_k4_dvsg_x4_20260920_0010 | ED K=4 | DVS-Gesture | 4 | +0.119 | 8/8 | = pass 10 to 0.1 us | (replication) | dvsgesture/board_ed_k4_x4_20260920.md |
 
 Passes 1-2 (2026-08) were the loopback and the first functional engine
 passes at 1.51 ms / 4.41 ms, superseded by C0030/C0035 (decisions.md).
-Zero correctness misses in twelve passes; every latency prediction
+Zero correctness misses in thirteen passes; every latency prediction
 held; two resource predictions and one offset hypothesis failed and
 are recorded as such.
 

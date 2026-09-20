@@ -3175,3 +3175,24 @@ activity network is past the crossover on C2 (dense 1.18x faster): the
 first real-data point where the dense engine wins a conv layer, and the
 same trade the C1 silicon pair showed at K = P = 8. Figure
 `experiments/figures/fig_crossover_vs_kp.png`.
+
+## 2026-09-20 — Overnight queue results; pass 13 (ED K=4 x4 on DVS-Gesture)
+
+**Queue (build_queue.tcl, unattended 00:10-00:30).** 5 of 6 built:
+ED K=4 DVS-Gesture x4 (WNS +0.119, 86 tiles), and C0019 strategy
+variants of ED K=4 / dense P=4 N-MNIST -- ED +0.475 (default) / +0.346
+(Performance_Explore) / +0.499 (Congestion_SpreadLogic_high); dense
++0.768 / +0.388 / +0.354. All close; the variants exist for the meter
+(bitstream-to-bitstream spread of the estimate and the measurement).
+Dense P=4 DVS-Gesture x4 failed inside the runs before any report
+(cause being read; N=2 is the fallback). First queue attempt aborted on
+a comment inside the QUEUE brace list (fixed the same night).
+
+**Pass 13.** ED K=4 DVS-Gesture x4: 8/8, every per-clip latency equal
+to the N=1 pass to 0.1 us; 1.926 W estimate. Record:
+experiments/dvsgesture/board_ed_k4_x4_20260920.md.
+
+**AXIS stress (overnight, Mac).** 60 seeds x {c1, g1} x {ED K=4, dense
+P=4}, baked variants, hostile handshake: 240/240 bit-identical
+(experiments/axis_stress/). The wrapper's handshake is now tested far
+beyond the single seed of the ladder and the DMA's one pattern.
