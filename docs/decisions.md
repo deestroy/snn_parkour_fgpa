@@ -3380,3 +3380,43 @@ Recorded before the K-sweep builds exist, so K=16's row scores it. I had
 argued the opposite (a linear +1.0/doubling) from the two-point fit and
 was wrong; the peer session's original primitive-floor hypothesis was
 right and has been reinstated with this mechanism attached.
+
+## 2026-09-20 (later) — The K-cost decomposed: a 288-byte table replicated K/2 times
+
+Correcting my own entry above, which put the K=16 floor at 15.5 tiles by
+omitting the scatter's non-bank block RAM. The peer session caught the
+omission; the mechanism is now derived rather than extrapolated.
+
+ed_scatter.v:205 reads the weight table K times in ONE cycle
+(`for (j = 0; j < K; j = j + 1) w_r[j] <= wt[wt_row + j]`). K parallel
+reads need K read ports and a RAMB18 is dual-port, so synthesis
+replicates the table into **K/2 primitives**. That reproduces both
+measured builds exactly (K=4: 2 RAMB18; K=8: 4) and predicts 8 at K=16.
+
+| K | banks | wt copies (K/2) | engine excl. scatter | DMA | whole |
+|---|---|---|---|---|---|
+| 4 | 4 RAMB36 = 4.0 | 2 RAMB18 = 1.0 | 5.5 | 2.0 | **12.5** (measured) |
+| 8 | 8 RAMB18 = 4.0 | 4 RAMB18 = 2.0 | 5.5 | 2.0 | **13.5** (measured) |
+| 16 | 16 RAMB18 = 8.0 | 8 RAMB18 = 4.0 | 5.5 | 2.0 | **19.5** (predicted) |
+
+Bank storage is flat at 4.0 tiles from K=2 to K=8 -- the per-bank
+primitive halves exactly as the count doubles -- and doubles at K=16,
+where a 4,624-bit bank still costs a whole 18,432-bit RAMB18. **K=8 is
+the largest bank count that costs no extra block RAM.**
+
+**The inefficiency this exposed.** `wt` is C_IN x 9 x C_OUT bytes = 288
+bytes = 2,304 bits. At K=16 its eight copies occupy 147,456 bits of
+primitive: **1.6 % utilised**, 4.0 tiles for a quarter-kilobyte lookup
+(6.2 % at K=4). Forcing it to distributed RAM would put K=16 at 15.5
+tiles instead of 19.5, and would decide K6: K=16 at R=8 is 142 tiles
+against 140 as built (no fit) but 110 with the attribute (fits). A
+synthesis attribute on a 288-byte array, not the architecture, decides
+whether the far end of the axis replicates.
+
+**Decision: the RTL is NOT changed for this sweep.** Fixing it now would
+tune the experiment mid-flight, invalidate K5/K6 as pre-registered, and
+orphan every ED bitstream already validated on silicon. The sweep
+measures the design as built and as every board result on record was
+built; the `ram_style` saving is recorded here as a named, quantified
+improvement the sweep exposed. Re-baselining is the user's call and
+means rebuilding and re-validating all ED bitstreams.
